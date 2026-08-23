@@ -1,0 +1,30 @@
+@page "/"
+@using PhieuFlow.Core.Entities
+
+<PageTitle>Home</PageTitle>
+
+<h1>Forms</h1>
+
+@if (Forms.Count == 0)
+{
+    <p>No forms available.</p>
+}
+else
+{
+    <ul>
+        @foreach (var form in Forms)
+        {
+            <li>
+                <strong>@form.Title</strong>
+                @if (!string.IsNullOrWhiteSpace(form.Description))
+                {
+                    <span> - @form.Description</span>
+                }
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private List<Form> Forms { get; set; } = [];
+}
