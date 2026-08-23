@@ -1,30 +1,398 @@
 @page "/"
-@using PhieuFlow.Core.Entities
+@inject IJSRuntime JS
 
-<PageTitle>Home</PageTitle>
+<PageTitle>All forms</PageTitle>
 
-<h1>Forms</h1>
+<header class="border-b border-border bg-surface px-8 pt-5">
+    <div class="flex items-start justify-between gap-6">
+        <div class="flex flex-col gap-1">
+            <div class="font-mono text-[10px] tracking-[0.07em] text-text-faintest uppercase">PhieuFlow / Forms</div>
+            <h1 class="m-0 text-[21px] font-semibold tracking-[-0.02em]">All forms</h1>
+        </div>
+        <div class="flex items-center gap-[10px]">
+            <div class="flex h-[34px] w-[210px] flex-none items-center gap-2 rounded-md border border-border bg-page-bg px-[10px] focus-within:border-accent">
+                <Blazicon Svg="Lucide.Search" class="text-sm text-text-faint" />
+                <input type="text"
+                       placeholder="Search forms"
+                       value="@_query"
+                       @oninput="OnSearchInput"
+                       class="w-full border-none bg-transparent text-[13px] text-text outline-none placeholder:text-text-faint" />
+            </div>
+            <button type="button"
+                    class="flex h-[34px] flex-none items-center gap-[7px] whitespace-nowrap rounded-md border border-accent bg-accent px-4 text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
+                <Blazicon Svg="Lucide.Plus" class="text-[13px]" />
+                New form
+            </button>
+        </div>
+    </div>
 
-@if (Forms.Count == 0)
-{
-    <p>No forms available.</p>
-}
-else
-{
-    <ul>
-        @foreach (var form in Forms)
+    <div class="mt-[18px] flex gap-[26px]">
+        <button type="button" @onclick="@(() => SelectStatus(null))"
+                class="border-b-2 pb-[11px] text-[13px] @(StatusTabClasses(null))">
+            All <span class="font-mono text-[11px] text-[#8fada9]">@CountAll</span>
+        </button>
+        <button type="button" @onclick="@(() => SelectStatus(FormStatus.Published))"
+                class="border-b-2 pb-[11px] text-[13px] @(StatusTabClasses(FormStatus.Published))">
+            Published <span class="font-mono text-[11px] text-text-faintest-2">@CountPublished</span>
+        </button>
+        <button type="button" @onclick="@(() => SelectStatus(FormStatus.Draft))"
+                class="border-b-2 pb-[11px] text-[13px] @(StatusTabClasses(FormStatus.Draft))">
+            Drafts <span class="font-mono text-[11px] text-text-faintest-2">@CountDraft</span>
+        </button>
+    </div>
+</header>
+
+<div class="flex-1 px-8 pt-6 pb-10">
+    <div class="overflow-x-auto rounded-lg border border-border bg-surface shadow-[0_1px_2px_rgba(16,24,24,0.04)]">
+
+        <div class="grid grid-cols-[28px_minmax(180px,1fr)_110px_140px_104px] items-center gap-3 border-b border-border-soft bg-surface-subtle px-[18px] py-[10px] font-mono text-[10px] tracking-[0.07em] text-text-faint uppercase">
+            <span></span>
+            <span>Form name</span>
+            <span>Status</span>
+            <span>Last modified</span>
+            <span class="text-right">Actions</span>
+        </div>
+
+        @if (PagedForms.Count == 0)
         {
-            <li>
-                <strong>@form.Title</strong>
-                @if (!string.IsNullOrWhiteSpace(form.Description))
-                {
-                    <span> - @form.Description</span>
-                }
-            </li>
+            <div class="flex flex-col items-center gap-2 px-5 py-16">
+                <span class="text-sm font-semibold">No forms match "@_query"</span>
+                <span class="text-[13px] text-text-faint">Try a different search term, or create a new form.</span>
+            </div>
         }
-    </ul>
-}
+        else
+        {
+            @foreach (var form in PagedForms)
+            {
+                var expanded = _expandedId == form.Id;
+                <div class="border-b border-border-row">
+                    <div @onclick="@(() => ToggleRow(form.Id))"
+                         class="grid cursor-pointer grid-cols-[28px_minmax(180px,1fr)_110px_140px_104px] items-center gap-3 px-[18px] py-[13px] hover:bg-surface-subtle">
+                        <Blazicon Svg="Lucide.ChevronRight"
+                                  class="@("text-sm transition-transform duration-150 " + (expanded ? "rotate-90 text-accent" : "text-text-faintest-2"))" />
+
+                        <div class="flex min-w-0 flex-col gap-0.5">
+                            <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[13.5px] font-semibold tracking-[-0.005em] text-text">@form.Title</span>
+                            <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] text-text-faint">@form.Description</span>
+                        </div>
+
+                        <div>
+                            @if (form.Status == FormStatus.Published)
+                            {
+                                <span class="inline-flex h-[22px] items-center gap-[6px] rounded-full bg-accent-surface-alt px-[9px] text-[11.5px] font-semibold text-accent">
+                                    <span class="h-[5px] w-[5px] rounded-full bg-accent"></span>Published
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="inline-flex h-[22px] items-center gap-[6px] rounded-full bg-[#f2f3f3] px-[9px] text-[11.5px] font-semibold text-text-soft">
+                                    <span class="h-[5px] w-[5px] rounded-full bg-text-faintest-2"></span>Draft
+                                </span>
+                            }
+                        </div>
+
+                        <div class="flex flex-col gap-px">
+                            <span class="text-[12.5px] text-text-body">@form.LastModifiedAt.ToString("d MMM yyyy, HH:mm")</span>
+                            <span class="text-[11px] text-text-faintest">by @form.LastModifiedBy</span>
+                        </div>
+
+                        <div class="flex items-center justify-end gap-[6px]" @onclick:stopPropagation="true">
+                            <button type="button" class="h-7 rounded-md border border-border-control bg-white px-[11px] text-[12.5px] font-medium text-text-body hover:border-accent hover:text-accent">Edit</button>
+                            <button type="button" class="flex h-7 w-7 items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-border-control-hover hover:text-text">
+                                <Blazicon Svg="Lucide.Ellipsis" class="text-sm" />
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (expanded)
+                    {
+                        <div class="grid grid-cols-[minmax(0,1fr)_268px] gap-8 border-t border-border-row bg-surface-panel py-1 pr-[18px] pb-5 pl-[62px]">
+                            <div class="flex flex-col gap-[14px] pt-[14px]">
+                                <p class="m-0 max-w-[62ch] text-[13px] leading-[1.55] text-text-muted">@form.Description</p>
+                                <div class="flex flex-wrap gap-x-[30px] gap-y-4">
+                                    <div class="flex flex-col gap-[3px]">
+                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Questions</span>
+                                        <span class="text-[15px] font-semibold">@form.QuestionCount</span>
+                                    </div>
+                                    <div class="flex flex-col gap-[3px]">
+                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Pages</span>
+                                        <span class="text-[15px] font-semibold">@form.PageCount</span>
+                                    </div>
+                                    <div class="flex flex-col gap-[3px]">
+                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Created</span>
+                                        <span class="text-[15px] font-semibold">@form.CreatedAt.ToString("d MMM yyyy")</span>
+                                    </div>
+                                    <div class="flex flex-col gap-[3px]">
+                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Revision</span>
+                                        <span class="font-mono text-[13px] font-medium text-text-body">rev @form.Revision</span>
+                                    </div>
+                                    <div class="flex flex-col gap-[3px]">
+                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Form ID</span>
+                                        <span class="font-mono text-[13px] font-medium text-text-body">@(form.Id.ToString()[..8])&hellip;</span>
+                                    </div>
+                                </div>
+
+                                @if (form.Status == FormStatus.Published)
+                                {
+                                    <div class="flex max-w-[520px] items-center gap-[10px] rounded-md border border-border bg-white px-3 py-2">
+                                        <Blazicon Svg="Lucide.Link2" class="text-sm text-text-faint" />
+                                        <span class="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs text-text-muted">@form.PublicUrl</span>
+                                        <button type="button" @onclick="@(() => CopyLink(form.PublicUrl))"
+                                                class="ml-auto h-6 flex-none rounded-[5px] border border-border-control bg-white px-[9px] text-[11.5px] font-medium text-text-body hover:border-accent hover:text-accent">
+                                            Copy
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="flex flex-col gap-2 pt-[14px]">
+                                <button type="button" class="h-[34px] rounded-md border border-accent bg-accent text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">Edit form</button>
+                                <button type="button" @onclick="@(() => TogglePublish(form))"
+                                        class="h-[34px] rounded-md border border-border-control bg-white text-[13px] font-medium text-text-body hover:border-border-control-hover">
+                                    @(form.Status == FormStatus.Published ? "Unpublish" : "Publish")
+                                </button>
+                                <button type="button" @onclick="@(() => DeleteForm(form))"
+                                        class="h-[34px] rounded-md border border-danger-border bg-white text-[13px] font-medium text-danger hover:border-danger-border-hover hover:bg-danger-surface">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+
+        <div class="flex items-center justify-between gap-4 bg-surface-subtle px-[18px] py-3">
+            <span class="text-[12.5px] text-text-faint">Showing <span class="font-semibold text-text-body">@PagedForms.Count</span> of @FilteredForms.Count forms</span>
+            <div class="flex items-center gap-1">
+                <button type="button" disabled="@(_page <= 1)" @onclick="@(() => GoToPage(_page - 1))"
+                        class="h-7 rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-body enabled:hover:border-border-control-hover disabled:cursor-default disabled:text-text-faintest-2">
+                    Previous
+                </button>
+                @for (var p = 1; p <= TotalPages; p++)
+                {
+                    var pageNumber = p;
+                    <button type="button" @onclick="@(() => GoToPage(pageNumber))"
+                            class="@("h-7 min-w-7 rounded-md border text-[12.5px] " + (pageNumber == _page ? "border-accent bg-accent font-semibold text-white" : "border-border-control bg-white text-text-body hover:border-border-control-hover"))">
+                        @pageNumber
+                    </button>
+                }
+                <button type="button" disabled="@(_page >= TotalPages)" @onclick="@(() => GoToPage(_page + 1))"
+                        class="h-7 rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-body enabled:hover:border-border-control-hover disabled:cursor-default disabled:text-text-faintest-2">
+                    Next
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
-    private List<Form> Forms { get; set; } = [];
+    private const int PageSize = 5;
+
+    private readonly List<FormSummary> _forms = new()
+    {
+        new FormSummary
+        {
+            Id = Guid.Parse("a41c9f2e-0000-0000-0000-000000000001"),
+            Title = "Employee onboarding checklist",
+            Description = "HR - new starters, week one. Branches by contract type; the equipment section only appears for on-site roles.",
+            Status = FormStatus.Published,
+            CreatedAt = new DateTimeOffset(2026, 3, 3, 9, 0, 0, TimeSpan.Zero),
+            LastModifiedAt = new DateTimeOffset(2026, 8, 12, 9, 14, 0, TimeSpan.Zero),
+            LastModifiedBy = "S. Laine",
+            Revision = 14,
+            QuestionCount = 24,
+            PageCount = 4,
+            PublicUrl = "https://forms.phieuflow.app/f/a41c9f2e",
+        },
+        new FormSummary
+        {
+            Id = Guid.Parse("6d0b83a7-0000-0000-0000-000000000002"),
+            Title = "Customer satisfaction survey Q3",
+            Description = "Quarterly NPS and service feedback, sent to all active accounts at the end of the quarter.",
+            Status = FormStatus.Published,
+            CreatedAt = new DateTimeOffset(2026, 6, 28, 9, 0, 0, TimeSpan.Zero),
+            LastModifiedAt = new DateTimeOffset(2026, 8, 11, 16, 2, 0, TimeSpan.Zero),
+            LastModifiedBy = "M. Virtanen",
+            Revision = 9,
+            QuestionCount = 12,
+            PageCount = 2,
+            PublicUrl = "https://forms.phieuflow.app/f/6d0b83a7",
+        },
+        new FormSummary
+        {
+            Id = Guid.Parse("f7241be0-0000-0000-0000-000000000003"),
+            Title = "Supplier compliance declaration",
+            Description = "Procurement - annual renewal. Still missing the signature step and the certificate upload.",
+            Status = FormStatus.Draft,
+            CreatedAt = new DateTimeOffset(2026, 8, 9, 9, 0, 0, TimeSpan.Zero),
+            LastModifiedAt = new DateTimeOffset(2026, 8, 9, 11, 47, 0, TimeSpan.Zero),
+            LastModifiedBy = "S. Laine",
+            Revision = 3,
+            QuestionCount = 31,
+            PageCount = 5,
+        },
+        new FormSummary
+        {
+            Id = Guid.Parse("2b95ca18-0000-0000-0000-000000000004"),
+            Title = "Site safety inspection",
+            Description = "Operations - weekly walkthrough. Any hazard answer triggers a follow-up photo field.",
+            Status = FormStatus.Published,
+            CreatedAt = new DateTimeOffset(2026, 1, 14, 9, 0, 0, TimeSpan.Zero),
+            LastModifiedAt = new DateTimeOffset(2026, 8, 7, 7, 33, 0, TimeSpan.Zero),
+            LastModifiedBy = "J. Korhonen",
+            Revision = 27,
+            QuestionCount = 18,
+            PageCount = 3,
+            PublicUrl = "https://forms.phieuflow.app/f/2b95ca18",
+        },
+        new FormSummary
+        {
+            Id = Guid.Parse("0c58e6d4-0000-0000-0000-000000000005"),
+            Title = "Training feedback - workshop series",
+            Description = "Internal L&D. Short single-page form, waiting on the final session list before publishing.",
+            Status = FormStatus.Draft,
+            CreatedAt = new DateTimeOffset(2026, 8, 5, 9, 0, 0, TimeSpan.Zero),
+            LastModifiedAt = new DateTimeOffset(2026, 8, 5, 14, 20, 0, TimeSpan.Zero),
+            LastModifiedBy = "M. Virtanen",
+            Revision = 2,
+            QuestionCount = 9,
+            PageCount = 1,
+        },
+        new FormSummary
+        {
+            Id = Guid.Parse("93ae5107-0000-0000-0000-000000000006"),
+            Title = "Incident report",
+            Description = "Operations - unplanned events. Public link; submissions notify the duty manager.",
+            Status = FormStatus.Published,
+            CreatedAt = new DateTimeOffset(2025, 11, 22, 9, 0, 0, TimeSpan.Zero),
+            LastModifiedAt = new DateTimeOffset(2026, 8, 1, 8, 55, 0, TimeSpan.Zero),
+            LastModifiedBy = "J. Korhonen",
+            Revision = 31,
+            QuestionCount = 16,
+            PageCount = 3,
+            PublicUrl = "https://forms.phieuflow.app/f/93ae5107",
+        },
+        new FormSummary
+        {
+            Id = Guid.Parse("5e12f8bb-0000-0000-0000-000000000007"),
+            Title = "Vendor onboarding request",
+            Description = "Finance - new supplier setup. Held back until the approval routing is confirmed.",
+            Status = FormStatus.Draft,
+            CreatedAt = new DateTimeOffset(2026, 7, 29, 9, 0, 0, TimeSpan.Zero),
+            LastModifiedAt = new DateTimeOffset(2026, 7, 29, 13, 10, 0, TimeSpan.Zero),
+            LastModifiedBy = "S. Laine",
+            Revision = 5,
+            QuestionCount = 22,
+            PageCount = 4,
+        },
+    };
+
+    private string _query = string.Empty;
+    private FormStatus? _statusFilter;
+    private Guid? _expandedId = Guid.Parse("6d0b83a7-0000-0000-0000-000000000002");
+    private int _page = 1;
+
+    private int CountAll => _forms.Count;
+    private int CountPublished => _forms.Count(f => f.Status == FormStatus.Published);
+    private int CountDraft => _forms.Count(f => f.Status == FormStatus.Draft);
+
+    private List<FormSummary> FilteredForms
+    {
+        get
+        {
+            var query = _query.Trim();
+            IEnumerable<FormSummary> result = _forms;
+            if (_statusFilter is { } status)
+            {
+                result = result.Where(f => f.Status == status);
+            }
+
+            if (!string.IsNullOrEmpty(query))
+            {
+                result = result.Where(f =>
+                    f.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    (f.Description ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    f.Id.ToString().Contains(query, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return result.ToList();
+        }
+    }
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredForms.Count / (double)PageSize));
+
+    private List<FormSummary> PagedForms
+    {
+        get
+        {
+            var filtered = FilteredForms;
+            var page = Math.Clamp(_page, 1, Math.Max(1, TotalPages));
+            return filtered.Skip((page - 1) * PageSize).Take(PageSize).ToList();
+        }
+    }
+
+    private string StatusTabClasses(FormStatus? status) =>
+        status == _statusFilter
+            ? "border-accent font-semibold text-accent"
+            : "border-transparent text-text-soft hover:text-text";
+
+    private void SelectStatus(FormStatus? status)
+    {
+        _statusFilter = status;
+        _page = 1;
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? string.Empty;
+        _page = 1;
+    }
+
+    private void ToggleRow(Guid id)
+    {
+        _expandedId = _expandedId == id ? null : id;
+    }
+
+    private void GoToPage(int page)
+    {
+        _page = Math.Clamp(page, 1, TotalPages);
+    }
+
+    private void TogglePublish(FormSummary form)
+    {
+        form.Status = form.Status == FormStatus.Published ? FormStatus.Draft : FormStatus.Published;
+        form.LastModifiedAt = DateTimeOffset.Now;
+        if (form.Status == FormStatus.Published && string.IsNullOrEmpty(form.PublicUrl))
+        {
+            form.PublicUrl = $"https://forms.phieuflow.app/f/{form.Id.ToString()[..8]}";
+        }
+    }
+
+    private async Task DeleteForm(FormSummary form)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete \"{form.Title}\"? This can't be undone.");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _forms.Remove(form);
+        if (_expandedId == form.Id)
+        {
+            _expandedId = null;
+        }
+
+        _page = Math.Clamp(_page, 1, TotalPages);
+    }
+
+    private async Task CopyLink(string? url)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return;
+        }
+
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
+    }
 }

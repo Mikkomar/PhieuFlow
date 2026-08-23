@@ -1,0 +1,12 @@
+{
+  "name": "phieuflow-web",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i ./tailwind.css -o ./src/PhieuFlow.FormBuilder/wwwroot/css/tailwind.generated.css --minify",
+    "watch:css": "tailwindcss -i ./tailwind.css -o ./src/PhieuFlow.FormBuilder/wwwroot/css/tailwind.generated.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^4.3.1",
+    "@tailwindcss/cli": "^4.3.1"
+  }
+}

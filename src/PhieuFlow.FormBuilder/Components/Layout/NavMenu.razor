@@ -1,17 +1,45 @@
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">PhieuFlow.FormBuilder</a>
+<div class="flex items-center gap-[10px] px-5 pt-[22px] pb-[18px]">
+    <div class="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-md bg-accent text-[13px] font-bold tracking-[-0.02em] text-white">P</div>
+    <div class="flex flex-col gap-px">
+        <span class="text-sm font-semibold tracking-[-0.01em] text-text">PhieuFlow</span>
+        <span class="font-mono text-[9.5px] tracking-[0.04em] text-text-faint uppercase">Form Service</span>
     </div>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<nav class="flex flex-col gap-0.5 px-3 py-1.5">
+    <div class="px-2 pt-[10px] pb-1.5 font-mono text-[9.5px] tracking-[0.08em] text-text-faintest uppercase">Forms</div>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                Home
-            </NavLink>
+    <NavLink href="" Match="NavLinkMatch.All"
+             class="flex items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-muted hover:bg-page-bg aria-[current=page]:bg-accent-surface aria-[current=page]:font-semibold aria-[current=page]:text-accent">
+        <Blazicon Svg="Lucide.FileText" class="text-[15px]" />
+        All forms
+    </NavLink>
+    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-muted hover:bg-page-bg">
+        <Blazicon Svg="Lucide.ChartColumn" class="text-[15px]" />
+        Responses
+    </div>
+    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-muted hover:bg-page-bg">
+        <Blazicon Svg="Lucide.Grid2x2" class="text-[15px]" />
+        Templates
+    </div>
+
+    <div class="px-2 pt-[18px] pb-1.5 font-mono text-[9.5px] tracking-[0.08em] text-text-faintest uppercase">Service</div>
+    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-muted hover:bg-page-bg">
+        <Blazicon Svg="Lucide.Settings" class="text-[15px]" />
+        Settings
+    </div>
+    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-muted hover:bg-page-bg">
+        <Blazicon Svg="Lucide.Clock" class="text-[15px]" />
+        Audit log
+    </div>
+</nav>
+
+<div class="mt-auto border-t border-border-soft px-3 py-3.5">
+    <div class="flex items-center gap-[10px] rounded-md px-2 py-1.5 hover:bg-page-bg">
+        <div class="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#dfe7e5] text-[11.5px] font-semibold text-text-body">SL</div>
+        <div class="flex min-w-0 flex-col gap-px">
+            <span class="text-[12.5px] font-medium text-text">Sanna Laine</span>
+            <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-text-faint">Nordkraft Oy</span>
         </div>
-    </nav>
+    </div>
 </div>

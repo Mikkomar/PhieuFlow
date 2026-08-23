@@ -3,6 +3,9 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
+# UI design reference files (mockups, handoff docs) — not project source
+/design/
+
 # dotenv files
 .env
 
@@ -292,6 +295,9 @@ FakesAssemblies/
 # Node.js Tools for Visual Studio
 .ntvs_analysis.dat
 node_modules/
+
+# Generated Tailwind output (ADR 0003) — built via `npm run build:css`
+src/PhieuFlow.FormBuilder/wwwroot/css/tailwind.generated.css
 
 # Visual Studio 6 build log
 *.plg

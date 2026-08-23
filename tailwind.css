@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@source "./src/PhieuFlow.FormBuilder/**/*.razor";
+@source "./src/PhieuFlow.FormBuilder/**/*.html";
+
+@theme {
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-accent: #0f766e;
+  --color-accent-hover: #115e59;
+  --color-accent-surface: #eef4f3;
+  --color-accent-surface-alt: #e7f2f0;
+
+  --color-page-bg: #f4f6f6;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #fafbfb;
+  --color-surface-panel: #fbfcfc;
+
+  --color-border: #e3e7e6;
+  --color-border-soft: #eceeed;
+  --color-border-row: #f1f3f2;
+  --color-border-control: #dde2e1;
+  --color-border-control-hover: #b8c0be;
+
+  --color-text: #1a1f1e;
+  --color-text-body: #3f4a48;
+  --color-text-muted: #4d5654;
+  --color-text-soft: #6b7472;
+  --color-text-faint: #8b9694;
+  --color-text-faintest: #9aa5a3;
+  --color-text-faintest-2: #a8b1af;
+
+  --color-danger: #b3261e;
+  --color-danger-border: #f0dcda;
+  --color-danger-border-hover: #e5bcb8;
+  --color-danger-surface: #fdf4f3;
+
+  --radius-md: 7px;
+  --radius-lg: 10px;
+}
