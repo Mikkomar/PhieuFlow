@@ -1,79 +1,113 @@
-<div class="rounded-md border border-border-control bg-white p-3">
-    <div class="flex items-start justify-between gap-3">
-        <div class="flex flex-1 flex-col gap-[6px]">
-            <span class="font-mono text-[10px] tracking-[0.07em] text-text-faintest uppercase">@TypeLabel</span>
-            <input value="@Question.Text"
-                   @oninput="OnTextInput"
-                   placeholder="Question text"
-                   class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
-        </div>
-        <button type="button" @onclick="@(() => OnRemove.InvokeAsync(Question))"
-                class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-danger-border-hover hover:text-danger">
-            <Blazicon Svg="Lucide.Trash2" class="text-sm" />
-        </button>
+@using PhieuFlow.Core.Entities
+
+<div class="@RootClasses" @onkeydown="OnRowKeyDown">
+    <div @onclick="@(() => OnToggle.InvokeAsync())"
+         class="flex h-[42px] cursor-pointer items-center gap-[10px] px-3 hover:bg-surface-subtle"
+         tabindex="0">
+        <span draggable="true"
+              @onclick:stopPropagation="true"
+              @ondragstart="@(() => OnDragStart.InvokeAsync())"
+              @ondragend="@(() => OnDragEnd.InvokeAsync())"
+              aria-hidden="true"
+              class="flex w-[14px] flex-none cursor-grab items-center text-text-faintest-2 hover:text-text-faint active:cursor-grabbing">
+            <Blazicon Svg="Lucide.GripVertical" class="text-[13px]" />
+        </span>
+        <span class="w-4 flex-none text-right font-mono text-[11px] text-text-faintest">@Number</span>
+        <span class="@TextLabelClasses">@TextLabel</span>
+        @if (Question.IsRequired)
+        {
+            <span class="flex-none font-mono text-[9.5px] tracking-[0.06em] text-accent uppercase">Required</span>
+        }
+        <span class="flex-none font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase whitespace-nowrap">@TypeLabel(Question)</span>
+        <span class="@ChevronClasses" aria-hidden="true">
+            <Blazicon Svg="Lucide.ChevronRight" class="text-[13px]" />
+        </span>
     </div>
 
-    <label class="mt-3 flex items-center gap-2 text-[12.5px] text-text-body">
-        <input type="checkbox" checked="@Question.IsRequired" @onchange="OnRequiredChanged" class="h-[14px] w-[14px] accent-accent" />
-        Required
-    </label>
-
-    @if (Question is TextAreaQuestion textAreaQuestion)
+    @if (Expanded)
     {
-        <div class="mt-3 flex gap-3">
-            <div class="flex flex-1 flex-col gap-1">
-                <span class="text-[11.5px] text-text-faint">Min length</span>
-                <input type="number" min="0" value="@(textAreaQuestion.MinLength?.ToString() ?? string.Empty)"
-                       @oninput="@(e => textAreaQuestion.MinLength = ParseNullableInt(e.Value))"
-                       class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
+        <div class="flex flex-col gap-[13px] border-t border-border-row p-[14px_12px_14px_52px]">
+            <div class="flex flex-col gap-[6px]">
+                <label class="text-[12px] font-semibold text-text-body">Question text</label>
+                <input value="@Question.Text"
+                       @oninput="OnTextInput"
+                       @ref="_textInputRef"
+                       placeholder="e.g. Which department are you joining?"
+                       class="h-[32px] w-full max-w-[520px] rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
             </div>
-            <div class="flex flex-1 flex-col gap-1">
-                <span class="text-[11.5px] text-text-faint">Max length</span>
-                <input type="number" min="0" value="@(textAreaQuestion.MaxLength?.ToString() ?? string.Empty)"
-                       @oninput="@(e => textAreaQuestion.MaxLength = ParseNullableInt(e.Value))"
-                       class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
-            </div>
-        </div>
-    }
 
-    @if (Question is ChoiceQuestion choiceQuestion)
-    {
-        <div class="mt-3 flex flex-col gap-2">
-            <span class="text-[11.5px] text-text-faint">Options</span>
-            @foreach (var option in choiceQuestion.Options)
+            @if (Question is ChoiceQuestion choiceQuestion)
             {
-                <div class="flex items-center gap-2">
-                    <input value="@option.Label"
-                           @oninput="@(e => option.Label = e.Value?.ToString() ?? string.Empty)"
-                           placeholder="Option label"
-                           class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
-                    <button type="button" @onclick="@(() => choiceQuestion.Options.Remove(option))"
-                            class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-danger-border-hover hover:text-danger">
-                        <Blazicon Svg="Lucide.Trash2" class="text-xs" />
+                <div class="flex flex-col gap-[7px]">
+                    <label class="text-[12px] font-semibold text-text-body">Options</label>
+                    @foreach (var option in choiceQuestion.Options)
+                    {
+                        var index = choiceQuestion.Options.ToList().IndexOf(option) + 1;
+                        <div class="flex max-w-[520px] items-center gap-2">
+                            <span class="w-[14px] flex-none text-right font-mono text-[10.5px] text-text-faintest-2">@index</span>
+                            <input value="@option.Label"
+                                   @oninput="@(e => OnOptionInput(option, e))"
+                                   placeholder="Option label"
+                                   class="h-[30px] min-w-0 flex-1 rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
+                            <button type="button" @onclick="@(() => RemoveOption(choiceQuestion, option))"
+                                    aria-label="Remove option"
+                                    class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-danger-border-hover hover:text-danger">
+                                <Blazicon Svg="Lucide.X" class="text-xs" aria-hidden="true" />
+                            </button>
+                        </div>
+                    }
+                    <button type="button" @onclick="@(() => AddOption(choiceQuestion))"
+                            class="h-7 self-start rounded-md border border-border-control bg-white px-[11px] text-[12px] font-medium text-text-body hover:border-border-control-hover">
+                        Add option
                     </button>
                 </div>
             }
-            <button type="button" @onclick="@(() => choiceQuestion.Options.Add(new QuestionOption { Id = Guid.NewGuid(), Label = string.Empty }))"
-                    class="h-7 self-start rounded-md border border-border-control bg-white px-[10px] text-[12px] font-medium text-text-body hover:border-border-control-hover">
-                Add option
-            </button>
-        </div>
-    }
 
-    @if (Question is CheckBoxGroupQuestion checkBoxGroupQuestion)
-    {
-        <div class="mt-3 flex gap-3">
-            <div class="flex flex-1 flex-col gap-1">
-                <span class="text-[11.5px] text-text-faint">Min selections</span>
-                <input type="number" min="0" value="@(checkBoxGroupQuestion.MinSelections?.ToString() ?? string.Empty)"
-                       @oninput="@(e => checkBoxGroupQuestion.MinSelections = ParseNullableInt(e.Value))"
-                       class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
-            </div>
-            <div class="flex flex-1 flex-col gap-1">
-                <span class="text-[11.5px] text-text-faint">Max selections</span>
-                <input type="number" min="0" value="@(checkBoxGroupQuestion.MaxSelections?.ToString() ?? string.Empty)"
-                       @oninput="@(e => checkBoxGroupQuestion.MaxSelections = ParseNullableInt(e.Value))"
-                       class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
+            @if (Question is TextAreaQuestion textAreaQuestion)
+            {
+                <div class="flex max-w-[340px] gap-3">
+                    <div class="flex flex-1 flex-col gap-[5px]">
+                        <span class="text-[11.5px] text-text-faint">Min length</span>
+                        <input type="number" min="0" value="@(textAreaQuestion.MinLength?.ToString() ?? string.Empty)"
+                               @oninput="@(e => { textAreaQuestion.MinLength = ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
+                               class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
+                    </div>
+                    <div class="flex flex-1 flex-col gap-[5px]">
+                        <span class="text-[11.5px] text-text-faint">Max length</span>
+                        <input type="number" min="0" value="@(textAreaQuestion.MaxLength?.ToString() ?? string.Empty)"
+                               @oninput="@(e => { textAreaQuestion.MaxLength = ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
+                               class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
+                    </div>
+                </div>
+            }
+
+            @if (Question is CheckBoxGroupQuestion checkBoxGroupQuestion)
+            {
+                <div class="flex max-w-[340px] gap-3">
+                    <div class="flex flex-1 flex-col gap-[5px]">
+                        <span class="text-[11.5px] text-text-faint">Min selections</span>
+                        <input type="number" min="0" value="@(checkBoxGroupQuestion.MinSelections?.ToString() ?? string.Empty)"
+                               @oninput="@(e => { checkBoxGroupQuestion.MinSelections = ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
+                               class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
+                    </div>
+                    <div class="flex flex-1 flex-col gap-[5px]">
+                        <span class="text-[11.5px] text-text-faint">Max selections</span>
+                        <input type="number" min="0" value="@(checkBoxGroupQuestion.MaxSelections?.ToString() ?? string.Empty)"
+                               @oninput="@(e => { checkBoxGroupQuestion.MaxSelections = ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
+                               class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
+                    </div>
+                </div>
+            }
+
+            <div class="flex items-center justify-between gap-4 pt-[2px]">
+                <label class="flex items-center gap-2 text-[12.5px] text-text-body">
+                    <input type="checkbox" checked="@Question.IsRequired" @onchange="OnRequiredChanged" class="h-[14px] w-[14px] accent-accent" />
+                    Required
+                </label>
+                <button type="button" @onclick="@(() => OnRemove.InvokeAsync(Question))"
+                        class="h-7 rounded-md border border-danger-border bg-white px-[11px] text-[12px] font-medium text-danger hover:border-danger-border-hover hover:bg-danger-surface">
+                    Delete question
+                </button>
             </div>
         </div>
     }
@@ -84,9 +118,39 @@
     public Question Question { get; set; } = null!;
 
     [Parameter, EditorRequired]
+    public int Number { get; set; }
+
+    [Parameter, EditorRequired]
+    public bool Expanded { get; set; }
+
+    [Parameter]
+    public bool Dragging { get; set; }
+
+    [Parameter]
+    public bool AutoFocusText { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnToggle { get; set; }
+
+    [Parameter, EditorRequired]
     public EventCallback<Question> OnRemove { get; set; }
 
-    private string TypeLabel => Question switch
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnDragStart { get; set; }
+
+    [Parameter]
+    public EventCallback OnDragEnd { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnKeyMove { get; set; }
+
+    private ElementReference _textInputRef;
+    private bool _hasAutoFocused;
+
+    public static string TypeLabel(Question question) => question switch
     {
         TextAreaQuestion => "Text area",
         CheckboxQuestion => "Checkbox",
@@ -96,14 +160,73 @@
         _ => "Question",
     };
 
+    private string TextLabel => string.IsNullOrWhiteSpace(Question.Text) ? "Untitled question" : Question.Text;
+
+    private string TextLabelClasses => "min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-medium "
+        + (string.IsNullOrWhiteSpace(Question.Text) ? "text-text-faintest-2" : "text-text");
+
+    private string RootClasses => "rounded-lg border bg-white transition-opacity overflow-hidden "
+        + (Expanded ? "border-accent " : "border-border-control ")
+        + (Dragging ? "opacity-40" : "opacity-100");
+
+    private string ChevronClasses => "flex w-4 flex-none items-center justify-center transition-transform "
+        + (Expanded ? "rotate-90 text-accent" : "text-text-faintest-2");
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (AutoFocusText && Expanded && !_hasAutoFocused)
+        {
+            _hasAutoFocused = true;
+            await _textInputRef.FocusAsync();
+        }
+    }
+
+    private async Task OnRowKeyDown(KeyboardEventArgs e)
+    {
+        if (!e.AltKey)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case "ArrowUp":
+                await OnKeyMove.InvokeAsync(-1);
+                break;
+            case "ArrowDown":
+                await OnKeyMove.InvokeAsync(1);
+                break;
+        }
+    }
+
     private void OnTextInput(ChangeEventArgs e)
     {
         Question.Text = e.Value?.ToString() ?? string.Empty;
+        OnChanged.InvokeAsync();
     }
 
     private void OnRequiredChanged(ChangeEventArgs e)
     {
         Question.IsRequired = e.Value is bool value && value;
+        OnChanged.InvokeAsync();
+    }
+
+    private void OnOptionInput(QuestionOption option, ChangeEventArgs e)
+    {
+        option.Label = e.Value?.ToString() ?? string.Empty;
+        OnChanged.InvokeAsync();
+    }
+
+    private void AddOption(ChoiceQuestion question)
+    {
+        question.Options.Add(new QuestionOption { Id = Guid.NewGuid(), Label = string.Empty });
+        OnChanged.InvokeAsync();
+    }
+
+    private void RemoveOption(ChoiceQuestion question, QuestionOption option)
+    {
+        question.Options.Remove(option);
+        OnChanged.InvokeAsync();
     }
 
     private static int? ParseNullableInt(object? value)

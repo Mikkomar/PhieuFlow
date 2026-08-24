@@ -1,10 +1,12 @@
 using PhieuFlow.FormBuilder.Components;
+using PhieuFlow.FormBuilder.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddSingleton<FormRepository>();
 
 var app = builder.Build();
 
