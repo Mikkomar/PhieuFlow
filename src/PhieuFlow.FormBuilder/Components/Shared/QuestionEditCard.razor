@@ -2,14 +2,20 @@
 
 <div class="@RootClasses" @onkeydown="OnRowKeyDown">
     <div @onclick="@(() => OnToggle.InvokeAsync())"
-         class="flex h-[42px] cursor-pointer items-center gap-[10px] px-3 hover:bg-surface-subtle"
+         class="relative flex h-[42px] cursor-pointer items-center gap-[10px] px-3 outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
          tabindex="0">
+        <div class="absolute inset-x-0 top-0 z-10 h-1/2"
+             @ondragover="@(() => OnDragOverTop.InvokeAsync())" @ondragover:preventDefault="true"
+             @ondrop="@(() => OnDrop.InvokeAsync())"></div>
+        <div class="absolute inset-x-0 bottom-0 z-10 h-1/2"
+             @ondragover="@(() => OnDragOverBottom.InvokeAsync())" @ondragover:preventDefault="true"
+             @ondrop="@(() => OnDrop.InvokeAsync())"></div>
         <span draggable="true"
               @onclick:stopPropagation="true"
               @ondragstart="@(() => OnDragStart.InvokeAsync())"
               @ondragend="@(() => OnDragEnd.InvokeAsync())"
               aria-hidden="true"
-              class="flex w-[14px] flex-none cursor-grab items-center text-text-faintest-2 hover:text-text-faint active:cursor-grabbing">
+              class="relative z-20 flex w-[14px] flex-none cursor-grab items-center text-text-faintest-2 hover:text-text-faint active:cursor-grabbing">
             <Blazicon Svg="Lucide.GripVertical" class="text-[13px]" />
         </span>
         <span class="w-4 flex-none text-right font-mono text-[11px] text-text-faintest">@Number</span>
@@ -143,6 +149,15 @@
 
     [Parameter]
     public EventCallback OnDragEnd { get; set; }
+
+    [Parameter]
+    public EventCallback OnDragOverTop { get; set; }
+
+    [Parameter]
+    public EventCallback OnDragOverBottom { get; set; }
+
+    [Parameter]
+    public EventCallback OnDrop { get; set; }
 
     [Parameter]
     public EventCallback<int> OnKeyMove { get; set; }

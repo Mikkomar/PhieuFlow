@@ -41,9 +41,9 @@
                     Draft &middot; @saveLabel
                 </div>
             }
-            <div class="h-[22px] w-px bg-border-soft"></div>
+            <div class="hidden h-[22px] w-px bg-border-soft min-[1100px]:block"></div>
             <button type="button" @onclick="TogglePreview"
-                    class="flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover">
+                    class="hidden h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover min-[1100px]:flex">
                 <Blazicon Svg="Lucide.Eye" class="text-sm" aria-hidden="true" />
                 @(_previewOpen ? "Hide preview" : "Preview")
             </button>
@@ -141,8 +141,7 @@
                     {
                         var question = ActivePage.Questions.ElementAt(i);
                         var index = i;
-                        <div @ondragover="@(e => HandleRowDragOver(e, index))" @ondragover:preventDefault="true"
-                             @ondrop="@(() => HandleDrop(ActivePage))">
+                        <div>
                             <div class="@InsertionLineClasses(index)"></div>
                             <QuestionEditCard @key="question.Id"
                                                Question="question"
@@ -155,10 +154,13 @@
                                                OnChanged="TriggerAutosave"
                                                OnDragStart="@(() => HandleDragStart(question))"
                                                OnDragEnd="HandleDragEnd"
+                                               OnDragOverTop="@(() => SetDropIndex(index))"
+                                               OnDragOverBottom="@(() => SetDropIndex(index + 1))"
+                                               OnDrop="@(() => HandleDrop(ActivePage))"
                                                OnKeyMove="@(delta => MoveQuestion(ActivePage, question, delta))" />
                         </div>
                     }
-                    <div @ondragover="@(e => HandleRowDragOver(e, ActivePage.Questions.Count))" @ondragover:preventDefault="true"
+                    <div @ondragover="@(() => SetDropIndex(ActivePage.Questions.Count))" @ondragover:preventDefault="true"
                          @ondrop="@(() => HandleDrop(ActivePage))"
                          class="@InsertionLineClasses(ActivePage.Questions.Count)"></div>
                 }
@@ -464,19 +466,11 @@
         _dropIndex = null;
     }
 
-    private void HandleRowDragOver(DragEventArgs e, int index)
+    private void SetDropIndex(int index)
     {
-        if (_draggedQuestion is null)
+        if (_draggedQuestion is not null && _dropIndex != index)
         {
-            return;
-        }
-
-        // DragEventArgs has no access to the hovered element's rendered height without JS
-        // interop, so 21px (half of the 42px collapsed row) approximates the row midpoint.
-        var newIndex = e.OffsetY < 21 ? index : index + 1;
-        if (_dropIndex != newIndex)
-        {
-            _dropIndex = newIndex;
+            _dropIndex = index;
         }
     }
 

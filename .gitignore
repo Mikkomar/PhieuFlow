@@ -6,6 +6,9 @@
 # UI design reference files (mockups, handoff docs) — not project source
 /design/
 
+# Claude Code workflow instructions — local only
+/CLAUDE.md
+
 # dotenv files
 .env
 
