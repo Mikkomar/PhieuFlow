@@ -1,5 +1,6 @@
 @page "/"
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 <PageTitle>All forms</PageTitle>
 
@@ -18,7 +19,7 @@
                        @oninput="OnSearchInput"
                        class="w-full border-none bg-transparent text-[13px] text-text outline-none placeholder:text-text-faint" />
             </div>
-            <button type="button"
+            <button type="button" @onclick="@(() => Nav.NavigateTo("/forms/new"))"
                     class="flex h-[34px] flex-none items-center gap-[7px] whitespace-nowrap rounded-md border border-accent bg-accent px-4 text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
                 <Blazicon Svg="Lucide.Plus" class="text-[13px]" />
                 New form

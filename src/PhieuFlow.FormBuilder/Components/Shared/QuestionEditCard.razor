@@ -1,0 +1,113 @@
+<div class="rounded-md border border-border-control bg-white p-3">
+    <div class="flex items-start justify-between gap-3">
+        <div class="flex flex-1 flex-col gap-[6px]">
+            <span class="font-mono text-[10px] tracking-[0.07em] text-text-faintest uppercase">@TypeLabel</span>
+            <input value="@Question.Text"
+                   @oninput="OnTextInput"
+                   placeholder="Question text"
+                   class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
+        </div>
+        <button type="button" @onclick="@(() => OnRemove.InvokeAsync(Question))"
+                class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-danger-border-hover hover:text-danger">
+            <Blazicon Svg="Lucide.Trash2" class="text-sm" />
+        </button>
+    </div>
+
+    <label class="mt-3 flex items-center gap-2 text-[12.5px] text-text-body">
+        <input type="checkbox" checked="@Question.IsRequired" @onchange="OnRequiredChanged" class="h-[14px] w-[14px] accent-accent" />
+        Required
+    </label>
+
+    @if (Question is TextAreaQuestion textAreaQuestion)
+    {
+        <div class="mt-3 flex gap-3">
+            <div class="flex flex-1 flex-col gap-1">
+                <span class="text-[11.5px] text-text-faint">Min length</span>
+                <input type="number" min="0" value="@(textAreaQuestion.MinLength?.ToString() ?? string.Empty)"
+                       @oninput="@(e => textAreaQuestion.MinLength = ParseNullableInt(e.Value))"
+                       class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
+            </div>
+            <div class="flex flex-1 flex-col gap-1">
+                <span class="text-[11.5px] text-text-faint">Max length</span>
+                <input type="number" min="0" value="@(textAreaQuestion.MaxLength?.ToString() ?? string.Empty)"
+                       @oninput="@(e => textAreaQuestion.MaxLength = ParseNullableInt(e.Value))"
+                       class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
+            </div>
+        </div>
+    }
+
+    @if (Question is ChoiceQuestion choiceQuestion)
+    {
+        <div class="mt-3 flex flex-col gap-2">
+            <span class="text-[11.5px] text-text-faint">Options</span>
+            @foreach (var option in choiceQuestion.Options)
+            {
+                <div class="flex items-center gap-2">
+                    <input value="@option.Label"
+                           @oninput="@(e => option.Label = e.Value?.ToString() ?? string.Empty)"
+                           placeholder="Option label"
+                           class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
+                    <button type="button" @onclick="@(() => choiceQuestion.Options.Remove(option))"
+                            class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-danger-border-hover hover:text-danger">
+                        <Blazicon Svg="Lucide.Trash2" class="text-xs" />
+                    </button>
+                </div>
+            }
+            <button type="button" @onclick="@(() => choiceQuestion.Options.Add(new QuestionOption { Id = Guid.NewGuid(), Label = string.Empty }))"
+                    class="h-7 self-start rounded-md border border-border-control bg-white px-[10px] text-[12px] font-medium text-text-body hover:border-border-control-hover">
+                Add option
+            </button>
+        </div>
+    }
+
+    @if (Question is CheckBoxGroupQuestion checkBoxGroupQuestion)
+    {
+        <div class="mt-3 flex gap-3">
+            <div class="flex flex-1 flex-col gap-1">
+                <span class="text-[11.5px] text-text-faint">Min selections</span>
+                <input type="number" min="0" value="@(checkBoxGroupQuestion.MinSelections?.ToString() ?? string.Empty)"
+                       @oninput="@(e => checkBoxGroupQuestion.MinSelections = ParseNullableInt(e.Value))"
+                       class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
+            </div>
+            <div class="flex flex-1 flex-col gap-1">
+                <span class="text-[11.5px] text-text-faint">Max selections</span>
+                <input type="number" min="0" value="@(checkBoxGroupQuestion.MaxSelections?.ToString() ?? string.Empty)"
+                       @oninput="@(e => checkBoxGroupQuestion.MaxSelections = ParseNullableInt(e.Value))"
+                       class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public Question Question { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public EventCallback<Question> OnRemove { get; set; }
+
+    private string TypeLabel => Question switch
+    {
+        TextAreaQuestion => "Text area",
+        CheckboxQuestion => "Checkbox",
+        DropDownQuestion => "Dropdown",
+        RadioButtonQuestion => "Radio buttons",
+        CheckBoxGroupQuestion => "Checkbox group",
+        _ => "Question",
+    };
+
+    private void OnTextInput(ChangeEventArgs e)
+    {
+        Question.Text = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void OnRequiredChanged(ChangeEventArgs e)
+    {
+        Question.IsRequired = e.Value is bool value && value;
+    }
+
+    private static int? ParseNullableInt(object? value)
+    {
+        return int.TryParse(value?.ToString(), out var parsed) ? parsed : null;
+    }
+}
