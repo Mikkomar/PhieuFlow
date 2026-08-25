@@ -3,5 +3,7 @@
     <Project Path="src/PhieuFlow.Core/PhieuFlow.Core.csproj" />
     <Project Path="src/PhieuFlow.FormBuilder/PhieuFlow.FormBuilder.csproj" />
     <Project Path="src/PhieuFlow.Hub/PhieuFlow.Hub.csproj" />
+    <Project Path="src/PhieuFlow.ServiceDefaults/PhieuFlow.ServiceDefaults.csproj" />
+    <Project Path="src/PhieuFlow.AppHost/PhieuFlow.AppHost.csproj" />
   </Folder>
 </Solution>

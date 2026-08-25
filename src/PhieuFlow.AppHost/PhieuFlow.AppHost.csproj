@@ -1,0 +1,24 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.5.2">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- The template defaults this to true (resolve DCP/dashboard via the separate
+         `aspire` CLI). Deliberately set to false here: the `aspire` CLI isn't installed in
+         this environment, so resolve DCP/dashboard as ordinary NuGet-restored platform
+         packages instead, keeping `dotnet build`/`dotnet run` self-contained. This trips
+         warning ASPIRE010 ("some Aspire features require the CLI bundle"), which is
+         suppressed below since the tradeoff is intentional. -->
+    <AspireUseCliBundle>false</AspireUseCliBundle>
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+    <UserSecretsId>0d0f4a3a-6c5e-4b1a-9a1e-6b9d1a2c3e4f</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PhieuFlow.Hub\PhieuFlow.Hub.csproj" />
+    <ProjectReference Include="..\PhieuFlow.FormBuilder\PhieuFlow.FormBuilder.csproj" />
+  </ItemGroup>
+
+</Project>

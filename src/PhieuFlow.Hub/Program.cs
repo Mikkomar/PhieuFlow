@@ -1,15 +1,17 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using PhieuFlow.Hub.Data;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
 
 builder.Services.AddDbContext<HubDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("HubDatabase")
         ?? throw new InvalidOperationException("Missing connection string 'HubDatabase'.")));
 
-var host = builder.Build();
-host.Run();
+var app = builder.Build();
+
+app.MapDefaultEndpoints();
+
+app.Run();

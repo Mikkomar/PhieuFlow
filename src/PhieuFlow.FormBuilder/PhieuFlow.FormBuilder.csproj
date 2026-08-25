@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PhieuFlow.Core\PhieuFlow.Core.csproj" />
+    <ProjectReference Include="..\PhieuFlow.ServiceDefaults\PhieuFlow.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>
