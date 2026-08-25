@@ -21,7 +21,7 @@
     {
         ("Text area", "Aa", () => new TextAreaQuestion { Id = Guid.NewGuid(), Text = string.Empty }),
         ("Dropdown", "▾", () => new DropDownQuestion { Id = Guid.NewGuid(), Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
-        ("Checkbox", "☑", () => new CheckboxQuestion { Id = Guid.NewGuid(), Text = string.Empty }),
+        ("Checkbox", "☑", () => new CheckboxQuestion { Id = Guid.NewGuid(), Text = string.Empty, Label = string.Empty }),
         ("Radio buttons", "◉", () => new RadioButtonQuestion { Id = Guid.NewGuid(), Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
         ("Checkbox group", "☰", () => new CheckBoxGroupQuestion { Id = Guid.NewGuid(), Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
     };

@@ -53,7 +53,7 @@ public class FormRepository
                             Id = Guid.NewGuid(), Text = "Contract type", IsRequired = true,
                             Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Permanent" }, new() { Id = Guid.NewGuid(), Label = "Fixed term" }, new() { Id = Guid.NewGuid(), Label = "Contractor" } },
                         },
-                        new CheckboxQuestion { Id = Guid.NewGuid(), Text = "I have returned my signed contract", IsRequired = false },
+                        new CheckboxQuestion { Id = Guid.NewGuid(), Text = "Signed contract", Label = "I have returned my signed contract", IsRequired = false },
                     },
                 },
                 new()
@@ -111,7 +111,7 @@ public class FormRepository
                     Title = "Declaration",
                     Questions = new List<Question>
                     {
-                        new CheckboxQuestion { Id = Guid.NewGuid(), Text = "We comply with all applicable labor and safety regulations", IsRequired = true },
+                        new CheckboxQuestion { Id = Guid.NewGuid(), Text = "Regulatory compliance", Label = "We comply with all applicable labor and safety regulations", IsRequired = true },
                     },
                 },
             },

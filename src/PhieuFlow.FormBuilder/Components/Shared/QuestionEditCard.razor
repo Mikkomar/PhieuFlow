@@ -87,6 +87,17 @@
                 </div>
             }
 
+            @if (Question is CheckboxQuestion checkboxQuestion)
+            {
+                <div class="flex flex-col gap-[6px]">
+                    <label class="text-[12px] font-semibold text-text-body">Checkbox label</label>
+                    <input value="@checkboxQuestion.Label"
+                           @oninput="@(e => OnCheckboxLabelInput(checkboxQuestion, e))"
+                           placeholder="e.g. I agree to the terms"
+                           class="h-[32px] w-full max-w-[520px] rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
+                </div>
+            }
+
             @if (Question is CheckBoxGroupQuestion checkBoxGroupQuestion)
             {
                 <div class="flex max-w-[340px] gap-3">
@@ -223,6 +234,12 @@
     private void OnRequiredChanged(ChangeEventArgs e)
     {
         Question.IsRequired = e.Value is bool value && value;
+        OnChanged.InvokeAsync();
+    }
+
+    private void OnCheckboxLabelInput(CheckboxQuestion question, ChangeEventArgs e)
+    {
+        question.Label = e.Value?.ToString() ?? string.Empty;
         OnChanged.InvokeAsync();
     }
 

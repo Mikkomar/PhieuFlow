@@ -203,11 +203,11 @@
                                 <Blazicon Svg="Lucide.ChevronDown" class="text-xs" aria-hidden="true" />
                             </div>
                         }
-                        else if (question is CheckboxQuestion)
+                        else if (question is CheckboxQuestion checkboxQuestion)
                         {
                             <label class="flex items-center gap-2 text-[12.5px] text-text-body">
                                 <span class="h-[14px] w-[14px] rounded-[3px] border border-border-control-hover bg-white"></span>
-                                Yes
+                                @(string.IsNullOrWhiteSpace(checkboxQuestion.Label) ? "Untitled option" : checkboxQuestion.Label)
                             </label>
                         }
                         else if (question is ChoiceQuestion choiceQuestion)
