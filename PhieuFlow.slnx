@@ -2,5 +2,6 @@
   <Folder Name="/src/">
     <Project Path="src/PhieuFlow.Core/PhieuFlow.Core.csproj" />
     <Project Path="src/PhieuFlow.FormBuilder/PhieuFlow.FormBuilder.csproj" />
+    <Project Path="src/PhieuFlow.Hub/PhieuFlow.Hub.csproj" />
   </Folder>
 </Solution>

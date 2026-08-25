@@ -1,0 +1,23 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PhieuFlow.Core.Entities;
+
+namespace PhieuFlow.Hub.Data.Configurations;
+
+public class FormPageConfiguration : IEntityTypeConfiguration<FormPage>
+{
+    public void Configure(EntityTypeBuilder<FormPage> builder)
+    {
+        builder.ToTable("FormPages");
+        builder.HasKey(p => p.Id);
+        builder.Property(p => p.Id).ValueGeneratedNever();
+
+        builder.Property(p => p.Title).HasMaxLength(200);
+
+        // No explicit ordering column yet; question order is not guaranteed on reload.
+        builder.HasMany(p => p.Questions)
+            .WithOne()
+            .HasForeignKey("FormPageId")
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
