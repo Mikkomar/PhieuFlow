@@ -106,7 +106,7 @@
 
                     @if (_pickingTypeForPageId == ActivePage.Id && _pickerAnchor == PickerAnchor.Header)
                     {
-                        <QuestionTypeMenu OnAdd="@(q => AddQuestion(ActivePage, q))" OnClose="ClosePicker" AnchorClasses="top-[34px] right-0" />
+                        <QuestionTypeMenu OnAdd="@(q => AddQuestion(ActivePage, q))" OnClose="ClosePicker" FormPageId="ActivePage.Id" AnchorClasses="top-[34px] right-0" />
                     }
                 </div>
                 <button type="button" disabled="@(_form.Pages.Count <= 1)" @onclick="@(() => DeletePage(ActivePage))"
@@ -130,7 +130,7 @@
                             </button>
                             @if (_pickingTypeForPageId == ActivePage.Id && _pickerAnchor == PickerAnchor.Empty)
                             {
-                                <QuestionTypeMenu OnAdd="@(q => AddQuestion(ActivePage, q))" OnClose="ClosePicker" AnchorClasses="top-[34px] left-1/2 -translate-x-1/2" />
+                                <QuestionTypeMenu OnAdd="@(q => AddQuestion(ActivePage, q))" OnClose="ClosePicker" FormPageId="ActivePage.Id" AnchorClasses="top-[34px] left-1/2 -translate-x-1/2" />
                             }
                         </div>
                     </div>
@@ -400,7 +400,7 @@
 
     private void AddPage()
     {
-        var page = new FormPage { Id = Guid.NewGuid() };
+        var page = new FormPage { Id = Guid.NewGuid(), FormId = _form.Id };
         _form.Pages.Add(page);
         _activePageId = page.Id;
         ClosePicker();

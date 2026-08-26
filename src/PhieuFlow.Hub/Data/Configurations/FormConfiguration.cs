@@ -21,8 +21,8 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
 
         // No explicit ordering column yet; page order is not guaranteed on reload.
         builder.HasMany(f => f.Pages)
-            .WithOne()
-            .HasForeignKey("FormId")
+            .WithOne(p => p.Form)
+            .HasForeignKey(p => p.FormId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

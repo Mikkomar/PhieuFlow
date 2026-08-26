@@ -8,7 +8,7 @@
         var typeDef = Types[i];
         var itemIndex = i;
         <button type="button" role="menuitem" @ref="_itemRefs[itemIndex]"
-                @onclick="@(() => OnAdd.InvokeAsync(typeDef.Create()))"
+                @onclick="@(() => OnAdd.InvokeAsync(typeDef.Create(FormPageId)))"
                 class="flex w-full items-center gap-[9px] rounded-md px-[9px] py-[7px] text-left text-[12.5px] text-text-body hover:bg-surface-subtle hover:text-accent">
             <span class="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[5px] bg-border-row font-mono text-[9.5px] font-medium text-text-soft">@typeDef.Glyph</span>
             @typeDef.Label
@@ -17,15 +17,15 @@
 </div>
 
 @code {
-    public static readonly (string Label, string Glyph, Func<Question> Create)[] Types =
+    public static readonly (string Label, string Glyph, Func<Guid, Question> Create)[] Types =
     {
-        ("Text area", "Aa", () => new TextAreaQuestion { Id = Guid.NewGuid(), Text = string.Empty }),
-        ("Dropdown", "▾", () => new DropDownQuestion { Id = Guid.NewGuid(), Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
-        ("Checkbox", "☑", () => new CheckboxQuestion { Id = Guid.NewGuid(), Text = string.Empty, Label = string.Empty }),
-        ("Radio buttons", "◉", () => new RadioButtonQuestion { Id = Guid.NewGuid(), Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
-        ("Checkbox group", "☰", () => new CheckBoxGroupQuestion { Id = Guid.NewGuid(), Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
-        ("Number", "#", () => new NumberQuestion { Id = Guid.NewGuid(), Text = string.Empty }),
-        ("Calendar", "▦", () => new CalendarQuestion { Id = Guid.NewGuid(), Text = string.Empty }),
+        ("Text area", "Aa", formPageId => new TextAreaQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty }),
+        ("Dropdown", "▾", formPageId => new DropDownQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
+        ("Checkbox", "☑", formPageId => new CheckboxQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty, Label = string.Empty }),
+        ("Radio buttons", "◉", formPageId => new RadioButtonQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
+        ("Checkbox group", "☰", formPageId => new CheckBoxGroupQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
+        ("Number", "#", formPageId => new NumberQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty }),
+        ("Calendar", "▦", formPageId => new CalendarQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty }),
     };
 
     [Parameter, EditorRequired]
@@ -33,6 +33,9 @@
 
     [Parameter, EditorRequired]
     public EventCallback OnClose { get; set; }
+
+    [Parameter, EditorRequired]
+    public Guid FormPageId { get; set; }
 
     [Parameter]
     public string AnchorClasses { get; set; } = "top-[34px] right-0";

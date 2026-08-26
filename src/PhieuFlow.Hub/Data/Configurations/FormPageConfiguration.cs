@@ -16,8 +16,8 @@ public class FormPageConfiguration : IEntityTypeConfiguration<FormPage>
 
         // No explicit ordering column yet; question order is not guaranteed on reload.
         builder.HasMany(p => p.Questions)
-            .WithOne()
-            .HasForeignKey("FormPageId")
+            .WithOne(q => q.FormPage)
+            .HasForeignKey(q => q.FormPageId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
