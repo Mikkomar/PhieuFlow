@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PhieuFlow.Core.Entities;
 
-namespace PhieuFlow.Hub.Data;
+namespace PhieuFlow.Persistence;
 
 public class HubDbContext(DbContextOptions<HubDbContext> options) : DbContext(options)
 {

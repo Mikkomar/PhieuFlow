@@ -3,20 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using PhieuFlow.Hub.Data;
+using PhieuFlow.Persistence;
 
 #nullable disable
 
-namespace PhieuFlow.Hub.Data.Migrations
+namespace PhieuFlow.Persistence.Migrations
 {
     [DbContext(typeof(HubDbContext))]
-    [Migration("20260826112256_InitialCreate")]
-    partial class InitialCreate
+    partial class HubDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

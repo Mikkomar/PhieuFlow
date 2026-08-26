@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using PhieuFlow.MigrationService;
 using PhieuFlow.Persistence;
+using PhieuFlow.SeedService;
 
 var builder = Host.CreateApplicationBuilder(args);
 

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
+using PhieuFlow.Persistence;
 
 namespace PhieuFlow.Hub.Data;
 

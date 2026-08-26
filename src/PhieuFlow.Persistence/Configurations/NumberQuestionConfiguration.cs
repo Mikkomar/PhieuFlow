@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PhieuFlow.Core.Entities;
 
-namespace PhieuFlow.Hub.Data.Configurations;
+namespace PhieuFlow.Persistence.Configurations;
 
 public class NumberQuestionConfiguration : IEntityTypeConfiguration<NumberQuestion>
 {
