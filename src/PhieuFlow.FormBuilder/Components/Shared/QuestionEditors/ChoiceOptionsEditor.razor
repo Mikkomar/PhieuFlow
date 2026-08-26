@@ -1,0 +1,49 @@
+<div class="flex flex-col gap-[7px]">
+    <label class="text-[12px] font-semibold text-text-body">Options</label>
+    @foreach (var option in Question.Options)
+    {
+        var index = Question.Options.ToList().IndexOf(option) + 1;
+        <div class="flex max-w-[520px] items-center gap-2">
+            <span class="w-[14px] flex-none text-right font-mono text-[10.5px] text-text-faintest-2">@index</span>
+            <input value="@option.Label"
+                   @oninput="@(e => OnOptionInput(option, e))"
+                   placeholder="Option label"
+                   class="h-[30px] min-w-0 flex-1 rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
+            <button type="button" @onclick="@(() => RemoveOption(option))"
+                    aria-label="Remove option"
+                    class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-danger-border-hover hover:text-danger">
+                <Blazicon Svg="Lucide.X" class="text-xs" aria-hidden="true" />
+            </button>
+        </div>
+    }
+    <button type="button" @onclick="AddOption"
+            class="h-7 self-start rounded-md border border-border-control bg-white px-[11px] text-[12px] font-medium text-text-body hover:border-border-control-hover">
+        Add option
+    </button>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ChoiceQuestion Question { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private void OnOptionInput(QuestionOption option, ChangeEventArgs e)
+    {
+        option.Label = e.Value?.ToString() ?? string.Empty;
+        OnChanged.InvokeAsync();
+    }
+
+    private void AddOption()
+    {
+        Question.Options.Add(new QuestionOption { Id = Guid.NewGuid(), Label = string.Empty });
+        OnChanged.InvokeAsync();
+    }
+
+    private void RemoveOption(QuestionOption option)
+    {
+        Question.Options.Remove(option);
+        OnChanged.InvokeAsync();
+    }
+}

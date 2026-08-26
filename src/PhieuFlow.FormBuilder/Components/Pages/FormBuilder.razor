@@ -223,9 +223,29 @@
                             </div>
                         }
 
+                        else if (question is NumberQuestion)
+                        {
+                            <div class="flex h-[32px] w-[140px] items-center rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-faintest-2">0</div>
+                        }
+                        else if (question is CalendarQuestion)
+                        {
+                            <div class="flex h-[32px] w-[160px] items-center justify-between rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-faintest-2">
+                                Select a date
+                                <Blazicon Svg="Lucide.Calendar" class="text-xs" aria-hidden="true" />
+                            </div>
+                        }
+
                         @if (question is CheckBoxGroupQuestion { MinSelections: { } min, MaxSelections: { } max })
                         {
                             <span class="text-[11px] text-text-faintest">Choose between @min and @max options</span>
+                        }
+                        else if (question is NumberQuestion { Min: { } numMin, Max: { } numMax })
+                        {
+                            <span class="text-[11px] text-text-faintest">Enter a number between @numMin and @numMax</span>
+                        }
+                        else if (question is CalendarQuestion { MinDate: { } dateMin, MaxDate: { } dateMax })
+                        {
+                            <span class="text-[11px] text-text-faintest">Pick a date between @(dateMin.ToString("yyyy-MM-dd")) and @(dateMax.ToString("yyyy-MM-dd"))</span>
                         }
                     </div>
                 }

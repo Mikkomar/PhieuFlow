@@ -19,6 +19,8 @@ public class QuestionConfiguration : IEntityTypeConfiguration<Question>
             .HasValue<CheckboxQuestion>("Checkbox")
             .HasValue<DropDownQuestion>("DropDown")
             .HasValue<RadioButtonQuestion>("RadioButton")
-            .HasValue<CheckBoxGroupQuestion>("CheckBoxGroup");
+            .HasValue<CheckBoxGroupQuestion>("CheckBoxGroup")
+            .HasValue<NumberQuestion>("Number")
+            .HasValue<CalendarQuestion>("Calendar");
     }
 }

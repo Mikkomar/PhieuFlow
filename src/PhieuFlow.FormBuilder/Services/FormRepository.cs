@@ -68,6 +68,8 @@ public class FormRepository
                             Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Laptop" }, new() { Id = Guid.NewGuid(), Label = "Monitor" }, new() { Id = Guid.NewGuid(), Label = "Phone" }, new() { Id = Guid.NewGuid(), Label = "Headset" } },
                         },
                         new TextAreaQuestion { Id = Guid.NewGuid(), Text = "Accessibility requirements", IsRequired = false, MinLength = 0, MaxLength = 500 },
+                        new NumberQuestion { Id = Guid.NewGuid(), Text = "Shoe size (EU)", IsRequired = false, Min = 35, Max = 50 },
+                        new CalendarQuestion { Id = Guid.NewGuid(), Text = "Preferred start date", IsRequired = true, MinDate = new DateOnly(2026, 1, 1), MaxDate = new DateOnly(2026, 12, 31) },
                     },
                 },
                 new() { Id = Guid.NewGuid(), Title = "Payroll", Questions = new List<Question>() },

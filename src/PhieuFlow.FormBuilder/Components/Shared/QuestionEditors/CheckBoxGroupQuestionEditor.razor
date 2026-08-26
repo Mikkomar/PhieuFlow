@@ -1,0 +1,30 @@
+<div class="flex max-w-[340px] flex-col gap-[5px]">
+    <div class="flex gap-3">
+        <div class="flex flex-1 flex-col gap-[5px]">
+            <span class="text-[11.5px] text-text-faint">Min selections</span>
+            <input type="number" min="0" value="@(Question.MinSelections?.ToString() ?? string.Empty)"
+                   @oninput="@(e => { Question.MinSelections = MinMaxValidation.ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
+                   class="@MinMaxValidation.InputClasses(Invalid)" />
+        </div>
+        <div class="flex flex-1 flex-col gap-[5px]">
+            <span class="text-[11.5px] text-text-faint">Max selections</span>
+            <input type="number" min="0" value="@(Question.MaxSelections?.ToString() ?? string.Empty)"
+                   @oninput="@(e => { Question.MaxSelections = MinMaxValidation.ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
+                   class="@MinMaxValidation.InputClasses(Invalid)" />
+        </div>
+    </div>
+    @if (Invalid)
+    {
+        <span class="text-[11.5px] text-danger">Min selections cannot be greater than max selections.</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public CheckBoxGroupQuestion Question { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private bool Invalid => MinMaxValidation.ExceedsMax(Question.MinSelections, Question.MaxSelections);
+}

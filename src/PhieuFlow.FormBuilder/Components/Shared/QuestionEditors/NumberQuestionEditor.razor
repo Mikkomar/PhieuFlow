@@ -1,0 +1,30 @@
+<div class="flex max-w-[340px] flex-col gap-[5px]">
+    <div class="flex gap-3">
+        <div class="flex flex-1 flex-col gap-[5px]">
+            <span class="text-[11.5px] text-text-faint">Min value</span>
+            <input type="number" value="@(Question.Min?.ToString() ?? string.Empty)"
+                   @oninput="@(e => { Question.Min = MinMaxValidation.ParseNullableDecimal(e.Value); OnChanged.InvokeAsync(); })"
+                   class="@MinMaxValidation.InputClasses(Invalid)" />
+        </div>
+        <div class="flex flex-1 flex-col gap-[5px]">
+            <span class="text-[11.5px] text-text-faint">Max value</span>
+            <input type="number" value="@(Question.Max?.ToString() ?? string.Empty)"
+                   @oninput="@(e => { Question.Max = MinMaxValidation.ParseNullableDecimal(e.Value); OnChanged.InvokeAsync(); })"
+                   class="@MinMaxValidation.InputClasses(Invalid)" />
+        </div>
+    </div>
+    @if (Invalid)
+    {
+        <span class="text-[11.5px] text-danger">Min value cannot be greater than max value.</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NumberQuestion Question { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private bool Invalid => MinMaxValidation.ExceedsMax(Question.Min, Question.Max);
+}

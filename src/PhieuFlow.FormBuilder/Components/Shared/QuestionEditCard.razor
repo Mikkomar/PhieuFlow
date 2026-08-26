@@ -44,76 +44,32 @@
 
             @if (Question is ChoiceQuestion choiceQuestion)
             {
-                <div class="flex flex-col gap-[7px]">
-                    <label class="text-[12px] font-semibold text-text-body">Options</label>
-                    @foreach (var option in choiceQuestion.Options)
-                    {
-                        var index = choiceQuestion.Options.ToList().IndexOf(option) + 1;
-                        <div class="flex max-w-[520px] items-center gap-2">
-                            <span class="w-[14px] flex-none text-right font-mono text-[10.5px] text-text-faintest-2">@index</span>
-                            <input value="@option.Label"
-                                   @oninput="@(e => OnOptionInput(option, e))"
-                                   placeholder="Option label"
-                                   class="h-[30px] min-w-0 flex-1 rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
-                            <button type="button" @onclick="@(() => RemoveOption(choiceQuestion, option))"
-                                    aria-label="Remove option"
-                                    class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-danger-border-hover hover:text-danger">
-                                <Blazicon Svg="Lucide.X" class="text-xs" aria-hidden="true" />
-                            </button>
-                        </div>
-                    }
-                    <button type="button" @onclick="@(() => AddOption(choiceQuestion))"
-                            class="h-7 self-start rounded-md border border-border-control bg-white px-[11px] text-[12px] font-medium text-text-body hover:border-border-control-hover">
-                        Add option
-                    </button>
-                </div>
+                <ChoiceOptionsEditor Question="choiceQuestion" OnChanged="OnChanged" />
             }
 
             @if (Question is TextAreaQuestion textAreaQuestion)
             {
-                <div class="flex max-w-[340px] gap-3">
-                    <div class="flex flex-1 flex-col gap-[5px]">
-                        <span class="text-[11.5px] text-text-faint">Min length</span>
-                        <input type="number" min="0" value="@(textAreaQuestion.MinLength?.ToString() ?? string.Empty)"
-                               @oninput="@(e => { textAreaQuestion.MinLength = ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
-                               class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
-                    </div>
-                    <div class="flex flex-1 flex-col gap-[5px]">
-                        <span class="text-[11.5px] text-text-faint">Max length</span>
-                        <input type="number" min="0" value="@(textAreaQuestion.MaxLength?.ToString() ?? string.Empty)"
-                               @oninput="@(e => { textAreaQuestion.MaxLength = ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
-                               class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
-                    </div>
-                </div>
+                <TextAreaQuestionEditor Question="textAreaQuestion" OnChanged="OnChanged" />
             }
 
             @if (Question is CheckboxQuestion checkboxQuestion)
             {
-                <div class="flex flex-col gap-[6px]">
-                    <label class="text-[12px] font-semibold text-text-body">Checkbox label</label>
-                    <input value="@checkboxQuestion.Label"
-                           @oninput="@(e => OnCheckboxLabelInput(checkboxQuestion, e))"
-                           placeholder="e.g. I agree to the terms"
-                           class="h-[32px] w-full max-w-[520px] rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
-                </div>
+                <CheckboxQuestionEditor Question="checkboxQuestion" OnChanged="OnChanged" />
             }
 
             @if (Question is CheckBoxGroupQuestion checkBoxGroupQuestion)
             {
-                <div class="flex max-w-[340px] gap-3">
-                    <div class="flex flex-1 flex-col gap-[5px]">
-                        <span class="text-[11.5px] text-text-faint">Min selections</span>
-                        <input type="number" min="0" value="@(checkBoxGroupQuestion.MinSelections?.ToString() ?? string.Empty)"
-                               @oninput="@(e => { checkBoxGroupQuestion.MinSelections = ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
-                               class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
-                    </div>
-                    <div class="flex flex-1 flex-col gap-[5px]">
-                        <span class="text-[11.5px] text-text-faint">Max selections</span>
-                        <input type="number" min="0" value="@(checkBoxGroupQuestion.MaxSelections?.ToString() ?? string.Empty)"
-                               @oninput="@(e => { checkBoxGroupQuestion.MaxSelections = ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
-                               class="h-[30px] w-full rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent" />
-                    </div>
-                </div>
+                <CheckBoxGroupQuestionEditor Question="checkBoxGroupQuestion" OnChanged="OnChanged" />
+            }
+
+            @if (Question is NumberQuestion numberQuestion)
+            {
+                <NumberQuestionEditor Question="numberQuestion" OnChanged="OnChanged" />
+            }
+
+            @if (Question is CalendarQuestion calendarQuestion)
+            {
+                <CalendarQuestionEditor Question="calendarQuestion" OnChanged="OnChanged" />
             }
 
             <div class="flex items-center justify-between gap-4 pt-[2px]">
@@ -183,6 +139,8 @@
         DropDownQuestion => "Dropdown",
         RadioButtonQuestion => "Radio buttons",
         CheckBoxGroupQuestion => "Checkbox group",
+        NumberQuestion => "Number",
+        CalendarQuestion => "Calendar",
         _ => "Question",
     };
 
@@ -235,34 +193,5 @@
     {
         Question.IsRequired = e.Value is bool value && value;
         OnChanged.InvokeAsync();
-    }
-
-    private void OnCheckboxLabelInput(CheckboxQuestion question, ChangeEventArgs e)
-    {
-        question.Label = e.Value?.ToString() ?? string.Empty;
-        OnChanged.InvokeAsync();
-    }
-
-    private void OnOptionInput(QuestionOption option, ChangeEventArgs e)
-    {
-        option.Label = e.Value?.ToString() ?? string.Empty;
-        OnChanged.InvokeAsync();
-    }
-
-    private void AddOption(ChoiceQuestion question)
-    {
-        question.Options.Add(new QuestionOption { Id = Guid.NewGuid(), Label = string.Empty });
-        OnChanged.InvokeAsync();
-    }
-
-    private void RemoveOption(ChoiceQuestion question, QuestionOption option)
-    {
-        question.Options.Remove(option);
-        OnChanged.InvokeAsync();
-    }
-
-    private static int? ParseNullableInt(object? value)
-    {
-        return int.TryParse(value?.ToString(), out var parsed) ? parsed : null;
     }
 }

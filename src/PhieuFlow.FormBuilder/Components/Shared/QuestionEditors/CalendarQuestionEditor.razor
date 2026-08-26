@@ -1,0 +1,30 @@
+<div class="flex max-w-[340px] flex-col gap-[5px]">
+    <div class="flex gap-3">
+        <div class="flex flex-1 flex-col gap-[5px]">
+            <span class="text-[11.5px] text-text-faint">Min date</span>
+            <input type="date" value="@(Question.MinDate?.ToString("yyyy-MM-dd") ?? string.Empty)"
+                   @oninput="@(e => { Question.MinDate = MinMaxValidation.ParseNullableDate(e.Value); OnChanged.InvokeAsync(); })"
+                   class="@MinMaxValidation.InputClasses(Invalid)" />
+        </div>
+        <div class="flex flex-1 flex-col gap-[5px]">
+            <span class="text-[11.5px] text-text-faint">Max date</span>
+            <input type="date" value="@(Question.MaxDate?.ToString("yyyy-MM-dd") ?? string.Empty)"
+                   @oninput="@(e => { Question.MaxDate = MinMaxValidation.ParseNullableDate(e.Value); OnChanged.InvokeAsync(); })"
+                   class="@MinMaxValidation.InputClasses(Invalid)" />
+        </div>
+    </div>
+    @if (Invalid)
+    {
+        <span class="text-[11.5px] text-danger">Min date cannot be after max date.</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public CalendarQuestion Question { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private bool Invalid => MinMaxValidation.ExceedsMax(Question.MinDate, Question.MaxDate);
+}
