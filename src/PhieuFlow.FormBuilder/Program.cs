@@ -9,6 +9,11 @@ builder.AddServiceDefaults();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddSingleton<FormRepository>();
+builder.Services.AddHttpClient<HubFormsClient>(client =>
+{
+    client.BaseAddress = new Uri("https+http://hub");
+});
+builder.Services.AddScoped<IFormsService, FormsService>();
 
 var app = builder.Build();
 

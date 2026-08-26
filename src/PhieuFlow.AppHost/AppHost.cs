@@ -25,6 +25,7 @@ var hub = hubBuilder.WithHttpHealthCheck("/health");
 
 builder.AddProject<Projects.PhieuFlow_FormBuilder>("formbuilder")
     .WithExternalHttpEndpoints()
+    .WithReference(hub)
     .WaitFor(hub)
     .WithHttpHealthCheck("/health");
 
