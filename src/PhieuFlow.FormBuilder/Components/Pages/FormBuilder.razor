@@ -160,7 +160,16 @@ else
                         var question = ActivePage.Questions.ElementAt(i);
                         var index = i;
                         <div>
-                            <div class="@InsertionLineClasses(index)"></div>
+                            @if (index == 0)
+                            {
+                                <div @ondragover="@(() => SetDropIndex(0))" @ondragover:preventDefault="true"
+                                     @ondrop="@(() => HandleDrop(ActivePage))"
+                                     class="@InsertionLineClasses(0)"></div>
+                            }
+                            else
+                            {
+                                <div class="@InsertionLineClasses(index)"></div>
+                            }
                             <QuestionEditCard @key="question.Id"
                                                Question="question"
                                                Number="@(index + 1)"
