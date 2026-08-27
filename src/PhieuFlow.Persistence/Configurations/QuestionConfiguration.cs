@@ -13,6 +13,7 @@ public class QuestionConfiguration : IEntityTypeConfiguration<Question>
         builder.Property(q => q.Id).ValueGeneratedNever();
 
         builder.Property(q => q.Text).IsRequired().HasMaxLength(1000);
+        builder.Property(q => q.Order).IsRequired();
 
         builder.HasDiscriminator<string>("QuestionType")
             .HasValue<TextAreaQuestion>("TextArea")

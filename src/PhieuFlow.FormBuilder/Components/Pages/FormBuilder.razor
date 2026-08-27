@@ -453,7 +453,7 @@ else
 
     private void AddPage()
     {
-        var page = new FormPage { Id = Guid.NewGuid(), FormId = _form.Id };
+        var page = new FormPage { Id = Guid.NewGuid(), FormId = _form.Id, Order = _form.Pages.Count };
         _form.Pages.Add(page);
         _activePageId = page.Id;
         ClosePicker();
@@ -509,6 +509,7 @@ else
 
     private void AddQuestion(FormPage page, Question question)
     {
+        question.Order = page.Questions.Count;
         page.Questions.Add(question);
         ClosePicker();
         _expandedQuestionId = question.Id;
@@ -569,7 +570,7 @@ else
         var moved = ordered[from];
         ordered.RemoveAt(from);
         ordered.Insert(to, moved);
-        page.Questions = ordered;
+        page.Questions = Renumbered(ordered);
 
         _draggedQuestion = null;
         _dropIndex = null;
@@ -588,11 +589,21 @@ else
 
         ordered.RemoveAt(from);
         ordered.Insert(to, question);
-        page.Questions = ordered;
+        page.Questions = Renumbered(ordered);
 
         var label = string.IsNullOrWhiteSpace(question.Text) ? "Untitled question" : question.Text;
         _liveAnnouncement = $"{label} moved to position {to + 1} of {ordered.Count}";
         TriggerAutosave();
+    }
+
+    private static List<Question> Renumbered(List<Question> ordered)
+    {
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            ordered[i].Order = i;
+        }
+
+        return ordered;
     }
 
     private string InsertionLineClasses(int index) => "my-[2px] h-[2px] rounded-[2px] "

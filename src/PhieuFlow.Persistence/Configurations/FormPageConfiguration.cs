@@ -13,8 +13,8 @@ public class FormPageConfiguration : IEntityTypeConfiguration<FormPage>
         builder.Property(p => p.Id).ValueGeneratedNever();
 
         builder.Property(p => p.Title).HasMaxLength(200);
+        builder.Property(p => p.Order).IsRequired();
 
-        // No explicit ordering column yet; question order is not guaranteed on reload.
         builder.HasMany(p => p.Questions)
             .WithOne(q => q.FormPage)
             .HasForeignKey(q => q.FormPageId)

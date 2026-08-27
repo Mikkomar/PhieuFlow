@@ -8,13 +8,23 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
 {
     public async Task<Form?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await dbContext.Forms
+        var form = await dbContext.Forms
             .AsNoTracking()
             .AsSplitQuery()
-            .Include(f => f.Pages)
+            .Include(f => f.Pages.OrderBy(p => p.Order))
                 .ThenInclude(p => p.Questions)
                     .ThenInclude(q => (q as ChoiceQuestion)!.Options)
             .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+
+        if (form is not null)
+        {
+            foreach (var page in form.Pages)
+            {
+                page.Questions = page.Questions.OrderBy(q => q.Order).ToList();
+            }
+        }
+
+        return form;
     }
 
     public async Task<FormBatchResult> GetBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default)

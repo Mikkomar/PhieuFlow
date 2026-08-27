@@ -25,20 +25,21 @@ public static class SampleForms
                     Id = personalDetailsPageId,
                     FormId = onboardingFormId,
                     Title = "Personal details",
+                    Order = 0,
                     Questions = new List<Question>
                     {
-                        new TextAreaQuestion { Id = Guid.NewGuid(), FormPageId = personalDetailsPageId, Text = "Full name as it appears on your contract", IsRequired = true, MinLength = 2, MaxLength = 120 },
+                        new TextAreaQuestion { Id = Guid.NewGuid(), FormPageId = personalDetailsPageId, Text = "Full name as it appears on your contract", IsRequired = true, Order = 0, MinLength = 2, MaxLength = 120 },
                         new DropDownQuestion
                         {
-                            Id = Guid.NewGuid(), FormPageId = personalDetailsPageId, Text = "Which department are you joining?", IsRequired = true,
+                            Id = Guid.NewGuid(), FormPageId = personalDetailsPageId, Text = "Which department are you joining?", IsRequired = true, Order = 1,
                             Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Operations" }, new() { Id = Guid.NewGuid(), Label = "Finance" }, new() { Id = Guid.NewGuid(), Label = "Engineering" } },
                         },
                         new RadioButtonQuestion
                         {
-                            Id = Guid.NewGuid(), FormPageId = personalDetailsPageId, Text = "Contract type", IsRequired = true,
+                            Id = Guid.NewGuid(), FormPageId = personalDetailsPageId, Text = "Contract type", IsRequired = true, Order = 2,
                             Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Permanent" }, new() { Id = Guid.NewGuid(), Label = "Fixed term" }, new() { Id = Guid.NewGuid(), Label = "Contractor" } },
                         },
-                        new CheckboxQuestion { Id = Guid.NewGuid(), FormPageId = personalDetailsPageId, Text = "Signed contract", Label = "I have returned my signed contract", IsRequired = false },
+                        new CheckboxQuestion { Id = Guid.NewGuid(), FormPageId = personalDetailsPageId, Text = "Signed contract", Label = "I have returned my signed contract", IsRequired = false, Order = 3 },
                     },
                 },
                 new()
@@ -46,19 +47,20 @@ public static class SampleForms
                     Id = equipmentPageId,
                     FormId = onboardingFormId,
                     Title = "Equipment",
+                    Order = 1,
                     Questions = new List<Question>
                     {
                         new CheckBoxGroupQuestion
                         {
-                            Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Which equipment do you need?", IsRequired = true, MinSelections = 1, MaxSelections = 3,
+                            Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Which equipment do you need?", IsRequired = true, Order = 0, MinSelections = 1, MaxSelections = 3,
                             Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Laptop" }, new() { Id = Guid.NewGuid(), Label = "Monitor" }, new() { Id = Guid.NewGuid(), Label = "Phone" }, new() { Id = Guid.NewGuid(), Label = "Headset" } },
                         },
-                        new TextAreaQuestion { Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Accessibility requirements", IsRequired = false, MinLength = 0, MaxLength = 500 },
-                        new NumberQuestion { Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Shoe size (EU)", IsRequired = false, Min = 35, Max = 50 },
-                        new CalendarQuestion { Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Preferred start date", IsRequired = true, MinDate = new DateOnly(2026, 1, 1), MaxDate = new DateOnly(2026, 12, 31) },
+                        new TextAreaQuestion { Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Accessibility requirements", IsRequired = false, Order = 1, MinLength = 0, MaxLength = 500 },
+                        new NumberQuestion { Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Shoe size (EU)", IsRequired = false, Order = 2, Min = 35, Max = 50 },
+                        new CalendarQuestion { Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Preferred start date", IsRequired = true, Order = 3, MinDate = new DateOnly(2026, 1, 1), MaxDate = new DateOnly(2026, 12, 31) },
                     },
                 },
-                new() { Id = payrollPageId, FormId = onboardingFormId, Title = "Payroll", Questions = new List<Question>() },
+                new() { Id = payrollPageId, FormId = onboardingFormId, Title = "Payroll", Order = 2, Questions = new List<Question>() },
             },
         };
 
@@ -80,10 +82,10 @@ public static class SampleForms
                     {
                         new RadioButtonQuestion
                         {
-                            Id = Guid.NewGuid(), FormPageId = feedbackPageId, Text = "How likely are you to recommend us to a colleague?", IsRequired = true,
+                            Id = Guid.NewGuid(), FormPageId = feedbackPageId, Text = "How likely are you to recommend us to a colleague?", IsRequired = true, Order = 0,
                             Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Very likely" }, new() { Id = Guid.NewGuid(), Label = "Neutral" }, new() { Id = Guid.NewGuid(), Label = "Unlikely" } },
                         },
-                        new TextAreaQuestion { Id = Guid.NewGuid(), FormPageId = feedbackPageId, Text = "What could we do better?", IsRequired = false },
+                        new TextAreaQuestion { Id = Guid.NewGuid(), FormPageId = feedbackPageId, Text = "What could we do better?", IsRequired = false, Order = 1 },
                     },
                 },
             },

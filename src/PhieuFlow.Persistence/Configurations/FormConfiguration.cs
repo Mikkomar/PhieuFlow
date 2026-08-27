@@ -19,7 +19,6 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
         builder.Property(f => f.LastModifiedAt).IsRequired();
         builder.Property(f => f.LastModifiedBy).HasMaxLength(256);
 
-        // No explicit ordering column yet; page order is not guaranteed on reload.
         builder.HasMany(f => f.Pages)
             .WithOne(p => p.Form)
             .HasForeignKey(p => p.FormId)
