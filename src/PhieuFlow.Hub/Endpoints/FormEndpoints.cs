@@ -1,3 +1,4 @@
+using PhieuFlow.Core.Entities;
 using PhieuFlow.Hub.Contracts;
 using PhieuFlow.Persistence.UnitOfWork;
 
@@ -35,5 +36,93 @@ public static class FormEndpoints
                 NextStartId = result.NextStartId,
             });
         });
+
+        app.MapGet("/forms/{id:guid}", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
+        {
+            var form = await unitOfWork.Forms.GetByIdAsync(id, cancellationToken);
+            return form is null ? Results.NotFound() : Results.Ok(MapToDto(form));
+        });
     }
+
+    private static FormDto MapToDto(Form form) => new()
+    {
+        Id = form.Id,
+        Title = form.Title,
+        Description = form.Description,
+        CreatedAt = form.CreatedAt,
+        LastModifiedAt = form.LastModifiedAt,
+        LastModifiedBy = form.LastModifiedBy,
+        Revision = form.Revision,
+        Pages = form.Pages.Select(MapToDto).ToList(),
+    };
+
+    private static FormPageDto MapToDto(FormPage page) => new()
+    {
+        Id = page.Id,
+        Title = page.Title,
+        Questions = page.Questions.Select(MapToDto).ToList(),
+    };
+
+    private static QuestionDto MapToDto(Question question) => question switch
+    {
+        TextAreaQuestion q => new TextAreaQuestionDto
+        {
+            Id = q.Id,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            MinLength = q.MinLength,
+            MaxLength = q.MaxLength,
+        },
+        CheckboxQuestion q => new CheckboxQuestionDto
+        {
+            Id = q.Id,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Label = q.Label,
+        },
+        DropDownQuestion q => new DropDownQuestionDto
+        {
+            Id = q.Id,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Options = MapToDto(q.Options),
+        },
+        RadioButtonQuestion q => new RadioButtonQuestionDto
+        {
+            Id = q.Id,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Options = MapToDto(q.Options),
+        },
+        CheckBoxGroupQuestion q => new CheckBoxGroupQuestionDto
+        {
+            Id = q.Id,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Options = MapToDto(q.Options),
+            MinSelections = q.MinSelections,
+            MaxSelections = q.MaxSelections,
+        },
+        NumberQuestion q => new NumberQuestionDto
+        {
+            Id = q.Id,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Min = q.Min,
+            Max = q.Max,
+        },
+        CalendarQuestion q => new CalendarQuestionDto
+        {
+            Id = q.Id,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            MinDate = q.MinDate,
+            MaxDate = q.MaxDate,
+        },
+        _ => throw new NotSupportedException($"Unknown question type '{question.GetType().Name}'."),
+    };
+
+    private static List<QuestionOptionDto> MapToDto(IEnumerable<QuestionOption> options) => options
+        .Select(o => new QuestionOptionDto { Id = o.Id, Label = o.Label })
+        .ToList();
 }

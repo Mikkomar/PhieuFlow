@@ -1,10 +1,22 @@
 using Microsoft.EntityFrameworkCore;
+using PhieuFlow.Core.Entities;
 using PhieuFlow.Persistence.Projections;
 
 namespace PhieuFlow.Persistence.Repositories;
 
 public class FormRepository(HubDbContext dbContext) : IFormRepository
 {
+    public async Task<Form?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Forms
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(f => f.Pages)
+                .ThenInclude(p => p.Questions)
+                    .ThenInclude(q => (q as ChoiceQuestion)!.Options)
+            .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+    }
+
     public async Task<FormBatchResult> GetBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default)
     {
         var query = dbContext.Forms.AsNoTracking().AsQueryable();

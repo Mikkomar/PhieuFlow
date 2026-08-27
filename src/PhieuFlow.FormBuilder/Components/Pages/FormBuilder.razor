@@ -5,8 +5,26 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject FormRepository Repository
+@inject IFormsService FormsService
 @implements IDisposable
 
+@if (_loadError is not null)
+{
+    <div class="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
+        <span class="text-[15px] font-semibold text-text">Form not found</span>
+        <p class="max-w-[46ch] text-[13px] text-text-faint">@_loadError</p>
+        <button type="button" @onclick="@(() => Nav.NavigateTo("/"))"
+                class="mt-2 h-[34px] rounded-md border border-border-control bg-white px-4 text-[13px] font-medium text-text-body hover:border-border-control-hover">
+            Back to all forms
+        </button>
+    </div>
+}
+else if (_loading)
+{
+    <div class="flex flex-1 items-center justify-center p-10 text-[13px] text-text-faint">Loading form…</div>
+}
+else
+{
 <PageTitle>@(string.IsNullOrWhiteSpace(_form.Title) ? "Untitled form" : _form.Title)</PageTitle>
 
 <div aria-live="polite" class="sr-only">@_liveAnnouncement</div>
@@ -260,6 +278,7 @@
         </div>
     }
 </div>
+}
 
 @code {
     private enum SaveState { Idle, Saving, Saved }
@@ -270,6 +289,8 @@
     public Guid? FormId { get; set; }
 
     private Form _form = null!;
+    private bool _loading = true;
+    private string? _loadError;
     private Guid _activePageId;
     private Guid? _expandedQuestionId;
     private Guid? _focusQuestionId;
@@ -298,16 +319,48 @@
     private string DescriptionCountClasses => "font-mono text-[10.5px] "
         + (DescriptionLength > 500 ? "text-danger" : "text-text-faintest");
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        var loaded = FormId is { } id ? Repository.TryGet(id) : null;
-        if (FormId is not null && loaded is null)
+        _loadError = null;
+
+        if (FormId is null)
         {
-            Nav.NavigateTo("/forms/new", replace: true);
-            return;
+            _form = Repository.CreateNew();
+            _loading = false;
+        }
+        else
+        {
+            var loaded = Repository.TryGet(FormId.Value);
+            if (loaded is null)
+            {
+                _loading = true;
+                StateHasChanged();
+
+                try
+                {
+                    loaded = await FormsService.GetByIdAsync(FormId.Value);
+                }
+                catch (HttpRequestException)
+                {
+                    _loadError = "Couldn't load this form from the server.";
+                    _loading = false;
+                    return;
+                }
+
+                if (loaded is null)
+                {
+                    _loadError = "This form couldn't be found.";
+                    _loading = false;
+                    return;
+                }
+
+                Repository.Save(loaded);
+            }
+
+            _form = loaded;
+            _loading = false;
         }
 
-        _form = loaded ?? Repository.CreateNew();
         _activePageId = _form.Pages.First().Id;
         _expandedQuestionId = null;
         _pickingTypeForPageId = null;

@@ -1,4 +1,6 @@
+using PhieuFlow.Core.Entities;
 using PhieuFlow.FormBuilder.Models;
+using PhieuFlow.Hub.Contracts;
 
 namespace PhieuFlow.FormBuilder.Services;
 
@@ -21,4 +23,100 @@ public class FormsService(HubFormsClient hubFormsClient) : IFormsService
             PageCount = dto.PageCount,
         }).ToList();
     }
+
+    public async Task<Form?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var dto = await hubFormsClient.GetFormByIdAsync(id, cancellationToken);
+        return dto is null ? null : MapToEntity(dto);
+    }
+
+    private static Form MapToEntity(FormDto dto) => new()
+    {
+        Id = dto.Id,
+        Title = dto.Title,
+        Description = dto.Description,
+        CreatedAt = dto.CreatedAt,
+        LastModifiedAt = dto.LastModifiedAt,
+        LastModifiedBy = dto.LastModifiedBy,
+        Revision = dto.Revision,
+        Pages = dto.Pages.Select(p => MapToEntity(p, dto.Id)).ToList(),
+    };
+
+    private static FormPage MapToEntity(FormPageDto dto, Guid formId) => new()
+    {
+        Id = dto.Id,
+        FormId = formId,
+        Title = dto.Title,
+        Questions = dto.Questions.Select(q => MapToEntity(q, dto.Id)).ToList(),
+    };
+
+    private static Question MapToEntity(QuestionDto dto, Guid formPageId) => dto switch
+    {
+        TextAreaQuestionDto q => new TextAreaQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            MinLength = q.MinLength,
+            MaxLength = q.MaxLength,
+        },
+        CheckboxQuestionDto q => new CheckboxQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Label = q.Label,
+        },
+        DropDownQuestionDto q => new DropDownQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Options = MapToEntity(q.Options),
+        },
+        RadioButtonQuestionDto q => new RadioButtonQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Options = MapToEntity(q.Options),
+        },
+        CheckBoxGroupQuestionDto q => new CheckBoxGroupQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Options = MapToEntity(q.Options),
+            MinSelections = q.MinSelections,
+            MaxSelections = q.MaxSelections,
+        },
+        NumberQuestionDto q => new NumberQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Min = q.Min,
+            Max = q.Max,
+        },
+        CalendarQuestionDto q => new CalendarQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            MinDate = q.MinDate,
+            MaxDate = q.MaxDate,
+        },
+        _ => throw new NotSupportedException($"Unknown question type '{dto.GetType().Name}'."),
+    };
+
+    private static List<QuestionOption> MapToEntity(IEnumerable<QuestionOptionDto> options) => options
+        .Select(o => new QuestionOption { Id = o.Id, Label = o.Label })
+        .ToList();
 }
