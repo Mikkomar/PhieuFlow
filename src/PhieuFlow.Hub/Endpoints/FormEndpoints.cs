@@ -42,6 +42,13 @@ public static class FormEndpoints
             var form = await unitOfWork.Forms.GetByIdAsync(id, cancellationToken);
             return form is null ? Results.NotFound() : Results.Ok(MapToDto(form));
         });
+
+        app.MapPut("/forms/{id:guid}", async (Guid id, FormDto dto, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
+        {
+            await unitOfWork.Forms.SaveAsync(MapToEntity(dto, id), cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Results.NoContent();
+        });
     }
 
     private static FormDto MapToDto(Form form) => new()
@@ -124,5 +131,103 @@ public static class FormEndpoints
 
     private static List<QuestionOptionDto> MapToDto(IEnumerable<QuestionOption> options) => options
         .Select(o => new QuestionOptionDto { Id = o.Id, Label = o.Label })
+        .ToList();
+
+    private static Form MapToEntity(FormDto dto, Guid formId) => new()
+    {
+        Id = formId,
+        Title = dto.Title,
+        Description = dto.Description,
+        CreatedAt = dto.CreatedAt,
+        LastModifiedAt = dto.LastModifiedAt,
+        LastModifiedBy = dto.LastModifiedBy,
+        Revision = dto.Revision,
+        Pages = dto.Pages.Select((p, index) => MapToEntity(p, formId, index)).ToList(),
+    };
+
+    private static FormPage MapToEntity(FormPageDto dto, Guid formId, int order) => new()
+    {
+        Id = dto.Id,
+        FormId = formId,
+        Title = dto.Title,
+        Order = order,
+        Questions = dto.Questions.Select((q, index) => MapToEntity(q, dto.Id, index)).ToList(),
+    };
+
+    private static Question MapToEntity(QuestionDto dto, Guid formPageId, int order) => dto switch
+    {
+        TextAreaQuestionDto q => new TextAreaQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Order = order,
+            MinLength = q.MinLength,
+            MaxLength = q.MaxLength,
+        },
+        CheckboxQuestionDto q => new CheckboxQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Order = order,
+            Label = q.Label,
+        },
+        DropDownQuestionDto q => new DropDownQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Order = order,
+            Options = MapToEntity(q.Options),
+        },
+        RadioButtonQuestionDto q => new RadioButtonQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Order = order,
+            Options = MapToEntity(q.Options),
+        },
+        CheckBoxGroupQuestionDto q => new CheckBoxGroupQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Order = order,
+            Options = MapToEntity(q.Options),
+            MinSelections = q.MinSelections,
+            MaxSelections = q.MaxSelections,
+        },
+        NumberQuestionDto q => new NumberQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Order = order,
+            Min = q.Min,
+            Max = q.Max,
+        },
+        CalendarQuestionDto q => new CalendarQuestion
+        {
+            Id = q.Id,
+            FormPageId = formPageId,
+            Text = q.Text,
+            IsRequired = q.IsRequired,
+            Order = order,
+            MinDate = q.MinDate,
+            MaxDate = q.MaxDate,
+        },
+        _ => throw new NotSupportedException($"Unknown question type '{dto.GetType().Name}'."),
+    };
+
+    private static List<QuestionOption> MapToEntity(IEnumerable<QuestionOptionDto> options) => options
+        .Select(o => new QuestionOption { Id = o.Id, Label = o.Label })
         .ToList();
 }

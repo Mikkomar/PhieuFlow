@@ -19,6 +19,12 @@ public class HubFormsClient(HttpClient httpClient)
         return await response.Content.ReadFromJsonAsync<FormDto>(cancellationToken);
     }
 
+    public async Task SaveFormAsync(FormDto dto, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PutAsJsonAsync($"/forms/{dto.Id}", dto, cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
     public async Task<List<FormListItemDto>> GetAllFormsAsync(CancellationToken cancellationToken = default)
     {
         var forms = new List<FormListItemDto>();

@@ -8,4 +8,6 @@ public interface IFormsService
     Task<List<FormSummary>> GetAllAsync(CancellationToken cancellationToken = default);
 
     Task<Form?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task SaveAsync(Form form, CancellationToken cancellationToken = default);
 }

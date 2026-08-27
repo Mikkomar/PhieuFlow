@@ -65,6 +65,11 @@ else
                 <Blazicon Svg="Lucide.Eye" class="text-sm" aria-hidden="true" />
                 @(_previewOpen ? "Hide preview" : "Preview")
             </button>
+            <button type="button" @onclick="SaveNow"
+                    class="flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover">
+                <Blazicon Svg="Lucide.Save" class="text-sm" aria-hidden="true" />
+                Save
+            </button>
             <button type="button"
                     class="h-[34px] whitespace-nowrap rounded-md border border-accent bg-accent px-4 text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
                 Publish
@@ -290,7 +295,7 @@ else
 }
 
 @code {
-    private enum SaveState { Idle, Saving, Saved }
+    private enum SaveState { Idle, Saving, Saved, Error }
 
     private enum PickerAnchor { Header, Empty }
 
@@ -320,6 +325,7 @@ else
     {
         SaveState.Saving => "Saving…",
         SaveState.Saved => "saved just now",
+        SaveState.Error => "couldn't reach server",
         _ => null,
     };
 
@@ -407,8 +413,43 @@ else
             return;
         }
 
+        await SaveNowAsync(token);
+    }
+
+    private void SaveNow()
+    {
+        _autosaveCts?.Cancel();
+
+        if (string.IsNullOrWhiteSpace(_form.Title))
+        {
+            _titleBlurred = true;
+            return;
+        }
+
+        _saveState = SaveState.Saving;
+        var cts = new CancellationTokenSource();
+        _autosaveCts = cts;
+        _ = SaveNowAsync(cts.Token);
+    }
+
+    private async Task SaveNowAsync(CancellationToken token)
+    {
         Repository.Save(_form);
-        _saveState = SaveState.Saved;
+
+        try
+        {
+            await FormsService.SaveAsync(_form, token);
+            _saveState = SaveState.Saved;
+        }
+        catch (TaskCanceledException) when (token.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (HttpRequestException)
+        {
+            _saveState = SaveState.Error;
+        }
+
         await InvokeAsync(StateHasChanged);
     }
 
