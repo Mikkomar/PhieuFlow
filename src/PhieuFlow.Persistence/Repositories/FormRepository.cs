@@ -6,62 +6,194 @@ namespace PhieuFlow.Persistence.Repositories;
 
 public class FormRepository(HubDbContext dbContext) : IFormRepository
 {
-    public async Task<Form?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<FormVersion?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default)
     {
-        var form = await dbContext.Forms
+        var version = await dbContext.FormVersions
             .AsNoTracking()
             .AsSplitQuery()
-            .Include(f => f.Pages.OrderBy(p => p.Order))
+            .Where(v => v.FormId == formId)
+            .OrderByDescending(v => v.VersionNumber)
+            .Include(v => v.Pages.OrderBy(p => p.Order))
                 .ThenInclude(p => p.Questions)
                     .ThenInclude(q => (q as ChoiceQuestion)!.Options)
-            .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (form is not null)
+        if (version is not null)
         {
-            foreach (var page in form.Pages)
+            foreach (var page in version.Pages)
             {
                 page.Questions = page.Questions.OrderBy(q => q.Order).ToList();
             }
         }
 
-        return form;
+        return version;
     }
 
-    public async Task SaveAsync(Form form, CancellationToken cancellationToken = default)
+    public async Task SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default)
     {
-        var existing = await dbContext.Forms
-            .AsSplitQuery()
-            .Include(f => f.Pages)
-                .ThenInclude(p => p.Questions)
-                    .ThenInclude(q => (q as ChoiceQuestion)!.Options)
-            .FirstOrDefaultAsync(f => f.Id == form.Id, cancellationToken);
-
         var now = DateTimeOffset.UtcNow;
 
-        if (existing is null)
+        var currentVersion = await dbContext.FormVersions
+            .AsSplitQuery()
+            .Where(v => v.FormId == formId)
+            .OrderByDescending(v => v.VersionNumber)
+            .Include(v => v.Pages)
+                .ThenInclude(p => p.Questions)
+                    .ThenInclude(q => (q as ChoiceQuestion)!.Options)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (currentVersion is null)
         {
-            form.CreatedAt = now;
-            form.LastModifiedAt = now;
-            dbContext.Forms.Add(form);
+            var newVersionId = Guid.NewGuid();
+
+            foreach (var page in incomingContent.Pages)
+            {
+                page.FormVersionId = newVersionId;
+            }
+
+            dbContext.Forms.Add(new Form { Id = formId, CreatedAt = now });
+
+            dbContext.FormVersions.Add(new FormVersion
+            {
+                Id = newVersionId,
+                FormId = formId,
+                VersionNumber = 1,
+                Status = FormVersionStatus.Draft,
+                Title = incomingContent.Title,
+                Description = incomingContent.Description,
+                Revision = 1,
+                CreatedAt = now,
+                LastModifiedAt = now,
+                LastModifiedBy = incomingContent.LastModifiedBy,
+                Pages = incomingContent.Pages,
+            });
+
             return;
         }
 
-        existing.Title = form.Title;
-        existing.Description = form.Description;
-        existing.LastModifiedAt = now;
-        existing.LastModifiedBy = form.LastModifiedBy;
+        if (currentVersion.Status == FormVersionStatus.Draft)
+        {
+            currentVersion.Title = incomingContent.Title;
+            currentVersion.Description = incomingContent.Description;
+            currentVersion.LastModifiedAt = now;
+            currentVersion.LastModifiedBy = incomingContent.LastModifiedBy;
+            currentVersion.Revision += 1;
 
-        ReconcilePages(existing, form.Pages);
+            ReconcilePages(currentVersion, incomingContent.Pages);
+            return;
+        }
+
+        // Published: currentVersion is immutable from here on. Fork a new draft.
+        var forkedVersionId = Guid.NewGuid();
+
+        dbContext.FormVersions.Add(new FormVersion
+        {
+            Id = forkedVersionId,
+            FormId = formId,
+            VersionNumber = currentVersion.VersionNumber + 1,
+            Status = FormVersionStatus.Draft,
+            Title = incomingContent.Title,
+            Description = incomingContent.Description,
+            Revision = 1,
+            CreatedAt = now,
+            LastModifiedAt = now,
+            LastModifiedBy = incomingContent.LastModifiedBy,
+            Pages = incomingContent.Pages.Select(p => ClonePageWithFreshIds(p, forkedVersionId)).ToList(),
+        });
     }
 
-    private static void ReconcilePages(Form existingForm, ICollection<FormPage> incomingPages)
+    public async Task<bool> PublishAsync(Guid formId, CancellationToken cancellationToken = default)
     {
-        var existingById = existingForm.Pages.ToDictionary(p => p.Id);
+        var currentVersion = await dbContext.FormVersions
+            .Where(v => v.FormId == formId)
+            .OrderByDescending(v => v.VersionNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (currentVersion is null)
+        {
+            return false;
+        }
+
+        if (currentVersion.Status == FormVersionStatus.Published)
+        {
+            return true;
+        }
+
+        currentVersion.Status = FormVersionStatus.Published;
+        currentVersion.PublishedAt = DateTimeOffset.UtcNow;
+        return true;
+    }
+
+    private static FormPage ClonePageWithFreshIds(FormPage source, Guid newVersionId)
+    {
+        var newPageId = Guid.NewGuid();
+        return new FormPage
+        {
+            Id = newPageId,
+            FormVersionId = newVersionId,
+            Title = source.Title,
+            Order = source.Order,
+            Questions = source.Questions.Select(q => CloneQuestionWithFreshIds(q, newPageId)).ToList(),
+        };
+    }
+
+    private static Question CloneQuestionWithFreshIds(Question source, Guid newPageId)
+    {
+        var newQuestionId = Guid.NewGuid();
+        return source switch
+        {
+            TextAreaQuestion q => new TextAreaQuestion
+            {
+                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
+                MinLength = q.MinLength, MaxLength = q.MaxLength,
+            },
+            CheckboxQuestion q => new CheckboxQuestion
+            {
+                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
+                Label = q.Label,
+            },
+            DropDownQuestion q => new DropDownQuestion
+            {
+                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
+                Options = CloneOptionsWithFreshIds(q.Options),
+            },
+            RadioButtonQuestion q => new RadioButtonQuestion
+            {
+                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
+                Options = CloneOptionsWithFreshIds(q.Options),
+            },
+            CheckBoxGroupQuestion q => new CheckBoxGroupQuestion
+            {
+                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
+                Options = CloneOptionsWithFreshIds(q.Options),
+                MinSelections = q.MinSelections, MaxSelections = q.MaxSelections,
+            },
+            NumberQuestion q => new NumberQuestion
+            {
+                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
+                Min = q.Min, Max = q.Max,
+            },
+            CalendarQuestion q => new CalendarQuestion
+            {
+                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
+                MinDate = q.MinDate, MaxDate = q.MaxDate,
+            },
+            _ => throw new NotSupportedException($"Unknown question type '{source.GetType().Name}'."),
+        };
+    }
+
+    private static List<QuestionOption> CloneOptionsWithFreshIds(IEnumerable<QuestionOption> options) => options
+        .Select(o => new QuestionOption { Id = Guid.NewGuid(), Label = o.Label })
+        .ToList();
+
+    private static void ReconcilePages(FormVersion existingVersion, ICollection<FormPage> incomingPages)
+    {
+        var existingById = existingVersion.Pages.ToDictionary(p => p.Id);
         var incomingIds = incomingPages.Select(p => p.Id).ToHashSet();
 
-        foreach (var stale in existingForm.Pages.Where(p => !incomingIds.Contains(p.Id)).ToList())
+        foreach (var stale in existingVersion.Pages.Where(p => !incomingIds.Contains(p.Id)).ToList())
         {
-            existingForm.Pages.Remove(stale);
+            existingVersion.Pages.Remove(stale);
         }
 
         foreach (var incomingPage in incomingPages)
@@ -74,8 +206,8 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             }
             else
             {
-                incomingPage.FormId = existingForm.Id;
-                existingForm.Pages.Add(incomingPage);
+                incomingPage.FormVersionId = existingVersion.Id;
+                existingVersion.Pages.Add(incomingPage);
             }
         }
     }
@@ -170,26 +302,36 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
 
     public async Task<FormBatchResult> GetBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default)
     {
-        var query = dbContext.Forms.AsNoTracking().AsQueryable();
+        var query = dbContext.Forms
+            .AsNoTracking()
+            .Select(f => new
+            {
+                f.Id,
+                f.CreatedAt,
+                CurrentVersion = f.Versions.OrderByDescending(v => v.VersionNumber).First(),
+            });
+
         if (startId is not null)
         {
-            query = query.Where(f => f.Id >= startId.Value);
+            query = query.Where(x => x.Id >= startId.Value);
         }
 
         var page = await query
-            .OrderBy(f => f.Id)
+            .OrderBy(x => x.Id)
             .Take(take + 1)
-            .Select(f => new FormListItem
+            .Select(x => new FormListItem
             {
-                Id = f.Id,
-                Title = f.Title,
-                Description = f.Description,
-                CreatedAt = f.CreatedAt,
-                LastModifiedAt = f.LastModifiedAt,
-                LastModifiedBy = f.LastModifiedBy,
-                Revision = f.Revision,
-                PageCount = f.Pages.Count,
-                QuestionCount = f.Pages.Sum(p => p.Questions.Count),
+                Id = x.Id,
+                Title = x.CurrentVersion.Title,
+                Description = x.CurrentVersion.Description,
+                CreatedAt = x.CreatedAt,
+                LastModifiedAt = x.CurrentVersion.LastModifiedAt,
+                LastModifiedBy = x.CurrentVersion.LastModifiedBy,
+                Revision = x.CurrentVersion.Revision,
+                VersionNumber = x.CurrentVersion.VersionNumber,
+                Status = x.CurrentVersion.Status,
+                PageCount = x.CurrentVersion.Pages.Count,
+                QuestionCount = x.CurrentVersion.Pages.Sum(p => p.Questions.Count),
             })
             .ToListAsync(cancellationToken);
 

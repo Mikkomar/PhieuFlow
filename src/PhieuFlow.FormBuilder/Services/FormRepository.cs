@@ -9,20 +9,22 @@ namespace PhieuFlow.FormBuilder.Services;
 /// </summary>
 public class FormRepository
 {
-    private readonly Dictionary<Guid, Form> _forms = [];
+    private readonly Dictionary<Guid, FormVersion> _versions = [];
 
-    public Form? TryGet(Guid id) => _forms.GetValueOrDefault(id);
+    public FormVersion? TryGet(Guid formId) => _versions.GetValueOrDefault(formId);
 
-    public Form CreateNew()
+    public FormVersion CreateNew()
     {
         var formId = Guid.NewGuid();
-        return new Form
+        var versionId = Guid.NewGuid();
+        return new FormVersion
         {
-            Id = formId,
+            Id = versionId,
+            FormId = formId,
             Title = string.Empty,
-            Pages = new List<FormPage> { new() { Id = Guid.NewGuid(), FormId = formId } },
+            Pages = new List<FormPage> { new() { Id = Guid.NewGuid(), FormVersionId = versionId } },
         };
     }
 
-    public void Save(Form form) => _forms[form.Id] = form;
+    public void Save(FormVersion version) => _versions[version.FormId] = version;
 }

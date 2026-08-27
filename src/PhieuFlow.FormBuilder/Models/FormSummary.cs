@@ -16,6 +16,7 @@ public class FormSummary
     public required DateTimeOffset LastModifiedAt { get; set; }
     public required string LastModifiedBy { get; set; }
     public required int Revision { get; set; }
+    public required int VersionNumber { get; set; }
     public required int QuestionCount { get; set; }
     public required int PageCount { get; set; }
     public string? PublicUrl { get; set; }

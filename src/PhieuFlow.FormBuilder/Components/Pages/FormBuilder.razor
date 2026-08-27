@@ -56,8 +56,12 @@ else
             {
                 <div class="flex items-center gap-[7px] font-mono text-[10.5px] tracking-[0.04em] text-text-faintest uppercase">
                     <span class="h-[5px] w-[5px] rounded-full bg-text-faintest-2"></span>
-                    Draft &middot; @saveLabel
+                    @(_form.Status == FormVersionStatus.Published ? "Published" : "Draft") &middot; v@(_form.VersionNumber) &middot; @saveLabel
                 </div>
+            }
+            @if (_publishError is not null)
+            {
+                <span class="text-[12px] text-danger">@_publishError</span>
             }
             <div class="hidden h-[22px] w-px bg-border-soft min-[1100px]:block"></div>
             <button type="button" @onclick="TogglePreview"
@@ -70,9 +74,10 @@ else
                 <Blazicon Svg="Lucide.Save" class="text-sm" aria-hidden="true" />
                 Save
             </button>
-            <button type="button"
-                    class="h-[34px] whitespace-nowrap rounded-md border border-accent bg-accent px-4 text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
-                Publish
+            <button type="button" @onclick="PublishNow" disabled="@(_publishing || _form.Status == FormVersionStatus.Published)"
+                    title="@(_form.Status == FormVersionStatus.Published ? "This version is already published" : null)"
+                    class="h-[34px] whitespace-nowrap rounded-md border border-accent bg-accent px-4 text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover disabled:cursor-default disabled:opacity-60">
+                @(_form.Status == FormVersionStatus.Published ? "Published" : (_publishing ? "Publishing…" : "Publish"))
             </button>
         </div>
     </div>
@@ -302,7 +307,7 @@ else
     [Parameter]
     public Guid? FormId { get; set; }
 
-    private Form _form = null!;
+    private FormVersion _form = null!;
     private bool _loading = true;
     private string? _loadError;
     private Guid _activePageId;
@@ -317,6 +322,8 @@ else
     private string _liveAnnouncement = string.Empty;
     private CancellationTokenSource? _autosaveCts;
     private SaveState _saveState = SaveState.Idle;
+    private bool _publishing;
+    private string? _publishError;
 
     private FormPage ActivePage => _form.Pages.First(p => p.Id == _activePageId);
     private int ActivePageIndex => _form.Pages.ToList().IndexOf(ActivePage);
@@ -435,10 +442,22 @@ else
     private async Task SaveNowAsync(CancellationToken token)
     {
         Repository.Save(_form);
+        var wasPublished = _form.Status == FormVersionStatus.Published;
 
         try
         {
-            await FormsService.SaveAsync(_form, token);
+            await FormsService.SaveAsync(_form.FormId, _form, token);
+            if (wasPublished)
+            {
+                _form.Status = FormVersionStatus.Draft;
+                _form.VersionNumber += 1;
+                _form.Revision = 1;
+            }
+            else
+            {
+                _form.Revision += 1;
+            }
+
             _saveState = SaveState.Saved;
         }
         catch (TaskCanceledException) when (token.IsCancellationRequested)
@@ -451,6 +470,38 @@ else
         }
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task PublishNow()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Title))
+        {
+            _titleBlurred = true;
+            return;
+        }
+
+        if (_form.Status == FormVersionStatus.Published)
+        {
+            return;
+        }
+
+        _publishing = true;
+        _publishError = null;
+
+        try
+        {
+            await FormsService.PublishAsync(_form.FormId);
+            _form.Status = FormVersionStatus.Published;
+            _form.PublishedAt = DateTimeOffset.UtcNow;
+        }
+        catch (HttpRequestException)
+        {
+            _publishError = "Couldn't publish this form.";
+        }
+        finally
+        {
+            _publishing = false;
+        }
     }
 
     private void OnTitleInput(ChangeEventArgs e)
@@ -503,7 +554,7 @@ else
 
     private void AddPage()
     {
-        var page = new FormPage { Id = Guid.NewGuid(), FormId = _form.Id, Order = _form.Pages.Count };
+        var page = new FormPage { Id = Guid.NewGuid(), FormVersionId = _form.Id, Order = _form.Pages.Count };
         _form.Pages.Add(page);
         _activePageId = page.Id;
         ClosePicker();

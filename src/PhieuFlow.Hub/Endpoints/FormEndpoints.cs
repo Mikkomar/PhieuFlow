@@ -30,6 +30,8 @@ public static class FormEndpoints
                     LastModifiedAt = i.LastModifiedAt,
                     LastModifiedBy = i.LastModifiedBy,
                     Revision = i.Revision,
+                    VersionNumber = i.VersionNumber,
+                    Status = MapToDto(i.Status),
                     PageCount = i.PageCount,
                     QuestionCount = i.QuestionCount,
                 }).ToList(),
@@ -39,28 +41,49 @@ public static class FormEndpoints
 
         app.MapGet("/forms/{id:guid}", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
-            var form = await unitOfWork.Forms.GetByIdAsync(id, cancellationToken);
-            return form is null ? Results.NotFound() : Results.Ok(MapToDto(form));
+            var version = await unitOfWork.Forms.GetByIdAsync(id, cancellationToken);
+            return version is null ? Results.NotFound() : Results.Ok(MapToDto(version));
         });
 
         app.MapPut("/forms/{id:guid}", async (Guid id, FormDto dto, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
-            await unitOfWork.Forms.SaveAsync(MapToEntity(dto, id), cancellationToken);
+            await unitOfWork.Forms.SaveAsync(id, MapToEntity(dto, id), cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Results.NoContent();
+        });
+
+        app.MapPost("/forms/{id:guid}/publish", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
+        {
+            var published = await unitOfWork.Forms.PublishAsync(id, cancellationToken);
+            if (!published)
+            {
+                return Results.NotFound();
+            }
+
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return Results.NoContent();
         });
     }
 
-    private static FormDto MapToDto(Form form) => new()
+    private static FormVersionStatusDto MapToDto(FormVersionStatus status) => status switch
     {
-        Id = form.Id,
-        Title = form.Title,
-        Description = form.Description,
-        CreatedAt = form.CreatedAt,
-        LastModifiedAt = form.LastModifiedAt,
-        LastModifiedBy = form.LastModifiedBy,
-        Revision = form.Revision,
-        Pages = form.Pages.Select(MapToDto).ToList(),
+        FormVersionStatus.Draft => FormVersionStatusDto.Draft,
+        FormVersionStatus.Published => FormVersionStatusDto.Published,
+        _ => throw new NotSupportedException($"Unknown form version status '{status}'."),
+    };
+
+    private static FormDto MapToDto(FormVersion version) => new()
+    {
+        Id = version.FormId,
+        Title = version.Title,
+        Description = version.Description,
+        CreatedAt = version.CreatedAt,
+        LastModifiedAt = version.LastModifiedAt,
+        LastModifiedBy = version.LastModifiedBy,
+        Revision = version.Revision,
+        VersionNumber = version.VersionNumber,
+        Status = MapToDto(version.Status),
+        Pages = version.Pages.Select(MapToDto).ToList(),
     };
 
     private static FormPageDto MapToDto(FormPage page) => new()
@@ -133,22 +156,20 @@ public static class FormEndpoints
         .Select(o => new QuestionOptionDto { Id = o.Id, Label = o.Label })
         .ToList();
 
-    private static Form MapToEntity(FormDto dto, Guid formId) => new()
+    private static FormVersion MapToEntity(FormDto dto, Guid formId) => new()
     {
-        Id = formId,
+        Id = Guid.NewGuid(),
+        FormId = formId,
         Title = dto.Title,
         Description = dto.Description,
-        CreatedAt = dto.CreatedAt,
-        LastModifiedAt = dto.LastModifiedAt,
         LastModifiedBy = dto.LastModifiedBy,
-        Revision = dto.Revision,
         Pages = dto.Pages.Select((p, index) => MapToEntity(p, formId, index)).ToList(),
     };
 
-    private static FormPage MapToEntity(FormPageDto dto, Guid formId, int order) => new()
+    private static FormPage MapToEntity(FormPageDto dto, Guid formVersionId, int order) => new()
     {
         Id = dto.Id,
-        FormId = formId,
+        FormVersionId = formVersionId,
         Title = dto.Title,
         Order = order,
         Questions = dto.Questions.Select((q, index) => MapToEntity(q, dto.Id, index)).ToList(),

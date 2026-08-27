@@ -12,16 +12,11 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
         builder.HasKey(f => f.Id);
         builder.Property(f => f.Id).ValueGeneratedNever();
 
-        builder.Property(f => f.Title).IsRequired().HasMaxLength(200);
-        builder.Property(f => f.Description).HasMaxLength(2000);
-        builder.Property(f => f.Revision).IsRequired().HasDefaultValue(1);
         builder.Property(f => f.CreatedAt).IsRequired();
-        builder.Property(f => f.LastModifiedAt).IsRequired();
-        builder.Property(f => f.LastModifiedBy).HasMaxLength(256);
 
-        builder.HasMany(f => f.Pages)
-            .WithOne(p => p.Form)
-            .HasForeignKey(p => p.FormId)
+        builder.HasMany(f => f.Versions)
+            .WithOne(v => v.Form)
+            .HasForeignKey(v => v.FormId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -7,15 +7,25 @@ namespace PhieuFlow.SeedService.SampleData;
 /// </summary>
 public static class SampleForms
 {
-    public static IEnumerable<Form> All()
+    public static IEnumerable<FormVersion> All()
     {
+        var now = DateTimeOffset.UtcNow;
+
         var onboardingFormId = Guid.Parse("a41c9f2e-0000-0000-0000-000000000001");
+        var onboardingVersionId = Guid.NewGuid();
         var personalDetailsPageId = Guid.NewGuid();
         var equipmentPageId = Guid.NewGuid();
         var payrollPageId = Guid.NewGuid();
-        yield return new Form
+        yield return new FormVersion
         {
-            Id = onboardingFormId,
+            Id = onboardingVersionId,
+            FormId = onboardingFormId,
+            Form = new Form { Id = onboardingFormId, CreatedAt = now },
+            VersionNumber = 1,
+            Status = FormVersionStatus.Published,
+            PublishedAt = now,
+            CreatedAt = now,
+            LastModifiedAt = now,
             Title = "Employee onboarding checklist",
             Description = "Filled in by every new hire during their first week. Takes about ten minutes.",
             Pages = new List<FormPage>
@@ -23,7 +33,7 @@ public static class SampleForms
                 new()
                 {
                     Id = personalDetailsPageId,
-                    FormId = onboardingFormId,
+                    FormVersionId = onboardingVersionId,
                     Title = "Personal details",
                     Order = 0,
                     Questions = new List<Question>
@@ -45,7 +55,7 @@ public static class SampleForms
                 new()
                 {
                     Id = equipmentPageId,
-                    FormId = onboardingFormId,
+                    FormVersionId = onboardingVersionId,
                     Title = "Equipment",
                     Order = 1,
                     Questions = new List<Question>
@@ -60,15 +70,23 @@ public static class SampleForms
                         new CalendarQuestion { Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Preferred start date", IsRequired = true, Order = 3, MinDate = new DateOnly(2026, 1, 1), MaxDate = new DateOnly(2026, 12, 31) },
                     },
                 },
-                new() { Id = payrollPageId, FormId = onboardingFormId, Title = "Payroll", Order = 2, Questions = new List<Question>() },
+                new() { Id = payrollPageId, FormVersionId = onboardingVersionId, Title = "Payroll", Order = 2, Questions = new List<Question>() },
             },
         };
 
         var satisfactionFormId = Guid.Parse("6d0b83a7-0000-0000-0000-000000000002");
+        var satisfactionVersionId = Guid.NewGuid();
         var feedbackPageId = Guid.NewGuid();
-        yield return new Form
+        yield return new FormVersion
         {
-            Id = satisfactionFormId,
+            Id = satisfactionVersionId,
+            FormId = satisfactionFormId,
+            Form = new Form { Id = satisfactionFormId, CreatedAt = now },
+            VersionNumber = 1,
+            Status = FormVersionStatus.Published,
+            PublishedAt = now,
+            CreatedAt = now,
+            LastModifiedAt = now,
             Title = "Customer satisfaction survey Q3",
             Description = "Quarterly NPS and service feedback, sent to all active accounts at the end of the quarter.",
             Pages = new List<FormPage>
@@ -76,7 +94,7 @@ public static class SampleForms
                 new()
                 {
                     Id = feedbackPageId,
-                    FormId = satisfactionFormId,
+                    FormVersionId = satisfactionVersionId,
                     Title = "Feedback",
                     Questions = new List<Question>
                     {
@@ -92,10 +110,17 @@ public static class SampleForms
         };
 
         var complianceFormId = Guid.Parse("f7241be0-0000-0000-0000-000000000003");
+        var complianceVersionId = Guid.NewGuid();
         var declarationPageId = Guid.NewGuid();
-        yield return new Form
+        yield return new FormVersion
         {
-            Id = complianceFormId,
+            Id = complianceVersionId,
+            FormId = complianceFormId,
+            Form = new Form { Id = complianceFormId, CreatedAt = now },
+            VersionNumber = 1,
+            Status = FormVersionStatus.Draft,
+            CreatedAt = now,
+            LastModifiedAt = now,
             Title = "Supplier compliance declaration",
             Description = "Procurement - annual renewal. Still missing the signature step and the certificate upload.",
             Pages = new List<FormPage>
@@ -103,7 +128,7 @@ public static class SampleForms
                 new()
                 {
                     Id = declarationPageId,
-                    FormId = complianceFormId,
+                    FormVersionId = complianceVersionId,
                     Title = "Declaration",
                     Questions = new List<Question>
                     {
@@ -114,43 +139,73 @@ public static class SampleForms
         };
 
         var safetyFormId = Guid.Parse("2b95ca18-0000-0000-0000-000000000004");
+        var safetyVersionId = Guid.NewGuid();
         var walkthroughPageId = Guid.NewGuid();
-        yield return new Form
+        yield return new FormVersion
         {
-            Id = safetyFormId,
+            Id = safetyVersionId,
+            FormId = safetyFormId,
+            Form = new Form { Id = safetyFormId, CreatedAt = now },
+            VersionNumber = 1,
+            Status = FormVersionStatus.Published,
+            PublishedAt = now,
+            CreatedAt = now,
+            LastModifiedAt = now,
             Title = "Site safety inspection",
             Description = "Operations - weekly walkthrough. Any hazard answer triggers a follow-up photo field.",
-            Pages = new List<FormPage> { new() { Id = walkthroughPageId, FormId = safetyFormId, Title = "Walkthrough", Questions = new List<Question>() } },
+            Pages = new List<FormPage> { new() { Id = walkthroughPageId, FormVersionId = safetyVersionId, Title = "Walkthrough", Questions = new List<Question>() } },
         };
 
         var trainingFormId = Guid.Parse("0c58e6d4-0000-0000-0000-000000000005");
+        var trainingVersionId = Guid.NewGuid();
         var trainingPageId = Guid.NewGuid();
-        yield return new Form
+        yield return new FormVersion
         {
-            Id = trainingFormId,
+            Id = trainingVersionId,
+            FormId = trainingFormId,
+            Form = new Form { Id = trainingFormId, CreatedAt = now },
+            VersionNumber = 1,
+            Status = FormVersionStatus.Draft,
+            CreatedAt = now,
+            LastModifiedAt = now,
             Title = "Training feedback - workshop series",
             Description = "Internal L&D. Short single-page form, waiting on the final session list before publishing.",
-            Pages = new List<FormPage> { new() { Id = trainingPageId, FormId = trainingFormId, Questions = new List<Question>() } },
+            Pages = new List<FormPage> { new() { Id = trainingPageId, FormVersionId = trainingVersionId, Questions = new List<Question>() } },
         };
 
         var incidentFormId = Guid.Parse("93ae5107-0000-0000-0000-000000000006");
+        var incidentVersionId = Guid.NewGuid();
         var incidentPageId = Guid.NewGuid();
-        yield return new Form
+        yield return new FormVersion
         {
-            Id = incidentFormId,
+            Id = incidentVersionId,
+            FormId = incidentFormId,
+            Form = new Form { Id = incidentFormId, CreatedAt = now },
+            VersionNumber = 1,
+            Status = FormVersionStatus.Published,
+            PublishedAt = now,
+            CreatedAt = now,
+            LastModifiedAt = now,
             Title = "Incident report",
             Description = "Operations - unplanned events. Public link; submissions notify the duty manager.",
-            Pages = new List<FormPage> { new() { Id = incidentPageId, FormId = incidentFormId, Questions = new List<Question>() } },
+            Pages = new List<FormPage> { new() { Id = incidentPageId, FormVersionId = incidentVersionId, Questions = new List<Question>() } },
         };
 
         var vendorFormId = Guid.Parse("5e12f8bb-0000-0000-0000-000000000007");
+        var vendorVersionId = Guid.NewGuid();
         var vendorPageId = Guid.NewGuid();
-        yield return new Form
+        yield return new FormVersion
         {
-            Id = vendorFormId,
+            Id = vendorVersionId,
+            FormId = vendorFormId,
+            Form = new Form { Id = vendorFormId, CreatedAt = now },
+            VersionNumber = 1,
+            Status = FormVersionStatus.Draft,
+            CreatedAt = now,
+            LastModifiedAt = now,
             Title = "Vendor onboarding request",
             Description = "Finance - new supplier setup. Held back until the approval routing is confirmed.",
-            Pages = new List<FormPage> { new() { Id = vendorPageId, FormId = vendorFormId, Questions = new List<Question>() } },
+            Pages = new List<FormPage> { new() { Id = vendorPageId, FormVersionId = vendorVersionId, Questions = new List<Question>() } },
         };
     }
 }

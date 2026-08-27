@@ -25,7 +25,7 @@ public class Worker(
             }
             else
             {
-                dbContext.Forms.AddRange(SampleForms.All());
+                dbContext.FormVersions.AddRange(SampleForms.All());
                 await dbContext.SaveChangesAsync(stoppingToken);
                 logger.LogInformation("HubDatabase seeded with sample forms.");
             }

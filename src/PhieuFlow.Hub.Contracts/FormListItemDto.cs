@@ -9,6 +9,8 @@ public class FormListItemDto
     public required DateTimeOffset LastModifiedAt { get; set; }
     public string? LastModifiedBy { get; set; }
     public required int Revision { get; set; }
+    public required int VersionNumber { get; set; }
+    public required FormVersionStatusDto Status { get; set; }
     public required int PageCount { get; set; }
     public required int QuestionCount { get; set; }
 }

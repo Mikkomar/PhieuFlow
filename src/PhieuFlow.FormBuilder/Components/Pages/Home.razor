@@ -143,6 +143,10 @@
                                         <span class="font-mono text-[13px] font-medium text-text-body">rev @form.Revision</span>
                                     </div>
                                     <div class="flex flex-col gap-[3px]">
+                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Version</span>
+                                        <span class="font-mono text-[13px] font-medium text-text-body">v@(form.VersionNumber)</span>
+                                    </div>
+                                    <div class="flex flex-col gap-[3px]">
                                         <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Form ID</span>
                                         <span class="font-mono text-[13px] font-medium text-text-body">@(form.Id.ToString()[..8])&hellip;</span>
                                     </div>
@@ -164,10 +168,13 @@
                             <div class="flex flex-col gap-2 pt-[14px]">
                                 <button type="button" @onclick="@(() => Nav.NavigateTo($"/forms/{form.Id}"))"
                                         class="h-[34px] rounded-md border border-accent bg-accent text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">Edit form</button>
-                                <button type="button" @onclick="@(() => TogglePublish(form))"
-                                        class="h-[34px] rounded-md border border-border-control bg-white text-[13px] font-medium text-text-body hover:border-border-control-hover">
-                                    @(form.Status == FormStatus.Published ? "Unpublish" : "Publish")
-                                </button>
+                                @if (form.Status != FormStatus.Published)
+                                {
+                                    <button type="button" @onclick="@(() => PublishForm(form))"
+                                            class="h-[34px] rounded-md border border-border-control bg-white text-[13px] font-medium text-text-body hover:border-border-control-hover">
+                                        Publish
+                                    </button>
+                                }
                                 <button type="button" @onclick="@(() => DeleteForm(form))"
                                         class="h-[34px] rounded-md border border-danger-border bg-white text-[13px] font-medium text-danger hover:border-danger-border-hover hover:bg-danger-surface">
                                     Delete
@@ -297,11 +304,25 @@
         _page = Math.Clamp(page, 1, TotalPages);
     }
 
-    private void TogglePublish(FormSummary form)
+    private async Task PublishForm(FormSummary form)
     {
-        form.Status = form.Status == FormStatus.Published ? FormStatus.Draft : FormStatus.Published;
+        if (form.Status == FormStatus.Published)
+        {
+            return;
+        }
+
+        try
+        {
+            await FormsService.PublishAsync(form.Id);
+        }
+        catch (HttpRequestException)
+        {
+            return;
+        }
+
+        form.Status = FormStatus.Published;
         form.LastModifiedAt = DateTimeOffset.Now;
-        if (form.Status == FormStatus.Published && string.IsNullOrEmpty(form.PublicUrl))
+        if (string.IsNullOrEmpty(form.PublicUrl))
         {
             form.PublicUrl = $"https://forms.phieuflow.app/f/{form.Id.ToString()[..8]}";
         }

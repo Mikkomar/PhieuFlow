@@ -25,6 +25,12 @@ public class HubFormsClient(HttpClient httpClient)
         response.EnsureSuccessStatusCode();
     }
 
+    public async Task PublishFormAsync(Guid formId, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync($"/forms/{formId}/publish", null, cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
     public async Task<List<FormListItemDto>> GetAllFormsAsync(CancellationToken cancellationToken = default)
     {
         var forms = new List<FormListItemDto>();
