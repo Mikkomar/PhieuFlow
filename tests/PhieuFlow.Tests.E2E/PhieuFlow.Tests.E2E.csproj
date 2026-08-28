@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- xUnit test methods deliberately follow the project naming convention
+         (Test<Operation>_When_<condition>_Should_<outcome>), which trips VSTHRD/xUnit
+         analyzer naming lint in some setups; the convention is documented in CLAUDE.md. -->
+    <NoWarn>$(NoWarn);xUnit1000</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Testing" Version="13.5.2" />
+    <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.62.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The AppHost reference gives Aspire.Hosting.Testing the full topology to start,
+         and generates the Projects.PhieuFlow_AppHost metadata type. -->
+    <ProjectReference Include="..\..\src\PhieuFlow.AppHost\PhieuFlow.AppHost.csproj" />
+    <!-- Typed DTOs for asserting Hub state over the REST API. -->
+    <ProjectReference Include="..\..\src\PhieuFlow.Hub.Contracts\PhieuFlow.Hub.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

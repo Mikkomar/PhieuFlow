@@ -7,4 +7,7 @@
     <Project Path="src/PhieuFlow.ServiceDefaults/PhieuFlow.ServiceDefaults.csproj" />
     <Project Path="src/PhieuFlow.AppHost/PhieuFlow.AppHost.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PhieuFlow.Tests.E2E/PhieuFlow.Tests.E2E.csproj" />
+  </Folder>
 </Solution>
