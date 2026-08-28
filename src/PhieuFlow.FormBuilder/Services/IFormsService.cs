@@ -10,7 +10,7 @@ public interface IFormsService
 
     Task<FormVersion?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default);
 
-    Task<SaveFormResultDto> SaveAsync(Guid formId, FormVersion form, CancellationToken cancellationToken = default);
+    Task<FormVersionStateDto> SaveAsync(Guid formId, FormVersion form, CancellationToken cancellationToken = default);
 
-    Task PublishAsync(Guid formId, CancellationToken cancellationToken = default);
+    Task<FormVersionStateDto> PublishAsync(Guid formId, CancellationToken cancellationToken = default);
 }

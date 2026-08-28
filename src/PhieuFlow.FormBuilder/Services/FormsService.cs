@@ -33,14 +33,14 @@ public class FormsService(HubFormsClient hubFormsClient) : IFormsService
         return dto is null ? null : MapToEntity(dto);
     }
 
-    public async Task<SaveFormResultDto> SaveAsync(Guid formId, FormVersion form, CancellationToken cancellationToken = default)
+    public async Task<FormVersionStateDto> SaveAsync(Guid formId, FormVersion form, CancellationToken cancellationToken = default)
     {
         return await hubFormsClient.SaveFormAsync(MapToDto(formId, form), cancellationToken);
     }
 
-    public async Task PublishAsync(Guid formId, CancellationToken cancellationToken = default)
+    public async Task<FormVersionStateDto> PublishAsync(Guid formId, CancellationToken cancellationToken = default)
     {
-        await hubFormsClient.PublishFormAsync(formId, cancellationToken);
+        return await hubFormsClient.PublishFormAsync(formId, cancellationToken);
     }
 
     private static FormStatus MapToModel(FormVersionStatusDto status) => status switch

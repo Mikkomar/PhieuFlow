@@ -91,8 +91,12 @@
                             <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] text-text-faint">@form.Description</span>
                         </div>
 
-                        <div>
-                            <StatusPill Published="@(form.LatestPublishedVersionNumber is not null)" />
+                        <div class="flex items-center gap-2">
+                            <StatusPill Published="@(form.Status == FormStatus.Published)" />
+                            @if (form.Status != FormStatus.Published && form.LatestPublishedVersionNumber is { } live)
+                            {
+                                <span class="font-mono text-[10.5px] whitespace-nowrap text-text-faintest">v@(live) live</span>
+                            }
                         </div>
 
                         <div class="flex flex-col gap-px">
@@ -134,8 +138,8 @@
                                     <div class="flex flex-col gap-[3px]">
                                         <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Live</span>
                                         <span class="font-mono text-[13px] font-medium text-text-body">
-                                            @(form.LatestPublishedVersionNumber is { } live
-                                                ? $"v{live} · published {form.LatestPublishedAt?.ToLocalTime():d MMM yyyy}"
+                                            @(form.LatestPublishedVersionNumber is { } pubVer
+                                                ? (form.LatestPublishedAt is { } at ? $"v{pubVer} · published {at.ToLocalTime():d MMM yyyy}" : $"v{pubVer}")
                                                 : "—")
                                         </span>
                                     </div>
@@ -233,7 +237,7 @@
 
     private int CountAll => _forms.Count;
     private int CountPublished => _forms.Count(f => f.LatestPublishedVersionNumber is not null);
-    private int CountDraft => _forms.Count(f => f.Status == FormStatus.Draft);
+    private int CountDraft => _forms.Count(f => f.LatestPublishedVersionNumber is null);
 
     private List<FormSummary> FilteredForms
     {
@@ -245,7 +249,7 @@
             {
                 result = status == FormStatus.Published
                     ? result.Where(f => f.LatestPublishedVersionNumber is not null)
-                    : result.Where(f => f.Status == status);
+                    : result.Where(f => f.LatestPublishedVersionNumber is null);
             }
 
             if (!string.IsNullOrEmpty(query))
@@ -308,17 +312,19 @@
 
         try
         {
-            await FormsService.PublishAsync(form.Id);
+            var result = await FormsService.PublishAsync(form.Id);
+            form.Status = FormStatus.Published;
+            form.VersionNumber = result.VersionNumber;
+            form.Revision = result.Revision;
+            form.LastModifiedAt = result.LastModifiedAt;
+            form.LatestPublishedVersionNumber = result.VersionNumber;
+            form.LatestPublishedAt = result.LastModifiedAt;
         }
         catch (HttpRequestException)
         {
             return;
         }
 
-        form.Status = FormStatus.Published;
-        form.LatestPublishedVersionNumber = form.VersionNumber;
-        form.LatestPublishedAt = DateTimeOffset.Now;
-        form.LastModifiedAt = DateTimeOffset.Now;
         if (string.IsNullOrEmpty(form.PublicUrl))
         {
             form.PublicUrl = $"https://forms.phieuflow.app/f/{form.Id.ToString()[..8]}";

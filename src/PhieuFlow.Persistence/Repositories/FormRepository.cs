@@ -29,7 +29,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         return version;
     }
 
-    public async Task<SaveFormResult> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default)
+    public async Task<FormVersionState> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -69,7 +69,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             };
             dbContext.FormVersions.Add(created);
 
-            return ToSaveResult(created);
+            return ToVersionState(created);
         }
 
         if (currentVersion.Status == FormVersionStatus.Draft)
@@ -81,7 +81,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             currentVersion.Revision += 1;
 
             ReconcilePages(currentVersion, incomingContent.Pages);
-            return ToSaveResult(currentVersion);
+            return ToVersionState(currentVersion);
         }
 
         // Published: currentVersion is immutable from here on. Fork a new draft.
@@ -103,10 +103,10 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         };
         dbContext.FormVersions.Add(forked);
 
-        return ToSaveResult(forked);
+        return ToVersionState(forked);
     }
 
-    private static SaveFormResult ToSaveResult(FormVersion version) => new()
+    private static FormVersionState ToVersionState(FormVersion version) => new()
     {
         VersionNumber = version.VersionNumber,
         Revision = version.Revision,
@@ -114,7 +114,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         LastModifiedAt = version.LastModifiedAt,
     };
 
-    public async Task<bool> PublishAsync(Guid formId, CancellationToken cancellationToken = default)
+    public async Task<FormVersionState?> PublishAsync(Guid formId, CancellationToken cancellationToken = default)
     {
         var currentVersion = await dbContext.FormVersions
             .Where(v => v.FormId == formId)
@@ -123,17 +123,16 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
 
         if (currentVersion is null)
         {
-            return false;
+            return null;
         }
 
-        if (currentVersion.Status == FormVersionStatus.Published)
+        if (currentVersion.Status != FormVersionStatus.Published)
         {
-            return true;
+            currentVersion.Status = FormVersionStatus.Published;
+            currentVersion.PublishedAt = DateTimeOffset.UtcNow;
         }
 
-        currentVersion.Status = FormVersionStatus.Published;
-        currentVersion.PublishedAt = DateTimeOffset.UtcNow;
-        return true;
+        return ToVersionState(currentVersion);
     }
 
     private static FormPage ClonePageWithFreshIds(FormPage source, Guid newVersionId)

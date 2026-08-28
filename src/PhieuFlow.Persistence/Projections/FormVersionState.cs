@@ -1,9 +1,11 @@
-namespace PhieuFlow.Hub.Contracts;
+using PhieuFlow.Core.Entities;
 
-public class SaveFormResultDto
+namespace PhieuFlow.Persistence.Projections;
+
+public class FormVersionState
 {
     public required int VersionNumber { get; set; }
     public required int Revision { get; set; }
-    public required FormVersionStatusDto Status { get; set; }
+    public required FormVersionStatus Status { get; set; }
     public required DateTimeOffset LastModifiedAt { get; set; }
 }

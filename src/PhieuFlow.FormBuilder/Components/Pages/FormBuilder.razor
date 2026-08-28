@@ -48,23 +48,23 @@ else
                        placeholder="Untitled form"
                        aria-label="Form title"
                        class="-ml-[6px] w-full max-w-[560px] rounded-md border border-transparent bg-transparent px-[6px] py-[1px] text-[21px] font-semibold tracking-[-0.02em] text-text outline-none hover:border-border focus:border-accent focus:bg-surface-subtle" />
-                <span class="@TitleCountClasses">@TitleLength / 120</span>
+                @if (TitleLength >= 100)
+                {
+                    <span class="@TitleCountClasses">@TitleLength / 120</span>
+                }
             </div>
         </div>
 
         <div class="flex flex-none items-center gap-3">
-            @if (SaveLabel is { } saveLabel)
-            {
-                <div class="flex items-center gap-[7px] font-mono text-[10.5px] tracking-[0.04em] uppercase @SaveIndicatorTextClass">
-                    <span class="h-[5px] w-[5px] rounded-full @SaveIndicatorDotClass"></span>
-                    v@(_form.VersionNumber) &middot; @saveLabel
-                    @if (_saveState == SaveState.Error)
-                    {
-                        <button type="button" @onclick="FlushPendingSaveAsync"
-                                class="ml-1 text-[10.5px] font-semibold text-danger underline uppercase">Retry</button>
-                    }
-                </div>
-            }
+            <div class="flex items-center gap-[7px] font-mono text-[10.5px] tracking-[0.04em] uppercase @SaveIndicatorTextClass">
+                <span class="h-[5px] w-[5px] rounded-full @SaveIndicatorDotClass"></span>
+                <span>v@(_form.VersionNumber)@(SaveLabel is { } saveLabel ? $" · {saveLabel}" : "")</span>
+                @if (_saveState == SaveState.Error)
+                {
+                    <button type="button" @onclick="FlushPendingSaveAsync"
+                            class="ml-1 text-[10.5px] font-semibold text-danger underline uppercase">Retry</button>
+                }
+            </div>
             <StatusPill Published="@(_form.Status == FormVersionStatus.Published)" />
             <div class="hidden h-[22px] w-px bg-border-soft min-[1100px]:block"></div>
             <button type="button" @onclick="TogglePreview"
@@ -185,7 +185,7 @@ else
                 {
                     <div class="flex flex-col items-center gap-[9px] rounded-lg border border-dashed border-border-control bg-surface-panel p-[30px_20px]">
                         <span class="text-[13.5px] font-semibold text-text">This page has no questions yet</span>
-                        <span class="max-w-[44ch] text-center text-[12.5px] text-text-faint text-pretty">Add your first question, or drag one here from another page.</span>
+                        <span class="max-w-[44ch] text-center text-[12.5px] text-text-faint text-pretty">Add your first question to get started.</span>
                         <div class="relative mt-1">
                             <button type="button" @ref="_addQuestionEmptyRef" @onclick="@(() => ToggleQuestionTypePicker(ActivePage, PickerAnchor.Empty))" aria-haspopup="menu" aria-expanded="@(_pickingTypeForPageId == ActivePage.Id && _pickerAnchor == PickerAnchor.Empty)"
                                     class="h-[30px] rounded-md border border-accent bg-accent px-[13px] text-[12.5px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
@@ -336,8 +336,8 @@ else
 
             <span class="text-[11.5px] text-text-faintest text-pretty">
                 @(_form.Status == FormVersionStatus.Published
-                    ? $"Preview reflects unsaved edits. Respondents see version {_form.VersionNumber} — the version you're editing."
-                    : $"Preview reflects unsaved edits. Respondents keep seeing the published version until you publish version {_form.VersionNumber}.")
+                    ? $"Preview reflects unsaved edits. Respondents see version {_form.VersionNumber}; your next edit starts version {_form.VersionNumber + 1}."
+                    : $"Preview reflects unsaved edits. Changes go live when you publish version {_form.VersionNumber}.")
             </span>
         </div>
     }
@@ -422,13 +422,11 @@ else
 
     private int DescriptionLength => _form.Description?.Length ?? 0;
 
-    private string DescriptionCountClasses => "font-mono text-[10.5px] "
-        + (DescriptionLength > 500 ? "text-danger" : "text-text-faintest");
+    private const string DescriptionCountClasses = "font-mono text-[10.5px] text-text-faintest";
 
     private int TitleLength => _form.Title?.Length ?? 0;
 
-    private string TitleCountClasses => "flex-none font-mono text-[10.5px] "
-        + (TitleLength >= 120 ? "text-danger" : "text-text-faintest");
+    private const string TitleCountClasses = "flex-none font-mono text-[10.5px] text-text-faintest";
 
     protected override void OnInitialized()
     {
@@ -618,14 +616,21 @@ else
             return;
         }
 
+        await FlushPendingSaveAsync();
+
         _publishing = true;
         _publishError = null;
 
         try
         {
-            await FormsService.PublishAsync(_form.FormId);
-            _form.Status = FormVersionStatus.Published;
+            var result = await FormsService.PublishAsync(_form.FormId);
+            _form.VersionNumber = result.VersionNumber;
+            _form.Revision = result.Revision;
+            _form.Status = MapStatus(result.Status);
+            _form.LastModifiedAt = result.LastModifiedAt;
             _form.PublishedAt = DateTimeOffset.UtcNow;
+            _lastSavedAt = DateTimeOffset.Now;
+            _saveState = SaveState.Saved;
         }
         catch (HttpRequestException)
         {
@@ -867,6 +872,9 @@ else
         ordered.RemoveAt(from);
         ordered.Insert(to, moved);
         page.Questions = Renumbered(ordered);
+
+        var label = string.IsNullOrWhiteSpace(moved.Text) ? "Untitled question" : moved.Text;
+        _liveAnnouncement = $"{label} moved to position {to + 1} of {ordered.Count}";
 
         _draggedQuestion = null;
         _dropIndex = null;

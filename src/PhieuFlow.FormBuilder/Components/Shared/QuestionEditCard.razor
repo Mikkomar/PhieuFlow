@@ -3,7 +3,8 @@
 <div class="@RootClasses" @onkeydown="OnRowKeyDown">
     <div @onclick="@(() => OnToggle.InvokeAsync())"
          class="relative flex h-[42px] cursor-pointer items-center gap-[10px] px-3 outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
-         tabindex="0" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown">
+         tabindex="0" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+         title="Reorder with Alt+↑ / Alt+↓, or drag the handle">
         <div class="absolute inset-x-0 top-0 z-10 h-1/2"
              @ondragover="@(() => OnDragOverTop.InvokeAsync())" @ondragover:preventDefault="true"
              @ondrop="@(() => OnDrop.InvokeAsync())"></div>

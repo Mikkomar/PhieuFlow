@@ -9,7 +9,7 @@ public interface IFormRepository
 
     Task<FormVersion?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default);
 
-    Task<SaveFormResult> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default);
+    Task<FormVersionState> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default);
 
-    Task<bool> PublishAsync(Guid formId, CancellationToken cancellationToken = default);
+    Task<FormVersionState?> PublishAsync(Guid formId, CancellationToken cancellationToken = default);
 }

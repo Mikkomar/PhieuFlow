@@ -51,7 +51,7 @@ public static class FormEndpoints
         {
             var result = await unitOfWork.Forms.SaveAsync(id, MapToEntity(dto, id), cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
-            return Results.Ok(new SaveFormResultDto
+            return Results.Ok(new FormVersionStateDto
             {
                 VersionNumber = result.VersionNumber,
                 Revision = result.Revision,
@@ -62,14 +62,20 @@ public static class FormEndpoints
 
         app.MapPost("/forms/{id:guid}/publish", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
-            var published = await unitOfWork.Forms.PublishAsync(id, cancellationToken);
-            if (!published)
+            var result = await unitOfWork.Forms.PublishAsync(id, cancellationToken);
+            if (result is null)
             {
                 return Results.NotFound();
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
-            return Results.NoContent();
+            return Results.Ok(new FormVersionStateDto
+            {
+                VersionNumber = result.VersionNumber,
+                Revision = result.Revision,
+                Status = MapToDto(result.Status),
+                LastModifiedAt = result.LastModifiedAt,
+            });
         });
     }
 
