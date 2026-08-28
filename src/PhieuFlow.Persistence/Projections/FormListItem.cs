@@ -13,6 +13,8 @@ public class FormListItem
     public required int Revision { get; set; }
     public required int VersionNumber { get; set; }
     public required FormVersionStatus Status { get; set; }
+    public int? LatestPublishedVersionNumber { get; set; }
+    public DateTimeOffset? LatestPublishedAt { get; set; }
     public required int PageCount { get; set; }
     public required int QuestionCount { get; set; }
 }

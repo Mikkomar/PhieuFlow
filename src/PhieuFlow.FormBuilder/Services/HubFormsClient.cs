@@ -19,10 +19,12 @@ public class HubFormsClient(HttpClient httpClient)
         return await response.Content.ReadFromJsonAsync<FormDto>(cancellationToken);
     }
 
-    public async Task SaveFormAsync(FormDto dto, CancellationToken cancellationToken = default)
+    public async Task<SaveFormResultDto> SaveFormAsync(FormDto dto, CancellationToken cancellationToken = default)
     {
         var response = await httpClient.PutAsJsonAsync($"/forms/{dto.Id}", dto, cancellationToken);
         response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<SaveFormResultDto>(cancellationToken))
+            ?? throw new InvalidOperationException("Save response body was empty.");
     }
 
     public async Task PublishFormAsync(Guid formId, CancellationToken cancellationToken = default)

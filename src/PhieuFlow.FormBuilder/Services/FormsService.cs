@@ -20,6 +20,8 @@ public class FormsService(HubFormsClient hubFormsClient) : IFormsService
             LastModifiedBy = dto.LastModifiedBy ?? string.Empty,
             Revision = dto.Revision,
             VersionNumber = dto.VersionNumber,
+            LatestPublishedVersionNumber = dto.LatestPublishedVersionNumber,
+            LatestPublishedAt = dto.LatestPublishedAt,
             QuestionCount = dto.QuestionCount,
             PageCount = dto.PageCount,
         }).ToList();
@@ -31,9 +33,9 @@ public class FormsService(HubFormsClient hubFormsClient) : IFormsService
         return dto is null ? null : MapToEntity(dto);
     }
 
-    public async Task SaveAsync(Guid formId, FormVersion form, CancellationToken cancellationToken = default)
+    public async Task<SaveFormResultDto> SaveAsync(Guid formId, FormVersion form, CancellationToken cancellationToken = default)
     {
-        await hubFormsClient.SaveFormAsync(MapToDto(formId, form), cancellationToken);
+        return await hubFormsClient.SaveFormAsync(MapToDto(formId, form), cancellationToken);
     }
 
     public async Task PublishAsync(Guid formId, CancellationToken cancellationToken = default)

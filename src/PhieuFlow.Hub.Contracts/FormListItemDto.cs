@@ -11,6 +11,8 @@ public class FormListItemDto
     public required int Revision { get; set; }
     public required int VersionNumber { get; set; }
     public required FormVersionStatusDto Status { get; set; }
+    public int? LatestPublishedVersionNumber { get; set; }
+    public DateTimeOffset? LatestPublishedAt { get; set; }
     public required int PageCount { get; set; }
     public required int QuestionCount { get; set; }
 }

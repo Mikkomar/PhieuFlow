@@ -2,11 +2,12 @@
 @page "/forms/{FormId:guid}"
 @using PhieuFlow.Core.Entities
 @using PhieuFlow.FormBuilder.Services
+@using PhieuFlow.Hub.Contracts
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject FormRepository Repository
 @inject IFormsService FormsService
-@implements IDisposable
+@implements IAsyncDisposable
 
 @if (_loadError is not null)
 {
@@ -39,48 +40,67 @@ else
 
         <div class="flex min-w-[240px] flex-1 flex-col gap-0.5">
             <div class="font-mono text-[10px] tracking-[0.07em] text-text-faintest uppercase whitespace-nowrap">PhieuFlow / Forms / Edit</div>
-            <input value="@_form.Title"
-                   @oninput="OnTitleInput"
-                   @onblur="@(() => _titleBlurred = true)"
-                   placeholder="Untitled form"
-                   aria-label="Form title"
-                   class="-ml-[6px] w-full max-w-[560px] rounded-md border border-transparent bg-transparent px-[6px] py-[1px] text-[21px] font-semibold tracking-[-0.02em] text-text outline-none hover:border-border focus:border-accent focus:bg-surface-subtle" />
-            @if (_titleBlurred && string.IsNullOrWhiteSpace(_form.Title))
-            {
-                <span class="text-[12px] text-danger">Title is required.</span>
-            }
+            <div class="flex items-center gap-3">
+                <input value="@_form.Title"
+                       @oninput="OnTitleInput"
+                       @onblur="@(() => _titleBlurred = true)"
+                       maxlength="120"
+                       placeholder="Untitled form"
+                       aria-label="Form title"
+                       class="-ml-[6px] w-full max-w-[560px] rounded-md border border-transparent bg-transparent px-[6px] py-[1px] text-[21px] font-semibold tracking-[-0.02em] text-text outline-none hover:border-border focus:border-accent focus:bg-surface-subtle" />
+                <span class="@TitleCountClasses">@TitleLength / 120</span>
+            </div>
         </div>
 
         <div class="flex flex-none items-center gap-3">
             @if (SaveLabel is { } saveLabel)
             {
-                <div class="flex items-center gap-[7px] font-mono text-[10.5px] tracking-[0.04em] text-text-faintest uppercase">
-                    <span class="h-[5px] w-[5px] rounded-full bg-text-faintest-2"></span>
-                    @(_form.Status == FormVersionStatus.Published ? "Published" : "Draft") &middot; v@(_form.VersionNumber) &middot; @saveLabel
+                <div class="flex items-center gap-[7px] font-mono text-[10.5px] tracking-[0.04em] uppercase @SaveIndicatorTextClass">
+                    <span class="h-[5px] w-[5px] rounded-full @SaveIndicatorDotClass"></span>
+                    v@(_form.VersionNumber) &middot; @saveLabel
+                    @if (_saveState == SaveState.Error)
+                    {
+                        <button type="button" @onclick="FlushPendingSaveAsync"
+                                class="ml-1 text-[10.5px] font-semibold text-danger underline uppercase">Retry</button>
+                    }
                 </div>
             }
-            @if (_publishError is not null)
-            {
-                <span class="text-[12px] text-danger">@_publishError</span>
-            }
+            <StatusPill Published="@(_form.Status == FormVersionStatus.Published)" />
             <div class="hidden h-[22px] w-px bg-border-soft min-[1100px]:block"></div>
             <button type="button" @onclick="TogglePreview"
                     class="hidden h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover min-[1100px]:flex">
                 <Blazicon Svg="Lucide.Eye" class="text-sm" aria-hidden="true" />
                 @(_previewOpen ? "Hide preview" : "Preview")
             </button>
-            <button type="button" @onclick="SaveNow"
-                    class="flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover">
-                <Blazicon Svg="Lucide.Save" class="text-sm" aria-hidden="true" />
-                Save
-            </button>
             <button type="button" @onclick="PublishNow" disabled="@(_publishing || _form.Status == FormVersionStatus.Published)"
                     title="@(_form.Status == FormVersionStatus.Published ? "This version is already published" : null)"
                     class="h-[34px] whitespace-nowrap rounded-md border border-accent bg-accent px-4 text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover disabled:cursor-default disabled:opacity-60">
-                @(_form.Status == FormVersionStatus.Published ? "Published" : (_publishing ? "Publishing…" : "Publish"))
+                @(_publishing ? "Publishing…" : "Publish")
             </button>
         </div>
     </div>
+
+    @{
+        var showTitleRequired = _titleBlurred && string.IsNullOrWhiteSpace(_form.Title);
+        var showPublishedNotice = _form.Status == FormVersionStatus.Published;
+    }
+    @if (showTitleRequired || _publishError is not null || showPublishedNotice)
+    {
+        <div class="flex flex-col gap-1 pl-[48px]">
+            @if (showTitleRequired)
+            {
+                <span class="text-[12px] text-danger">Title is required.</span>
+            }
+            @if (_publishError is not null)
+            {
+                <span class="text-[12px] text-danger">@_publishError</span>
+            }
+            @if (showPublishedNotice)
+            {
+                <span class="text-[12px] text-text-faint">This version is published. Your next edit starts version @(_form.VersionNumber + 1).</span>
+            }
+        </div>
+    }
 </header>
 
 <div class="flex flex-1 items-start overflow-x-auto">
@@ -92,20 +112,35 @@ else
                 <span class="@DescriptionCountClasses">@DescriptionLength / 500</span>
             </div>
             <div class="rounded-md border border-border-control bg-page-bg px-[10px] py-2 focus-within:border-accent">
-                <textarea id="description" rows="2" value="@_form.Description" @oninput="OnDescriptionInput"
+                <textarea id="description" rows="2" maxlength="500" value="@_form.Description" @oninput="OnDescriptionInput"
                           placeholder="What is this form for? Respondents see this above the first question."
                           class="w-full resize-none border-none bg-transparent text-[13px] leading-[1.5] text-text outline-none placeholder:text-text-faint"></textarea>
             </div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-[6px]">
+        <div role="tablist" aria-label="Form pages" @onkeydown="OnPageTabsKeyDown"
+             class="flex flex-wrap items-center gap-[6px]">
+            @{
+                if (_pageTabRefs.Length != _form.Pages.Count)
+                {
+                    _pageTabRefs = new ElementReference[_form.Pages.Count];
+                }
+                var tabIndex = 0;
+            }
             @foreach (var page in _form.Pages)
             {
-                <button type="button" @onclick="@(() => SelectPage(page))"
+                var slot = tabIndex;
+                var isActiveTab = page.Id == _activePageId;
+                <button type="button" role="tab" @ref="_pageTabRefs[slot]"
+                        aria-current="@(isActiveTab ? "page" : null)"
+                        aria-label="@($"{PageLabel(page)}, {QuestionCountLabel(page)}")"
+                        tabindex="@(isActiveTab ? 0 : -1)"
+                        @onclick="@(() => SelectPage(page))"
                         class="@PageTabClasses(page)">
                     @PageLabel(page)
-                    <span class="@PageTabCountClasses(page)">@(page.Questions.Count)</span>
+                    <span aria-hidden="true" class="@PageTabCountClasses(page)">@(page.Questions.Count)</span>
                 </button>
+                tabIndex++;
             }
             <button type="button" @onclick="AddPage" aria-label="Add page"
                     class="flex h-[30px] items-center gap-[6px] whitespace-nowrap rounded-md border border-dashed border-border-control px-3 text-[12.5px] font-medium text-text-soft hover:border-accent hover:text-accent">
@@ -126,7 +161,7 @@ else
                 </div>
                 <span class="flex-none text-[11.5px] whitespace-nowrap text-text-faint">@QuestionCountLabel(ActivePage)</span>
                 <div class="relative flex-none">
-                    <button type="button" @onclick="@(() => ToggleQuestionTypePicker(ActivePage, PickerAnchor.Header))" aria-haspopup="menu" aria-expanded="@(_pickingTypeForPageId == ActivePage.Id && _pickerAnchor == PickerAnchor.Header)"
+                    <button type="button" @ref="_addQuestionHeaderRef" @onclick="@(() => ToggleQuestionTypePicker(ActivePage, PickerAnchor.Header))" aria-haspopup="menu" aria-expanded="@(_pickingTypeForPageId == ActivePage.Id && _pickerAnchor == PickerAnchor.Header)"
                             class="flex h-7 items-center gap-[6px] whitespace-nowrap rounded-md border border-border-control bg-white px-[11px] text-[12.5px] font-medium text-text-body hover:border-border-control-hover">
                         <Blazicon Svg="Lucide.Plus" class="text-xs" aria-hidden="true" />
                         Add question
@@ -152,7 +187,7 @@ else
                         <span class="text-[13.5px] font-semibold text-text">This page has no questions yet</span>
                         <span class="max-w-[44ch] text-center text-[12.5px] text-text-faint text-pretty">Add your first question, or drag one here from another page.</span>
                         <div class="relative mt-1">
-                            <button type="button" @onclick="@(() => ToggleQuestionTypePicker(ActivePage, PickerAnchor.Empty))" aria-haspopup="menu" aria-expanded="@(_pickingTypeForPageId == ActivePage.Id && _pickerAnchor == PickerAnchor.Empty)"
+                            <button type="button" @ref="_addQuestionEmptyRef" @onclick="@(() => ToggleQuestionTypePicker(ActivePage, PickerAnchor.Empty))" aria-haspopup="menu" aria-expanded="@(_pickingTypeForPageId == ActivePage.Id && _pickerAnchor == PickerAnchor.Empty)"
                                     class="h-[30px] rounded-md border border-accent bg-accent px-[13px] text-[12.5px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
                                 Add question
                             </button>
@@ -165,11 +200,11 @@ else
                 }
                 else
                 {
-                    @for (var i = 0; i < ActivePage.Questions.Count; i++)
-                    {
-                        var question = ActivePage.Questions.ElementAt(i);
-                        var index = i;
-                        <div>
+                    <div class="overflow-hidden rounded-lg border border-border-control">
+                        @for (var i = 0; i < ActivePage.Questions.Count; i++)
+                        {
+                            var question = ActivePage.Questions.ElementAt(i);
+                            var index = i;
                             @if (index == 0)
                             {
                                 <div @ondragover="@(() => SetDropIndex(0))" @ondragover:preventDefault="true"
@@ -195,11 +230,11 @@ else
                                                OnDragOverBottom="@(() => SetDropIndex(index + 1))"
                                                OnDrop="@(() => HandleDrop(ActivePage))"
                                                OnKeyMove="@(delta => MoveQuestion(ActivePage, question, delta))" />
-                        </div>
-                    }
-                    <div @ondragover="@(() => SetDropIndex(ActivePage.Questions.Count))" @ondragover:preventDefault="true"
-                         @ondrop="@(() => HandleDrop(ActivePage))"
-                         class="@InsertionLineClasses(ActivePage.Questions.Count)"></div>
+                        }
+                        <div @ondragover="@(() => SetDropIndex(ActivePage.Questions.Count))" @ondragover:preventDefault="true"
+                             @ondrop="@(() => HandleDrop(ActivePage))"
+                             class="@InsertionLineClasses(ActivePage.Questions.Count)"></div>
+                    </div>
                 }
             </div>
         </div>
@@ -216,7 +251,13 @@ else
             <div class="flex flex-col gap-4 rounded-lg border border-border bg-surface-panel p-[20px_18px]">
                 <div class="flex flex-col gap-[5px]">
                     <span class="text-[16px] font-semibold tracking-[-0.01em] text-text">@(string.IsNullOrWhiteSpace(_form.Title) ? "Untitled form" : _form.Title)</span>
-                    <span class="text-[12.5px] leading-[1.5] text-text-soft text-pretty">@(ActivePageIndex == 0 ? _form.Description : PageLabel(ActivePage))</span>
+                    @{
+                        var previewSubline = ActivePageIndex == 0 ? _form.Description : PageLabel(ActivePage);
+                    }
+                    @if (!string.IsNullOrWhiteSpace(previewSubline))
+                    {
+                        <span class="text-[12.5px] leading-[1.5] text-text-soft text-pretty">@previewSubline</span>
+                    }
                 </div>
 
                 @foreach (var question in ActivePage.Questions)
@@ -293,14 +334,18 @@ else
                 </div>
             </div>
 
-            <span class="text-[11.5px] text-text-faintest text-pretty">Preview reflects unsaved edits. Respondents always see the published revision.</span>
+            <span class="text-[11.5px] text-text-faintest text-pretty">
+                @(_form.Status == FormVersionStatus.Published
+                    ? $"Preview reflects unsaved edits. Respondents see version {_form.VersionNumber} — the version you're editing."
+                    : $"Preview reflects unsaved edits. Respondents keep seeing the published version until you publish version {_form.VersionNumber}.")
+            </span>
         </div>
     }
 </div>
 }
 
 @code {
-    private enum SaveState { Idle, Saving, Saved, Error }
+    private enum SaveState { Idle, Pending, Saving, Saved, Error }
 
     private enum PickerAnchor { Header, Empty }
 
@@ -322,24 +367,77 @@ else
     private string _liveAnnouncement = string.Empty;
     private CancellationTokenSource? _autosaveCts;
     private SaveState _saveState = SaveState.Idle;
+    private DateTimeOffset? _lastSavedAt;
     private bool _publishing;
     private string? _publishError;
+
+    private ElementReference _addQuestionHeaderRef;
+    private ElementReference _addQuestionEmptyRef;
+    private ElementReference[] _pageTabRefs = Array.Empty<ElementReference>();
+
+    private System.Timers.Timer? _saveLabelTimer;
+    private IDisposable? _locationChangingRegistration;
 
     private FormPage ActivePage => _form.Pages.First(p => p.Id == _activePageId);
     private int ActivePageIndex => _form.Pages.ToList().IndexOf(ActivePage);
 
     private string? SaveLabel => _saveState switch
     {
-        SaveState.Saving => "Saving…",
-        SaveState.Saved => "saved just now",
+        SaveState.Pending => "unsaved changes",
+        SaveState.Saving => "saving…",
+        SaveState.Saved => SavedLabel(),
         SaveState.Error => "couldn't reach server",
         _ => null,
     };
+
+    private string SavedLabel()
+    {
+        if (_lastSavedAt is not { } saved)
+        {
+            return "saved";
+        }
+
+        var elapsed = DateTimeOffset.Now - saved;
+        if (elapsed < TimeSpan.FromSeconds(45))
+        {
+            return "saved just now";
+        }
+
+        if (elapsed < TimeSpan.FromSeconds(90))
+        {
+            return "saved 1 min ago";
+        }
+
+        if (elapsed < TimeSpan.FromHours(1))
+        {
+            return $"saved {(int)elapsed.TotalMinutes} min ago";
+        }
+
+        return $"saved at {saved.ToLocalTime():HH:mm}";
+    }
+
+    private string SaveIndicatorTextClass => _saveState == SaveState.Error ? "text-danger" : "text-text-faintest";
+
+    private string SaveIndicatorDotClass => _saveState == SaveState.Error ? "bg-danger" : "bg-text-faintest-2";
 
     private int DescriptionLength => _form.Description?.Length ?? 0;
 
     private string DescriptionCountClasses => "font-mono text-[10.5px] "
         + (DescriptionLength > 500 ? "text-danger" : "text-text-faintest");
+
+    private int TitleLength => _form.Title?.Length ?? 0;
+
+    private string TitleCountClasses => "flex-none font-mono text-[10.5px] "
+        + (TitleLength >= 120 ? "text-danger" : "text-text-faintest");
+
+    protected override void OnInitialized()
+    {
+        _saveLabelTimer = new System.Timers.Timer(30_000) { AutoReset = true };
+        _saveLabelTimer.Elapsed += (_, _) => _ = InvokeAsync(StateHasChanged);
+        _saveLabelTimer.Start();
+
+        _locationChangingRegistration = Nav.RegisterLocationChangingHandler(OnLocationChanging);
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -388,10 +486,39 @@ else
         _pickingTypeForPageId = null;
         _pickerAnchor = null;
         _titleBlurred = false;
-        _saveState = string.IsNullOrWhiteSpace(_form.Title) ? SaveState.Idle : SaveState.Saved;
+
+        if (string.IsNullOrWhiteSpace(_form.Title))
+        {
+            _saveState = SaveState.Idle;
+            _lastSavedAt = null;
+        }
+        else
+        {
+            _saveState = SaveState.Saved;
+            _lastSavedAt = _form.LastModifiedAt == default ? DateTimeOffset.Now : _form.LastModifiedAt;
+        }
     }
 
-    public void Dispose() => _autosaveCts?.Cancel();
+    private async ValueTask OnLocationChanging(LocationChangingContext context)
+    {
+        await FlushPendingSaveAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _saveLabelTimer?.Dispose();
+        _locationChangingRegistration?.Dispose();
+        _autosaveCts?.Cancel();
+
+        try
+        {
+            await FlushPendingSaveAsync();
+        }
+        catch
+        {
+            // best-effort flush on teardown
+        }
+    }
 
     private void TriggerAutosave()
     {
@@ -403,7 +530,7 @@ else
             return;
         }
 
-        _saveState = SaveState.Saving;
+        _saveState = SaveState.Pending;
         var cts = new CancellationTokenSource();
         _autosaveCts = cts;
         _ = DebounceSaveAsync(cts.Token);
@@ -423,8 +550,13 @@ else
         await SaveNowAsync(token);
     }
 
-    private void SaveNow()
+    private async Task FlushPendingSaveAsync()
     {
+        if (_saveState is not (SaveState.Pending or SaveState.Error))
+        {
+            return;
+        }
+
         _autosaveCts?.Cancel();
 
         if (string.IsNullOrWhiteSpace(_form.Title))
@@ -433,31 +565,26 @@ else
             return;
         }
 
-        _saveState = SaveState.Saving;
         var cts = new CancellationTokenSource();
         _autosaveCts = cts;
-        _ = SaveNowAsync(cts.Token);
+        await SaveNowAsync(cts.Token);
     }
 
     private async Task SaveNowAsync(CancellationToken token)
     {
         Repository.Save(_form);
-        var wasPublished = _form.Status == FormVersionStatus.Published;
+
+        _saveState = SaveState.Saving;
+        await InvokeAsync(StateHasChanged);
 
         try
         {
-            await FormsService.SaveAsync(_form.FormId, _form, token);
-            if (wasPublished)
-            {
-                _form.Status = FormVersionStatus.Draft;
-                _form.VersionNumber += 1;
-                _form.Revision = 1;
-            }
-            else
-            {
-                _form.Revision += 1;
-            }
-
+            var result = await FormsService.SaveAsync(_form.FormId, _form, token);
+            _form.VersionNumber = result.VersionNumber;
+            _form.Revision = result.Revision;
+            _form.Status = MapStatus(result.Status);
+            _form.LastModifiedAt = result.LastModifiedAt;
+            _lastSavedAt = DateTimeOffset.Now;
             _saveState = SaveState.Saved;
         }
         catch (TaskCanceledException) when (token.IsCancellationRequested)
@@ -471,6 +598,12 @@ else
 
         await InvokeAsync(StateHasChanged);
     }
+
+    private static FormVersionStatus MapStatus(FormVersionStatusDto status) => status switch
+    {
+        FormVersionStatusDto.Published => FormVersionStatus.Published,
+        _ => FormVersionStatus.Draft,
+    };
 
     private async Task PublishNow()
     {
@@ -545,11 +678,51 @@ else
         return "font-mono text-[10.5px] " + (active ? "text-[#8fada9]" : "text-text-faintest-2");
     }
 
-    private void SelectPage(FormPage page)
+    private async Task SelectPage(FormPage page)
     {
+        await FlushPendingSaveAsync();
         _activePageId = page.Id;
         _expandedQuestionId = null;
-        ClosePicker();
+        _pickingTypeForPageId = null;
+        _pickerAnchor = null;
+    }
+
+    private async Task OnPageTabsKeyDown(KeyboardEventArgs e)
+    {
+        var pages = _form.Pages.ToList();
+        var current = pages.FindIndex(p => p.Id == _activePageId);
+        if (current < 0)
+        {
+            return;
+        }
+
+        var target = e.Key switch
+        {
+            "ArrowLeft" or "ArrowUp" => current - 1,
+            "ArrowRight" or "ArrowDown" => current + 1,
+            "Home" => 0,
+            "End" => pages.Count - 1,
+            _ => current,
+        };
+
+        if (target == current || target < 0 || target >= pages.Count)
+        {
+            return;
+        }
+
+        await SelectPage(pages[target]);
+
+        if (target < _pageTabRefs.Length)
+        {
+            try
+            {
+                await _pageTabRefs[target].FocusAsync();
+            }
+            catch (Exception)
+            {
+                // tab element may not be in the DOM yet
+            }
+        }
     }
 
     private void AddPage()
@@ -557,7 +730,8 @@ else
         var page = new FormPage { Id = Guid.NewGuid(), FormVersionId = _form.Id, Order = _form.Pages.Count };
         _form.Pages.Add(page);
         _activePageId = page.Id;
-        ClosePicker();
+        _pickingTypeForPageId = null;
+        _pickerAnchor = null;
         TriggerAutosave();
     }
 
@@ -585,14 +759,16 @@ else
             _activePageId = _form.Pages.First().Id;
         }
 
-        ClosePicker();
+        _pickingTypeForPageId = null;
+        _pickerAnchor = null;
         TriggerAutosave();
     }
 
     private void ToggleExpanded(Question question)
     {
         _expandedQuestionId = _expandedQuestionId == question.Id ? null : question.Id;
-        ClosePicker();
+        _pickingTypeForPageId = null;
+        _pickerAnchor = null;
     }
 
     private void ToggleQuestionTypePicker(FormPage page, PickerAnchor anchor)
@@ -602,17 +778,36 @@ else
         _pickerAnchor = opening ? anchor : null;
     }
 
-    private void ClosePicker()
+    private async Task ClosePicker()
     {
+        var wasOpen = _pickingTypeForPageId is not null;
+        var anchor = _pickerAnchor;
+
         _pickingTypeForPageId = null;
         _pickerAnchor = null;
+
+        if (wasOpen && anchor is { } openAnchor)
+        {
+            var trigger = openAnchor == PickerAnchor.Header ? _addQuestionHeaderRef : _addQuestionEmptyRef;
+            try
+            {
+                await trigger.FocusAsync();
+            }
+            catch (Exception)
+            {
+                // trigger may no longer be rendered
+            }
+        }
     }
 
     private void AddQuestion(FormPage page, Question question)
     {
         question.Order = page.Questions.Count;
         page.Questions.Add(question);
-        ClosePicker();
+        // Close the type menu without restoring focus to its trigger — focus goes to the
+        // new question's text input via AutoFocusText.
+        _pickingTypeForPageId = null;
+        _pickerAnchor = null;
         _expandedQuestionId = question.Id;
         _focusQuestionId = question.Id;
         TriggerAutosave();
@@ -707,6 +902,15 @@ else
         return ordered;
     }
 
-    private string InsertionLineClasses(int index) => "my-[2px] h-[2px] rounded-[2px] "
-        + (_draggedQuestion is not null && _dropIndex == index ? "bg-accent" : "bg-transparent");
+    private string InsertionLineClasses(int index)
+    {
+        if (_draggedQuestion is not null && _dropIndex == index)
+        {
+            return "h-[3px] bg-accent";
+        }
+
+        // Hairline between adjacent rows; nothing at the list's top/bottom edge (the
+        // container border owns those).
+        return index == 0 || index == ActivePage.Questions.Count ? "h-0" : "h-px bg-border-row";
+    }
 }

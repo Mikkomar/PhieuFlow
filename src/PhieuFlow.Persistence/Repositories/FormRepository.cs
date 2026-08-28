@@ -29,7 +29,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         return version;
     }
 
-    public async Task SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default)
+    public async Task<SaveFormResult> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -53,7 +53,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
 
             dbContext.Forms.Add(new Form { Id = formId, CreatedAt = now });
 
-            dbContext.FormVersions.Add(new FormVersion
+            var created = new FormVersion
             {
                 Id = newVersionId,
                 FormId = formId,
@@ -66,9 +66,10 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
                 LastModifiedAt = now,
                 LastModifiedBy = incomingContent.LastModifiedBy,
                 Pages = incomingContent.Pages,
-            });
+            };
+            dbContext.FormVersions.Add(created);
 
-            return;
+            return ToSaveResult(created);
         }
 
         if (currentVersion.Status == FormVersionStatus.Draft)
@@ -80,13 +81,13 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             currentVersion.Revision += 1;
 
             ReconcilePages(currentVersion, incomingContent.Pages);
-            return;
+            return ToSaveResult(currentVersion);
         }
 
         // Published: currentVersion is immutable from here on. Fork a new draft.
         var forkedVersionId = Guid.NewGuid();
 
-        dbContext.FormVersions.Add(new FormVersion
+        var forked = new FormVersion
         {
             Id = forkedVersionId,
             FormId = formId,
@@ -99,8 +100,19 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             LastModifiedAt = now,
             LastModifiedBy = incomingContent.LastModifiedBy,
             Pages = incomingContent.Pages.Select(p => ClonePageWithFreshIds(p, forkedVersionId)).ToList(),
-        });
+        };
+        dbContext.FormVersions.Add(forked);
+
+        return ToSaveResult(forked);
     }
+
+    private static SaveFormResult ToSaveResult(FormVersion version) => new()
+    {
+        VersionNumber = version.VersionNumber,
+        Revision = version.Revision,
+        Status = version.Status,
+        LastModifiedAt = version.LastModifiedAt,
+    };
 
     public async Task<bool> PublishAsync(Guid formId, CancellationToken cancellationToken = default)
     {
@@ -309,6 +321,11 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
                 f.Id,
                 f.CreatedAt,
                 CurrentVersion = f.Versions.OrderByDescending(v => v.VersionNumber).First(),
+                LatestPublished = f.Versions
+                    .Where(v => v.Status == FormVersionStatus.Published)
+                    .OrderByDescending(v => v.VersionNumber)
+                    .Select(v => new { v.VersionNumber, v.PublishedAt })
+                    .FirstOrDefault(),
             });
 
         if (startId is not null)
@@ -330,6 +347,8 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
                 Revision = x.CurrentVersion.Revision,
                 VersionNumber = x.CurrentVersion.VersionNumber,
                 Status = x.CurrentVersion.Status,
+                LatestPublishedVersionNumber = x.LatestPublished != null ? x.LatestPublished.VersionNumber : null,
+                LatestPublishedAt = x.LatestPublished != null ? x.LatestPublished.PublishedAt : null,
                 PageCount = x.CurrentVersion.Pages.Count,
                 QuestionCount = x.CurrentVersion.Pages.Sum(p => p.Questions.Count),
             })

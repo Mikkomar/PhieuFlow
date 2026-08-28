@@ -1,0 +1,17 @@
+@if (Published)
+{
+    <span class="inline-flex h-[22px] items-center gap-[6px] rounded-full bg-accent-surface-alt px-[9px] text-[11.5px] font-semibold text-accent">
+        <span class="h-[5px] w-[5px] rounded-full bg-accent"></span>Published
+    </span>
+}
+else
+{
+    <span class="inline-flex h-[22px] items-center gap-[6px] rounded-full bg-[#f2f3f3] px-[9px] text-[11.5px] font-semibold text-text-soft">
+        <span class="h-[5px] w-[5px] rounded-full bg-text-faintest-2"></span>Draft
+    </span>
+}
+
+@code {
+    [Parameter]
+    public bool Published { get; set; }
+}

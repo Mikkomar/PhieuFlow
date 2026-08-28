@@ -3,7 +3,7 @@
 <div class="@RootClasses" @onkeydown="OnRowKeyDown">
     <div @onclick="@(() => OnToggle.InvokeAsync())"
          class="relative flex h-[42px] cursor-pointer items-center gap-[10px] px-3 outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
-         tabindex="0">
+         tabindex="0" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown">
         <div class="absolute inset-x-0 top-0 z-10 h-1/2"
              @ondragover="@(() => OnDragOverTop.InvokeAsync())" @ondragover:preventDefault="true"
              @ondrop="@(() => OnDrop.InvokeAsync())"></div>
@@ -15,10 +15,11 @@
               @ondragstart="@(() => OnDragStart.InvokeAsync())"
               @ondragend="@(() => OnDragEnd.InvokeAsync())"
               aria-hidden="true"
+              title="Drag to reorder, or press Alt+↑ / Alt+↓"
               class="relative z-20 flex w-[14px] flex-none cursor-grab items-center text-text-faintest-2 hover:text-text-faint active:cursor-grabbing">
             <Blazicon Svg="Lucide.GripVertical" class="text-[13px]" />
         </span>
-        <span class="w-4 flex-none text-right font-mono text-[11px] text-text-faintest">@Number</span>
+        <span class="w-5 flex-none text-right font-mono text-[11px] text-text-faintest">@Number</span>
         <span class="@TextLabelClasses">@TextLabel</span>
         @if (Question.IsRequired)
         {
@@ -149,8 +150,8 @@
     private string TextLabelClasses => "min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-medium "
         + (string.IsNullOrWhiteSpace(Question.Text) ? "text-text-faintest-2" : "text-text");
 
-    private string RootClasses => "rounded-lg border bg-white transition-opacity overflow-hidden "
-        + (Expanded ? "border-accent " : "border-border-control ")
+    private string RootClasses => "bg-white transition-opacity "
+        + (Expanded ? "relative z-[1] rounded-md ring-1 ring-inset ring-accent " : "")
         + (Dragging ? "opacity-40" : "opacity-100");
 
     private string ChevronClasses => "flex w-4 flex-none items-center justify-center transition-transform "
