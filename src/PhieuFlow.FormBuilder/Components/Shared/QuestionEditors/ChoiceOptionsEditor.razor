@@ -37,13 +37,23 @@
 
     private void AddOption()
     {
-        Question.Options.Add(new QuestionOption { Id = Guid.NewGuid(), Label = string.Empty });
+        Question.Options.Add(new QuestionOption { Id = Guid.NewGuid(), Label = string.Empty, Order = Question.Options.Count });
         OnChanged.InvokeAsync();
     }
 
     private void RemoveOption(QuestionOption option)
     {
         Question.Options.Remove(option);
+        Renumber();
         OnChanged.InvokeAsync();
+    }
+
+    private void Renumber()
+    {
+        var order = 0;
+        foreach (var option in Question.Options)
+        {
+            option.Order = order++;
+        }
     }
 }

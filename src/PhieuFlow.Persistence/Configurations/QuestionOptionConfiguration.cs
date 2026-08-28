@@ -13,5 +13,6 @@ public class QuestionOptionConfiguration : IEntityTypeConfiguration<QuestionOpti
         builder.Property(o => o.Id).ValueGeneratedNever();
 
         builder.Property(o => o.Label).IsRequired().HasMaxLength(200);
+        builder.Property(o => o.Order).IsRequired();
     }
 }

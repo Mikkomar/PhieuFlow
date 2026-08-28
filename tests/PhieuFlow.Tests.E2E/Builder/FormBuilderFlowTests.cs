@@ -69,13 +69,32 @@ public sealed class FormBuilderFlowTests(AppHostFixture fixture, ITestOutputHelp
             {
                 var radio = q.Should().BeOfType<RadioButtonQuestionDto>().Subject;
                 radio.IsRequired.Should().BeTrue();
-                // QuestionOption has no order column, so compare as a set, not a sequence.
-                radio.Options.Select(o => o.Label).Should().BeEquivalentTo(new[] { "Full time", "Part time" });
+                radio.Options.Select(o => o.Label).Should().Equal("Full time", "Part time");
             });
 
         var number = form.Pages[1].Questions.Should().ContainSingle().Which.Should().BeOfType<NumberQuestionDto>().Subject;
         number.Min.Should().Be(0m);
         number.Max.Should().Be(40m);
+    }
+
+    [Fact]
+    public async Task TestAutosave_When_ChoiceOptionsAdded_Should_PersistOptionOrder()
+    {
+        var builder = new FormBuilderPage(Page);
+        var title = $"Options {Guid.NewGuid():N}";
+
+        await GotoFormBuilderAsync("/forms/new");
+        await builder.SetTitleAsync(title);
+        await builder.AddQuestionAsync("Dropdown", "Favourite colour");
+        await builder.SetOptionsAsync("Red", "Green", "Blue");
+        await WaitForSavedAsync();
+
+        var form = await GetFormAsync(await GetFormIdByTitleAsync(title));
+        var dropdown = form.Pages[0].Questions.Should().ContainSingle()
+            .Which.Should().BeOfType<DropDownQuestionDto>().Subject;
+
+        dropdown.Options.Select(o => o.Label).Should().Equal("Red", "Green", "Blue");
+        dropdown.Options.Select(o => o.Order).Should().Equal(0, 1, 2);
     }
 
     [Fact]

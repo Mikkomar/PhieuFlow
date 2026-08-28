@@ -167,7 +167,8 @@ public static class FormEndpoints
     };
 
     private static List<QuestionOptionDto> MapToDto(IEnumerable<QuestionOption> options) => options
-        .Select(o => new QuestionOptionDto { Id = o.Id, Label = o.Label })
+        .OrderBy(o => o.Order)
+        .Select(o => new QuestionOptionDto { Id = o.Id, Label = o.Label, Order = o.Order })
         .ToList();
 
     private static FormVersion MapToEntity(FormDto dto, Guid formId) => new()
@@ -262,7 +263,9 @@ public static class FormEndpoints
         _ => throw new NotSupportedException($"Unknown question type '{dto.GetType().Name}'."),
     };
 
+    // Option order is authoritative from the incoming list position, mirroring how pages
+    // and questions get their Order.
     private static List<QuestionOption> MapToEntity(IEnumerable<QuestionOptionDto> options) => options
-        .Select(o => new QuestionOption { Id = o.Id, Label = o.Label })
+        .Select((o, index) => new QuestionOption { Id = o.Id, Label = o.Label, Order = index })
         .ToList();
 }

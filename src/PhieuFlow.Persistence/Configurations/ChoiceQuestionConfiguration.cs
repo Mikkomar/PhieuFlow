@@ -8,7 +8,7 @@ public class ChoiceQuestionConfiguration : IEntityTypeConfiguration<ChoiceQuesti
 {
     public void Configure(EntityTypeBuilder<ChoiceQuestion> builder)
     {
-        // No explicit ordering column yet; option order is not guaranteed on reload.
+        // Options carry an explicit Order column; FormRepository sorts by it on reload.
         builder.HasMany(c => c.Options)
             .WithOne()
             .HasForeignKey("ChoiceQuestionId")

@@ -42,12 +42,12 @@ public static class SampleForms
                         new DropDownQuestion
                         {
                             Id = Guid.NewGuid(), FormPageId = personalDetailsPageId, Text = "Which department are you joining?", IsRequired = true, Order = 1,
-                            Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Operations" }, new() { Id = Guid.NewGuid(), Label = "Finance" }, new() { Id = Guid.NewGuid(), Label = "Engineering" } },
+                            Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Operations", Order = 0 }, new() { Id = Guid.NewGuid(), Label = "Finance", Order = 1 }, new() { Id = Guid.NewGuid(), Label = "Engineering", Order = 2 } },
                         },
                         new RadioButtonQuestion
                         {
                             Id = Guid.NewGuid(), FormPageId = personalDetailsPageId, Text = "Contract type", IsRequired = true, Order = 2,
-                            Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Permanent" }, new() { Id = Guid.NewGuid(), Label = "Fixed term" }, new() { Id = Guid.NewGuid(), Label = "Contractor" } },
+                            Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Permanent", Order = 0 }, new() { Id = Guid.NewGuid(), Label = "Fixed term", Order = 1 }, new() { Id = Guid.NewGuid(), Label = "Contractor", Order = 2 } },
                         },
                         new CheckboxQuestion { Id = Guid.NewGuid(), FormPageId = personalDetailsPageId, Text = "Signed contract", Label = "I have returned my signed contract", IsRequired = false, Order = 3 },
                     },
@@ -63,7 +63,7 @@ public static class SampleForms
                         new CheckBoxGroupQuestion
                         {
                             Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Which equipment do you need?", IsRequired = true, Order = 0, MinSelections = 1, MaxSelections = 3,
-                            Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Laptop" }, new() { Id = Guid.NewGuid(), Label = "Monitor" }, new() { Id = Guid.NewGuid(), Label = "Phone" }, new() { Id = Guid.NewGuid(), Label = "Headset" } },
+                            Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Laptop", Order = 0 }, new() { Id = Guid.NewGuid(), Label = "Monitor", Order = 1 }, new() { Id = Guid.NewGuid(), Label = "Phone", Order = 2 }, new() { Id = Guid.NewGuid(), Label = "Headset", Order = 3 } },
                         },
                         new TextAreaQuestion { Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Accessibility requirements", IsRequired = false, Order = 1, MinLength = 0, MaxLength = 500 },
                         new NumberQuestion { Id = Guid.NewGuid(), FormPageId = equipmentPageId, Text = "Shoe size (EU)", IsRequired = false, Order = 2, Min = 35, Max = 50 },
@@ -101,7 +101,7 @@ public static class SampleForms
                         new RadioButtonQuestion
                         {
                             Id = Guid.NewGuid(), FormPageId = feedbackPageId, Text = "How likely are you to recommend us to a colleague?", IsRequired = true, Order = 0,
-                            Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Very likely" }, new() { Id = Guid.NewGuid(), Label = "Neutral" }, new() { Id = Guid.NewGuid(), Label = "Unlikely" } },
+                            Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = "Very likely", Order = 0 }, new() { Id = Guid.NewGuid(), Label = "Neutral", Order = 1 }, new() { Id = Guid.NewGuid(), Label = "Unlikely", Order = 2 } },
                         },
                         new TextAreaQuestion { Id = Guid.NewGuid(), FormPageId = feedbackPageId, Text = "What could we do better?", IsRequired = false, Order = 1 },
                     },

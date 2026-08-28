@@ -23,6 +23,11 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             foreach (var page in version.Pages)
             {
                 page.Questions = page.Questions.OrderBy(q => q.Order).ToList();
+
+                foreach (var question in page.Questions.OfType<ChoiceQuestion>())
+                {
+                    question.Options = question.Options.OrderBy(o => o.Order).ToList();
+                }
             }
         }
 
@@ -194,7 +199,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
     }
 
     private static List<QuestionOption> CloneOptionsWithFreshIds(IEnumerable<QuestionOption> options) => options
-        .Select(o => new QuestionOption { Id = Guid.NewGuid(), Label = o.Label })
+        .Select(o => new QuestionOption { Id = Guid.NewGuid(), Label = o.Label, Order = o.Order })
         .ToList();
 
     private static void ReconcilePages(FormVersion existingVersion, ICollection<FormPage> incomingPages)
@@ -303,6 +308,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             if (existingById.TryGetValue(incoming.Id, out var trackedOption))
             {
                 trackedOption.Label = incoming.Label;
+                trackedOption.Order = incoming.Order;
             }
             else
             {

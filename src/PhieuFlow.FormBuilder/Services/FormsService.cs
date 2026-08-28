@@ -145,7 +145,8 @@ public class FormsService(HubFormsClient hubFormsClient) : IFormsService
     };
 
     private static List<QuestionOptionDto> MapToDto(IEnumerable<QuestionOption> options) => options
-        .Select(o => new QuestionOptionDto { Id = o.Id, Label = o.Label })
+        .OrderBy(o => o.Order)
+        .Select((o, index) => new QuestionOptionDto { Id = o.Id, Label = o.Label, Order = index })
         .ToList();
 
     private static FormVersion MapToEntity(FormDto dto) => new()
@@ -238,6 +239,7 @@ public class FormsService(HubFormsClient hubFormsClient) : IFormsService
     };
 
     private static List<QuestionOption> MapToEntity(IEnumerable<QuestionOptionDto> options) => options
-        .Select(o => new QuestionOption { Id = o.Id, Label = o.Label })
+        .OrderBy(o => o.Order)
+        .Select(o => new QuestionOption { Id = o.Id, Label = o.Label, Order = o.Order })
         .ToList();
 }

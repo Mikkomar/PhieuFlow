@@ -20,10 +20,10 @@
     public static readonly (string Label, string Glyph, Func<Guid, Question> Create)[] Types =
     {
         ("Text area", "Aa", formPageId => new TextAreaQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty }),
-        ("Dropdown", "▾", formPageId => new DropDownQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
+        ("Dropdown", "▾", formPageId => new DropDownQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty, Order = 0 } } }),
         ("Checkbox", "☑", formPageId => new CheckboxQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty, Label = string.Empty }),
-        ("Radio buttons", "◉", formPageId => new RadioButtonQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
-        ("Checkbox group", "☰", formPageId => new CheckBoxGroupQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty } } }),
+        ("Radio buttons", "◉", formPageId => new RadioButtonQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty, Order = 0 } } }),
+        ("Checkbox group", "☰", formPageId => new CheckBoxGroupQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty, Options = new List<QuestionOption> { new() { Id = Guid.NewGuid(), Label = string.Empty, Order = 0 } } }),
         ("Number", "#", formPageId => new NumberQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty }),
         ("Calendar", "▦", formPageId => new CalendarQuestion { Id = Guid.NewGuid(), FormPageId = formPageId, Text = string.Empty }),
     };
