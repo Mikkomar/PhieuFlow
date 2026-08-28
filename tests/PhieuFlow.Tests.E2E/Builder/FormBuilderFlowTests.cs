@@ -211,7 +211,7 @@ public sealed class FormBuilderFlowTests(AppHostFixture fixture, ITestOutputHelp
 
     private async Task<List<string>> ListFormTitlesAsync()
     {
-        using var client = Fixture.CreateHubClient();
+        using var client = await Fixture.CreateAuthorizedHubClientAsync("forms:read");
         var batch = await client.GetFromJsonAsync<FormBatchResponse>("/forms?take=100");
         return batch?.Items.Select(i => i.Title).ToList() ?? [];
     }

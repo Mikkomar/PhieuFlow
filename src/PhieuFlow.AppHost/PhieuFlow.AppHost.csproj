@@ -18,6 +18,10 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.5.2" />
+    <!-- Aspire.Hosting.Keycloak has no stable release yet; pin the preview from the
+         same 13.5.2 build line as the SDK / Aspire.Hosting.SqlServer, and bump it in
+         lockstep with them (no Directory.Packages.props to enforce it). -->
+    <PackageReference Include="Aspire.Hosting.Keycloak" Version="13.5.2-preview.1.26421.6" />
   </ItemGroup>
 
   <ItemGroup>

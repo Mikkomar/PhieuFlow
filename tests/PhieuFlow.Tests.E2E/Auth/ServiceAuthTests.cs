@@ -12,17 +12,11 @@ namespace PhieuFlow.Tests.E2E.Auth;
 /// ADR 0005: the hub authenticates its callers with OAuth2 client-credentials tokens
 /// (Keycloak) and authorises by scope claim (<c>forms:read</c>, <c>forms:write</c>,
 /// <c>submissions:write</c>). These drive the hub REST API directly — no browser.
-///
-/// Skipped until JWT bearer auth is wired onto the hub.
 /// </summary>
 [Collection(E2ECollection.Name)]
 public sealed class ServiceAuthTests(AppHostFixture fixture)
 {
-    private const string Blocker =
-        "Keycloak client-credentials auth on the Hub REST API not implemented — ADR 0005";
-
-    [Fact(Skip = Blocker)]
-    [Trait("Category", "Future")]
+    [Fact]
     public async Task TestGetForms_Without_BearerToken_Should_Return401()
     {
         using var client = fixture.CreateHubClient();
@@ -32,8 +26,7 @@ public sealed class ServiceAuthTests(AppHostFixture fixture)
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
-    [Fact(Skip = Blocker)]
-    [Trait("Category", "Future")]
+    [Fact]
     public async Task TestPutForm_When_TokenHasReadOnlyScope_Should_Return403()
     {
         using var client = fixture.CreateHubClient();
@@ -47,8 +40,7 @@ public sealed class ServiceAuthTests(AppHostFixture fixture)
         write.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    [Fact(Skip = Blocker)]
-    [Trait("Category", "Future")]
+    [Fact]
     public async Task TestHubApi_When_TokenHasBuilderClientCredentials_Should_AllowReadAndWrite()
     {
         using var client = fixture.CreateHubClient();
@@ -63,13 +55,7 @@ public sealed class ServiceAuthTests(AppHostFixture fixture)
         read.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    /// <summary>
-    /// Placeholder for the client-credentials exchange against Keycloak. Once the realm
-    /// config is checked in, this posts to the token endpoint with the form-builder
-    /// client id/secret and the requested scopes.
-    /// </summary>
-    private static Task<string> GetTokenAsync(params string[] scopes) =>
-        Task.FromResult($"test-token:{string.Join(' ', scopes)}");
+    private Task<string> GetTokenAsync(params string[] scopes) => fixture.GetServiceTokenAsync(scopes);
 
     private static FormDto NewFormDto() => new()
     {

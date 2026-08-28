@@ -9,5 +9,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PhieuFlow.Tests.E2E/PhieuFlow.Tests.E2E.csproj" />
+    <Project Path="tests/PhieuFlow.Tests.Integration/PhieuFlow.Tests.Integration.csproj" />
   </Folder>
 </Solution>

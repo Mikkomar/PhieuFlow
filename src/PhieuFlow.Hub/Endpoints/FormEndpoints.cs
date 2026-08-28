@@ -39,13 +39,13 @@ public static class FormEndpoints
                 }).ToList(),
                 NextStartId = result.NextStartId,
             });
-        });
+        }).RequireAuthorization("forms:read");
 
         app.MapGet("/forms/{id:guid}", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
             var version = await unitOfWork.Forms.GetByIdAsync(id, cancellationToken);
             return version is null ? Results.NotFound() : Results.Ok(MapToDto(version));
-        });
+        }).RequireAuthorization("forms:read");
 
         app.MapPut("/forms/{id:guid}", async (Guid id, FormDto dto, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
@@ -58,7 +58,7 @@ public static class FormEndpoints
                 Status = MapToDto(result.Status),
                 LastModifiedAt = result.LastModifiedAt,
             });
-        });
+        }).RequireAuthorization("forms:write");
 
         app.MapPost("/forms/{id:guid}/publish", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
@@ -76,7 +76,7 @@ public static class FormEndpoints
                 Status = MapToDto(result.Status),
                 LastModifiedAt = result.LastModifiedAt,
             });
-        });
+        }).RequireAuthorization("forms:write");
     }
 
     private static FormVersionStatusDto MapToDto(FormVersionStatus status) => status switch
@@ -177,6 +177,9 @@ public static class FormEndpoints
         FormId = formId,
         Title = dto.Title,
         Description = dto.Description,
+        // TODO ADR-0005: the calling client id is now available via User.FindFirst("azp").
+        // End-user identity / per-user ownership is out of ADR 0005 scope, so this stays
+        // free text from the DTO for now.
         LastModifiedBy = dto.LastModifiedBy,
         Pages = dto.Pages.Select((p, index) => MapToEntity(p, formId, index)).ToList(),
     };

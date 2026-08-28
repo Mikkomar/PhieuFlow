@@ -126,21 +126,21 @@ public abstract class E2ETestBase : IAsyncLifetime
 
     protected async Task<FormDto> GetFormAsync(Guid id)
     {
-        using var client = Fixture.CreateHubClient();
+        using var client = await Fixture.CreateAuthorizedHubClientAsync("forms:read");
         var dto = await client.GetFromJsonAsync<FormDto>($"/forms/{id}");
         return dto ?? throw new InvalidOperationException($"Hub returned no form for {id}.");
     }
 
     protected async Task<FormListItemDto?> GetFormListItemAsync(Guid id)
     {
-        using var client = Fixture.CreateHubClient();
+        using var client = await Fixture.CreateAuthorizedHubClientAsync("forms:read");
         var batch = await client.GetFromJsonAsync<FormBatchResponse>("/forms?take=100");
         return batch?.Items.FirstOrDefault(i => i.Id == id);
     }
 
     protected async Task<Guid> GetFormIdByTitleAsync(string title)
     {
-        using var client = Fixture.CreateHubClient();
+        using var client = await Fixture.CreateAuthorizedHubClientAsync("forms:read");
         var batch = await client.GetFromJsonAsync<FormBatchResponse>("/forms?take=100");
         var match = batch?.Items.FirstOrDefault(i => i.Title == title)
             ?? throw new InvalidOperationException($"No hub form titled '{title}' after autosave.");
