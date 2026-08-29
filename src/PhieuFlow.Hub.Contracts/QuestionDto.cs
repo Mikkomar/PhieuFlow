@@ -15,6 +15,9 @@ public abstract class QuestionDto
     public required Guid Id { get; set; }
     public required string Text { get; set; }
     public required bool IsRequired { get; set; }
+
+    /// <summary>Publish-blocking problems with this question. Populated by the Hub validator.</summary>
+    public List<ValidationIssueDto> Issues { get; set; } = [];
 }
 
 public class TextAreaQuestionDto : QuestionDto

@@ -1,5 +1,6 @@
 using PhieuFlow.Core.Entities;
 using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Validation;
 using PhieuFlow.Persistence.UnitOfWork;
 
 namespace PhieuFlow.Hub.Endpoints;
@@ -41,10 +42,25 @@ public static class FormEndpoints
             });
         }).RequireAuthorization("forms:read");
 
+        app.MapPost("/forms", async (IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
+        {
+            var formId = await unitOfWork.Forms.CreateAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Results.Ok(new FormCreatedDto { Id = formId });
+        }).RequireAuthorization("forms:write");
+
         app.MapGet("/forms/{id:guid}", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
             var version = await unitOfWork.Forms.GetByIdAsync(id, cancellationToken);
-            return version is null ? Results.NotFound() : Results.Ok(MapToDto(version));
+            if (version is null)
+            {
+                return Results.NotFound();
+            }
+
+            var dto = MapToDto(version);
+            dto.LatestPublishedVersionNumber =
+                await unitOfWork.Forms.GetLatestPublishedVersionNumberAsync(id, cancellationToken);
+            return Results.Ok(dto);
         }).RequireAuthorization("forms:read");
 
         app.MapPut("/forms/{id:guid}", async (Guid id, FormDto dto, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
@@ -57,24 +73,62 @@ public static class FormEndpoints
                 Revision = result.Revision,
                 Status = MapToDto(result.Status),
                 LastModifiedAt = result.LastModifiedAt,
+                PublishedAt = result.PublishedAt,
             });
         }).RequireAuthorization("forms:write");
 
-        app.MapPost("/forms/{id:guid}/publish", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
+        // Publish gate: validate the persisted latest version — any issue -> 422 with the
+        // tree annotated, nothing published. Callers flush pending edits first, so "latest
+        // version" is what the builder is showing.
+        app.MapPost("/forms/{id:guid}/publish", async (
+            Guid id,
+            IUnitOfWork unitOfWork,
+            IFormPublishValidator validator,
+            CancellationToken cancellationToken) =>
         {
-            var result = await unitOfWork.Forms.PublishAsync(id, cancellationToken);
-            if (result is null)
+            var version = await unitOfWork.Forms.GetByIdAsync(id, cancellationToken);
+            if (version is null)
+            {
+                return Results.NotFound();
+            }
+
+            var liveVersionNumber =
+                await unitOfWork.Forms.GetLatestPublishedVersionNumberAsync(id, cancellationToken);
+
+            var dto = MapToDto(version);
+            dto.LatestPublishedVersionNumber = liveVersionNumber;
+
+            if (!validator.Validate(dto))
+            {
+                return Results.UnprocessableEntity(new PublishResultDto
+                {
+                    Published = false,
+                    Form = dto,
+                    VersionNumber = version.VersionNumber,
+                    LiveVersionNumber = liveVersionNumber,
+                    IsFirstPublish = liveVersionNumber is null,
+                });
+            }
+
+            var state = await unitOfWork.Forms.PublishAsync(id, cancellationToken);
+            if (state is null)
             {
                 return Results.NotFound();
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
-            return Results.Ok(new FormVersionStateDto
+
+            return Results.Ok(new PublishResultDto
             {
-                VersionNumber = result.VersionNumber,
-                Revision = result.Revision,
-                Status = MapToDto(result.Status),
-                LastModifiedAt = result.LastModifiedAt,
+                Published = true,
+                Form = dto,
+                VersionNumber = state.VersionNumber,
+                LiveVersionNumber = liveVersionNumber,
+                IsFirstPublish = liveVersionNumber is null,
+                Revision = state.Revision,
+                Status = MapToDto(state.Status),
+                LastModifiedAt = state.LastModifiedAt,
+                PublishedAt = state.PublishedAt,
             });
         }).RequireAuthorization("forms:write");
     }

@@ -1,30 +1,44 @@
+@inherits MinMaxEditorBase
+
 <div class="flex max-w-[340px] flex-col gap-[5px]">
     <div class="flex gap-3">
         <div class="flex flex-1 flex-col gap-[5px]">
             <span class="text-[11.5px] text-text-faint">Min selections</span>
-            <input type="number" min="0" value="@(Question.MinSelections?.ToString() ?? string.Empty)"
-                   @oninput="@(e => { Question.MinSelections = MinMaxValidation.ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
+            <input type="number" min="0" aria-label="Min selections" value="@(Question.MinSelections?.ToString() ?? string.Empty)" @ref="MinRef"
+                   @oninput="@(e => Edit(() => Question.MinSelections = MinMaxValidation.ParseNullableInt(e.Value)))"
+                   aria-invalid="@(Invalid ? "true" : null)"
                    class="@MinMaxValidation.InputClasses(Invalid)" />
         </div>
         <div class="flex flex-1 flex-col gap-[5px]">
             <span class="text-[11.5px] text-text-faint">Max selections</span>
-            <input type="number" min="0" value="@(Question.MaxSelections?.ToString() ?? string.Empty)"
-                   @oninput="@(e => { Question.MaxSelections = MinMaxValidation.ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
+            <input type="number" min="0" aria-label="Max selections" value="@(Question.MaxSelections?.ToString() ?? string.Empty)" @ref="MaxRef"
+                   @oninput="@(e => Edit(() => Question.MaxSelections = MinMaxValidation.ParseNullableInt(e.Value)))"
+                   aria-invalid="@(Invalid ? "true" : null)"
                    class="@MinMaxValidation.InputClasses(Invalid)" />
         </div>
     </div>
-    @if (Invalid)
+    @if (MinMaxValidation.ExceedsMax(Question.MinSelections, Question.MaxSelections))
     {
         <span class="text-[11.5px] text-danger">Min selections cannot be greater than max selections.</span>
+    }
+    @foreach (var issue in Question.Issues)
+    {
+        <span class="text-[11.5px] text-danger">@issue.Message</span>
     }
 </div>
 
 @code {
     [Parameter, EditorRequired]
-    public CheckBoxGroupQuestion Question { get; set; } = null!;
+    public CheckBoxGroupQuestionEditModel Question { get; set; } = null!;
 
-    [Parameter]
-    public EventCallback OnChanged { get; set; }
+    protected override IReadOnlyList<ValidationIssue> Issues => Question.Issues;
 
-    private bool Invalid => MinMaxValidation.ExceedsMax(Question.MinSelections, Question.MaxSelections);
+    private bool Invalid => MinMaxValidation.ExceedsMax(Question.MinSelections, Question.MaxSelections) || Question.Issues.Count > 0;
+
+    private void Edit(Action apply)
+    {
+        apply();
+        Question.Issues.Clear();
+        OnChanged.InvokeAsync();
+    }
 }

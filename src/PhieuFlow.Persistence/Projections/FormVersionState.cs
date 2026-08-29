@@ -8,4 +8,5 @@ public class FormVersionState
     public required int Revision { get; set; }
     public required FormVersionStatus Status { get; set; }
     public required DateTimeOffset LastModifiedAt { get; set; }
+    public DateTimeOffset? PublishedAt { get; set; }
 }

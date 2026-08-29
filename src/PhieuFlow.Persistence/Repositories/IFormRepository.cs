@@ -7,9 +7,14 @@ public interface IFormRepository
 {
     Task<FormBatchResult> GetBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default);
 
+    /// <summary>Persists a blank draft (v1, one empty page) and returns its form id.</summary>
+    Task<Guid> CreateAsync(CancellationToken cancellationToken = default);
+
     Task<FormVersion?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default);
 
     Task<FormVersionState> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default);
 
     Task<FormVersionState?> PublishAsync(Guid formId, CancellationToken cancellationToken = default);
+
+    Task<int?> GetLatestPublishedVersionNumberAsync(Guid formId, CancellationToken cancellationToken = default);
 }

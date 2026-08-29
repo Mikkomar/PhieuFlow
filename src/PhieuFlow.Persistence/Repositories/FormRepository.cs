@@ -6,6 +6,32 @@ namespace PhieuFlow.Persistence.Repositories;
 
 public class FormRepository(HubDbContext dbContext) : IFormRepository
 {
+    public Task<Guid> CreateAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var formId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+
+        dbContext.Forms.Add(new Form { Id = formId, CreatedAt = now });
+        dbContext.FormVersions.Add(new FormVersion
+        {
+            Id = versionId,
+            FormId = formId,
+            VersionNumber = 1,
+            Status = FormVersionStatus.Draft,
+            Title = string.Empty,
+            Revision = 1,
+            CreatedAt = now,
+            LastModifiedAt = now,
+            Pages = new List<FormPage>
+            {
+                new() { Id = Guid.NewGuid(), FormVersionId = versionId, Order = 0 },
+            },
+        });
+
+        return Task.FromResult(formId);
+    }
+
     public async Task<FormVersion?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default)
     {
         var version = await dbContext.FormVersions
@@ -117,7 +143,18 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         Revision = version.Revision,
         Status = version.Status,
         LastModifiedAt = version.LastModifiedAt,
+        PublishedAt = version.PublishedAt,
     };
+
+    public async Task<int?> GetLatestPublishedVersionNumberAsync(Guid formId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.FormVersions
+            .AsNoTracking()
+            .Where(v => v.FormId == formId && v.Status == FormVersionStatus.Published)
+            .OrderByDescending(v => v.VersionNumber)
+            .Select(v => (int?)v.VersionNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 
     public async Task<FormVersionState?> PublishAsync(Guid formId, CancellationToken cancellationToken = default)
     {

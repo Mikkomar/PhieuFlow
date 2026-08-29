@@ -207,6 +207,14 @@
     </div>
 </div>
 
+@if (_prePublishOpen && _publishResult is not null)
+{
+    <PrePublishDialog Result="_publishResult"
+                      Rows="_rows"
+                      OnClose="@(() => _prePublishOpen = false)"
+                      OnJump="HandleJump" />
+}
+
 @code {
     private const int PageSize = 5;
 
@@ -218,6 +226,11 @@
     private FormStatus? _statusFilter;
     private Guid? _expandedId;
     private int _page = 1;
+
+    private bool _prePublishOpen;
+    private PublishResultDto? _publishResult;
+    private IReadOnlyList<PrePublishRow> _rows = [];
+    private Guid? _prePublishFormId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -310,24 +323,47 @@
             return;
         }
 
+        PublishResultDto result;
         try
         {
-            var result = await FormsService.PublishAsync(form.Id);
-            form.Status = FormStatus.Published;
-            form.VersionNumber = result.VersionNumber;
-            form.Revision = result.Revision;
-            form.LastModifiedAt = result.LastModifiedAt;
-            form.LatestPublishedVersionNumber = result.VersionNumber;
-            form.LatestPublishedAt = result.LastModifiedAt;
+            result = await FormsService.PublishAsync(form.Id);
         }
         catch (HttpRequestException)
         {
             return;
         }
 
+        _publishResult = result;
+        _prePublishFormId = form.Id;
+        _prePublishOpen = true;
+
+        if (!result.Published)
+        {
+            _rows = PrePublishRow.From(FormEditMapper.ToEditModel(result.Form));
+            return;
+        }
+
+        _rows = [];
+
+        form.Status = FormStatus.Published;
+        form.VersionNumber = result.VersionNumber;
+        form.Revision = result.Revision;
+        form.LastModifiedAt = result.LastModifiedAt;
+        form.LatestPublishedVersionNumber = result.VersionNumber;
+        form.LatestPublishedAt = result.PublishedAt;
+
         if (string.IsNullOrEmpty(form.PublicUrl))
         {
             form.PublicUrl = $"https://forms.phieuflow.app/f/{form.Id.ToString()[..8]}";
+        }
+    }
+
+    private void HandleJump(PrePublishRow row)
+    {
+        _prePublishOpen = false;
+        if (_prePublishFormId is { } id)
+        {
+            Nav.NavigateTo($"/forms/{id}");
         }
     }
 

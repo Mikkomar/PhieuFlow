@@ -28,42 +28,42 @@
                     }
                 </span>
 
-                @if (question is TextAreaQuestion)
+                @if (question is TextAreaQuestionEditModel)
                 {
                     <div class="h-[62px] rounded-md border border-border-control bg-white"></div>
                 }
-                else if (question is DropDownQuestion)
+                else if (question is DropDownQuestionEditModel)
                 {
                     <div class="flex h-[32px] items-center justify-between rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-faintest-2">
                         Select an option
                         <Blazicon Svg="Lucide.ChevronDown" class="text-xs" aria-hidden="true" />
                     </div>
                 }
-                else if (question is CheckboxQuestion checkboxQuestion)
+                else if (question is CheckboxQuestionEditModel checkboxQuestion)
                 {
                     <label class="flex items-center gap-2 text-[12.5px] text-text-body">
                         <span class="h-[14px] w-[14px] rounded-[3px] border border-border-control-hover bg-white"></span>
                         @(string.IsNullOrWhiteSpace(checkboxQuestion.Label) ? "Untitled option" : checkboxQuestion.Label)
                     </label>
                 }
-                else if (question is ChoiceQuestion choiceQuestion)
+                else if (question is ChoiceQuestionEditModel choiceQuestion)
                 {
                     <div class="flex flex-col gap-[7px]">
                         @foreach (var option in choiceQuestion.Options)
                         {
                             <label class="flex items-center gap-2 text-[12.5px] text-text-body">
-                                <span class="@(question is RadioButtonQuestion ? "h-[14px] w-[14px] flex-none rounded-full border border-border-control-hover bg-white" : "h-[14px] w-[14px] flex-none rounded-[3px] border border-border-control-hover bg-white")"></span>
+                                <span class="@(question is RadioButtonQuestionEditModel ? "h-[14px] w-[14px] flex-none rounded-full border border-border-control-hover bg-white" : "h-[14px] w-[14px] flex-none rounded-[3px] border border-border-control-hover bg-white")"></span>
                                 @(string.IsNullOrWhiteSpace(option.Label) ? "Untitled option" : option.Label)
                             </label>
                         }
                     </div>
                 }
 
-                else if (question is NumberQuestion)
+                else if (question is NumberQuestionEditModel)
                 {
                     <div class="flex h-[32px] w-[140px] items-center rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-faintest-2">0</div>
                 }
-                else if (question is CalendarQuestion)
+                else if (question is CalendarQuestionEditModel)
                 {
                     <div class="flex h-[32px] w-[160px] items-center justify-between rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-faintest-2">
                         Select a date
@@ -71,15 +71,15 @@
                     </div>
                 }
 
-                @if (question is CheckBoxGroupQuestion { MinSelections: { } min, MaxSelections: { } max })
+                @if (question is CheckBoxGroupQuestionEditModel { MinSelections: { } min, MaxSelections: { } max })
                 {
                     <span class="text-[11px] text-text-faintest">Choose between @min and @max options</span>
                 }
-                else if (question is NumberQuestion { Min: { } numMin, Max: { } numMax })
+                else if (question is NumberQuestionEditModel { Min: { } numMin, Max: { } numMax })
                 {
                     <span class="text-[11px] text-text-faintest">Enter a number between @numMin and @numMax</span>
                 }
-                else if (question is CalendarQuestion { MinDate: { } dateMin, MaxDate: { } dateMax })
+                else if (question is CalendarQuestionEditModel { MinDate: { } dateMin, MaxDate: { } dateMax })
                 {
                     <span class="text-[11px] text-text-faintest">Pick a date between @(dateMin.ToString("yyyy-MM-dd")) and @(dateMax.ToString("yyyy-MM-dd"))</span>
                 }
@@ -101,15 +101,15 @@
 
 @code {
     [Parameter, EditorRequired]
-    public FormVersion Form { get; set; } = null!;
+    public FormEditModel Form { get; set; } = null!;
 
     [Parameter, EditorRequired]
-    public FormPage ActivePage { get; set; } = null!;
+    public FormPageEditModel ActivePage { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public int ActivePageIndex { get; set; }
 
-    private string PageLabel(FormPage page) => string.IsNullOrWhiteSpace(page.Title)
+    private string PageLabel(FormPageEditModel page) => string.IsNullOrWhiteSpace(page.Title)
         ? $"Page {Form.Pages.ToList().IndexOf(page) + 1}"
         : page.Title!;
 }

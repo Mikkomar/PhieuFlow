@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using PhieuFlow.Hub.Authorization;
 using PhieuFlow.Hub.Endpoints;
+using PhieuFlow.Hub.Validation;
 using PhieuFlow.Persistence;
 using PhieuFlow.Persistence.Repositories;
 using PhieuFlow.Persistence.UnitOfWork;
@@ -14,6 +15,7 @@ builder.AddSqlServerDbContext<HubDbContext>("HubDatabase");
 
 builder.Services.AddScoped<IFormRepository, FormRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IFormPublishValidator, FormPublishValidator>();
 
 // Service-to-service auth (ADR 0005): validate OAuth2 client-credentials tokens with
 // standard JWT bearer middleware against the IdP's OIDC metadata. Everything Keycloak-

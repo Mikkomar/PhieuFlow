@@ -2,14 +2,16 @@
     <div class="flex gap-3">
         <div class="flex flex-1 flex-col gap-[5px]">
             <span class="text-[11.5px] text-text-faint">Min length</span>
-            <input type="number" min="0" value="@(Question.MinLength?.ToString() ?? string.Empty)"
+            <input type="number" min="0" aria-label="Min length" value="@(Question.MinLength?.ToString() ?? string.Empty)"
                    @oninput="@(e => { Question.MinLength = MinMaxValidation.ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
+                   aria-invalid="@(Invalid ? "true" : null)"
                    class="@MinMaxValidation.InputClasses(Invalid)" />
         </div>
         <div class="flex flex-1 flex-col gap-[5px]">
             <span class="text-[11.5px] text-text-faint">Max length</span>
-            <input type="number" min="0" value="@(Question.MaxLength?.ToString() ?? string.Empty)"
+            <input type="number" min="0" aria-label="Max length" value="@(Question.MaxLength?.ToString() ?? string.Empty)"
                    @oninput="@(e => { Question.MaxLength = MinMaxValidation.ParseNullableInt(e.Value); OnChanged.InvokeAsync(); })"
+                   aria-invalid="@(Invalid ? "true" : null)"
                    class="@MinMaxValidation.InputClasses(Invalid)" />
         </div>
     </div>
@@ -21,7 +23,7 @@
 
 @code {
     [Parameter, EditorRequired]
-    public TextAreaQuestion Question { get; set; } = null!;
+    public TextAreaQuestionEditModel Question { get; set; } = null!;
 
     [Parameter]
     public EventCallback OnChanged { get; set; }

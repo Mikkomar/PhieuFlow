@@ -1,0 +1,109 @@
+<div class="fixed inset-0 z-40 flex items-center justify-center bg-[rgba(16,24,24,0.28)] p-4"
+     @onclick="@(() => OnClose.InvokeAsync())" @onkeydown="OnKeyDown">
+    <div class="w-[520px] max-w-full overflow-hidden rounded-lg border border-border bg-surface shadow-[0_8px_24px_rgba(16,24,24,0.12)]"
+         role="dialog" aria-modal="true" aria-labelledby="prepub-heading"
+         @onclick:stopPropagation="true">
+
+        <div class="flex items-center gap-[10px] border-b border-border-row p-[14px_18px]">
+            <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">@Eyebrow</span>
+                <span id="prepub-heading" class="text-[14.5px] font-semibold tracking-[-0.01em]">@FormTitle</span>
+            </div>
+            <StatusPill Published="@Result.Published" />
+        </div>
+
+        @if (!Result.Published)
+        {
+            <div class="flex flex-col p-[14px_18px_4px]">
+                <div class="pb-2 font-mono text-[9.5px] tracking-[0.07em] text-danger uppercase">@BlockingLabel</div>
+                <div class="flex flex-col overflow-hidden rounded-md border border-danger-border">
+                    @for (var i = 0; i < Rows.Count; i++)
+                    {
+                        var row = Rows[i];
+                        @if (i > 0)
+                        {
+                            <div class="h-px bg-danger-border"></div>
+                        }
+                        <div class="flex items-center gap-[10px] bg-danger-surface p-[10px_12px]">
+                            <span class="w-[18px] flex-none text-right font-mono text-[11px] text-danger">@row.Number</span>
+                            <span class="min-w-0 flex-1 text-[12.5px] text-text-body">@row.Message</span>
+                            <button type="button" @onclick="@(() => OnJump.InvokeAsync(row))"
+                                    class="flex-none text-[11.5px] font-medium text-accent hover:underline">@row.JumpLabel</button>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="mt-4 flex items-center gap-3 border-t border-border-row bg-surface-panel p-[16px_18px]">
+                <span class="flex-1 text-[11.5px] leading-[1.5] text-text-faint text-pretty">Fix the problems above, then press Publish again.</span>
+                <button type="button" @ref="_closeRef" @onclick="@(() => OnClose.InvokeAsync())"
+                        class="h-[34px] flex-none rounded-md border border-border-control bg-white px-[14px] text-[13px] font-medium text-text-body hover:border-border-control-hover">
+                    Close
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="flex flex-col gap-2 p-[16px_18px]">
+                <span class="text-[13px] font-semibold text-text">Form published.</span>
+                <span class="text-[11.5px] leading-[1.5] text-text-faint text-pretty">@SummaryLine</span>
+            </div>
+
+            <div class="mt-2 flex items-center justify-end border-t border-border-row bg-surface-panel p-[16px_18px]">
+                <button type="button" @ref="_closeRef" @onclick="@(() => OnClose.InvokeAsync())"
+                        class="h-[34px] rounded-md border border-accent bg-accent px-4 text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
+                    Done
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public PublishResultDto Result { get; set; } = null!;
+
+    [Parameter]
+    public IReadOnlyList<PrePublishRow> Rows { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback<PrePublishRow> OnJump { get; set; }
+
+    private ElementReference _closeRef;
+
+    private string Eyebrow => Result.Published ? "Published" : $"Publish version {Result.VersionNumber}";
+
+    private string FormTitle => string.IsNullOrWhiteSpace(Result.Form.Title) ? "Untitled form" : Result.Form.Title;
+
+    private string BlockingLabel => Rows.Count == 1 ? "1 problem blocks publishing" : $"{Rows.Count} problems block publishing";
+
+    private string SummaryLine => Result.IsFirstPublish
+        ? "This is the first published version. The public link starts working immediately."
+        : $"Publishing replaced v{Result.LiveVersionNumber} for new respondents. Answers already submitted against v{Result.LiveVersionNumber} stay on v{Result.LiveVersionNumber}.";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await _closeRef.FocusAsync();
+            }
+            catch (Exception)
+            {
+                // not in the DOM yet
+            }
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+}

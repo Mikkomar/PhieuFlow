@@ -6,4 +6,5 @@ public class FormVersionStateDto
     public required int Revision { get; set; }
     public required FormVersionStatusDto Status { get; set; }
     public required DateTimeOffset LastModifiedAt { get; set; }
+    public DateTimeOffset? PublishedAt { get; set; }
 }

@@ -1,5 +1,3 @@
-@using PhieuFlow.Core.Entities
-
 <div class="@RootClasses" @onkeydown="OnRowKeyDown">
     <div @onclick="@(() => OnToggle.InvokeAsync())"
          class="relative flex h-[42px] cursor-pointer items-center gap-[10px] px-3 outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
@@ -27,6 +25,10 @@
             <span class="flex-none font-mono text-[9.5px] tracking-[0.06em] text-accent uppercase">Required</span>
         }
         <span class="flex-none font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase whitespace-nowrap">@TypeLabel(Question)</span>
+        @if (Question.HasIssues && !Expanded)
+        {
+            <span class="flex-none font-mono text-[9.5px] tracking-[0.07em] text-danger uppercase whitespace-nowrap">Needs fixing</span>
+        }
         <span class="@ChevronClasses" aria-hidden="true">
             <Blazicon Svg="Lucide.ChevronRight" class="text-[13px]" />
         </span>
@@ -35,43 +37,57 @@
     @if (Expanded)
     {
         <div class="flex flex-col gap-[13px] border-t border-border-row p-[14px_12px_14px_52px]">
+            @if (Question.Issues.Count > 0)
+            {
+                <div class="flex flex-col gap-[3px]">
+                    @foreach (var issue in Question.Issues)
+                    {
+                        <span class="text-[11.5px] text-danger">@issue.Message</span>
+                    }
+                </div>
+            }
+
             <div class="flex flex-col gap-[6px]">
                 <label class="text-[12px] font-semibold text-text-body">Question text</label>
                 <input value="@Question.Text"
                        @oninput="OnTextInput"
                        @ref="_textInputRef"
                        placeholder="e.g. Which department are you joining?"
-                       class="h-[32px] w-full max-w-[520px] rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
+                       class="@TextInputClasses" />
             </div>
 
-            @if (Question is ChoiceQuestion choiceQuestion)
+            @if (Question is ChoiceQuestionEditModel choiceQuestion)
             {
-                <ChoiceOptionsEditor Question="choiceQuestion" OnChanged="OnChanged" />
+                <ChoiceOptionsEditor Question="choiceQuestion" OnChanged="OnChanged"
+                                     FocusIssue="DelegateFocusToChild" OnJumpApplied="BubbleJumpApplied" />
             }
 
-            @if (Question is TextAreaQuestion textAreaQuestion)
+            @if (Question is TextAreaQuestionEditModel textAreaQuestion)
             {
                 <TextAreaQuestionEditor Question="textAreaQuestion" OnChanged="OnChanged" />
             }
 
-            @if (Question is CheckboxQuestion checkboxQuestion)
+            @if (Question is CheckboxQuestionEditModel checkboxQuestion)
             {
                 <CheckboxQuestionEditor Question="checkboxQuestion" OnChanged="OnChanged" />
             }
 
-            @if (Question is CheckBoxGroupQuestion checkBoxGroupQuestion)
+            @if (Question is CheckBoxGroupQuestionEditModel checkBoxGroupQuestion)
             {
-                <CheckBoxGroupQuestionEditor Question="checkBoxGroupQuestion" OnChanged="OnChanged" />
+                <CheckBoxGroupQuestionEditor Question="checkBoxGroupQuestion" OnChanged="OnChanged"
+                                             FocusIssue="DelegateFocusToChild" OnJumpApplied="BubbleJumpApplied" />
             }
 
-            @if (Question is NumberQuestion numberQuestion)
+            @if (Question is NumberQuestionEditModel numberQuestion)
             {
-                <NumberQuestionEditor Question="numberQuestion" OnChanged="OnChanged" />
+                <NumberQuestionEditor Question="numberQuestion" OnChanged="OnChanged"
+                                      FocusIssue="DelegateFocusToChild" OnJumpApplied="BubbleJumpApplied" />
             }
 
-            @if (Question is CalendarQuestion calendarQuestion)
+            @if (Question is CalendarQuestionEditModel calendarQuestion)
             {
-                <CalendarQuestionEditor Question="calendarQuestion" OnChanged="OnChanged" />
+                <CalendarQuestionEditor Question="calendarQuestion" OnChanged="OnChanged"
+                                        FocusIssue="DelegateFocusToChild" OnJumpApplied="BubbleJumpApplied" />
             }
 
             <div class="flex items-center justify-between gap-4 pt-[2px]">
@@ -90,7 +106,7 @@
 
 @code {
     [Parameter, EditorRequired]
-    public Question Question { get; set; } = null!;
+    public QuestionEditModel Question { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public int Number { get; set; }
@@ -104,11 +120,18 @@
     [Parameter]
     public bool AutoFocusText { get; set; }
 
+    /// <summary>Set by the page editor when a pre-publish dialog jump landed on this card; focus its first offending field.</summary>
+    [Parameter]
+    public bool FocusIssue { get; set; }
+
+    [Parameter]
+    public EventCallback OnJumpApplied { get; set; }
+
     [Parameter, EditorRequired]
     public EventCallback OnToggle { get; set; }
 
     [Parameter, EditorRequired]
-    public EventCallback<Question> OnRemove { get; set; }
+    public EventCallback<QuestionEditModel> OnRemove { get; set; }
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
@@ -133,16 +156,24 @@
 
     private ElementReference _textInputRef;
     private bool _hasAutoFocused;
+    private bool _jumpHandled;
 
-    public static string TypeLabel(Question question) => question switch
+    // A jump either lands on the question text (empty-text / whole-question issues) or is
+    // handed to the type-specific editor for the exact field.
+    private bool FocusTextForJump => FocusIssue &&
+        (Question.Issues.Count == 0 || Question.Issues[0].Field is ValidationField.Text or ValidationField.None);
+
+    private bool DelegateFocusToChild => FocusIssue && !FocusTextForJump;
+
+    public static string TypeLabel(QuestionEditModel question) => question switch
     {
-        TextAreaQuestion => "Text area",
-        CheckboxQuestion => "Checkbox",
-        DropDownQuestion => "Dropdown",
-        RadioButtonQuestion => "Radio buttons",
-        CheckBoxGroupQuestion => "Checkbox group",
-        NumberQuestion => "Number",
-        CalendarQuestion => "Calendar",
+        TextAreaQuestionEditModel => "Text area",
+        CheckboxQuestionEditModel => "Checkbox",
+        DropDownQuestionEditModel => "Dropdown",
+        RadioButtonQuestionEditModel => "Radio buttons",
+        CheckBoxGroupQuestionEditModel => "Checkbox group",
+        NumberQuestionEditModel => "Number",
+        CalendarQuestionEditModel => "Calendar",
         _ => "Question",
     };
 
@@ -151,6 +182,9 @@
     private string TextLabelClasses => "min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-medium "
         + (string.IsNullOrWhiteSpace(Question.Text) ? "text-text-faintest-2" : "text-text");
 
+    private string TextInputClasses => "h-[32px] w-full max-w-[520px] rounded-md border bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint "
+        + (Question.Issues.Any(i => i.Field is ValidationField.Text) ? "border-danger-border" : "border-border-control");
+
     private string RootClasses => "bg-white transition-opacity "
         + (Expanded ? "relative z-[1] rounded-md ring-1 ring-inset ring-accent " : "")
         + (Dragging ? "opacity-40" : "opacity-100");
@@ -158,13 +192,43 @@
     private string ChevronClasses => "flex w-4 flex-none items-center justify-center transition-transform "
         + (Expanded ? "rotate-90 text-accent" : "text-text-faintest-2");
 
+    protected override void OnParametersSet()
+    {
+        if (!FocusIssue)
+        {
+            _jumpHandled = false;
+        }
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (AutoFocusText && Expanded && !_hasAutoFocused)
         {
             _hasAutoFocused = true;
             await _textInputRef.FocusAsync();
+            return;
         }
+
+        if (FocusTextForJump && Expanded && !_jumpHandled)
+        {
+            _jumpHandled = true;
+            try
+            {
+                await _textInputRef.FocusAsync();
+            }
+            catch (Exception)
+            {
+                // not in the DOM yet
+            }
+
+            await OnJumpApplied.InvokeAsync();
+        }
+    }
+
+    private Task BubbleJumpApplied()
+    {
+        _jumpHandled = true;
+        return OnJumpApplied.InvokeAsync();
     }
 
     private async Task OnRowKeyDown(KeyboardEventArgs e)
@@ -188,6 +252,7 @@
     private void OnTextInput(ChangeEventArgs e)
     {
         Question.Text = e.Value?.ToString() ?? string.Empty;
+        Question.Issues.RemoveAll(i => i.Field is ValidationField.Text);
         OnChanged.InvokeAsync();
     }
 

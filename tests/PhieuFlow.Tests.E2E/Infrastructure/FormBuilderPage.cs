@@ -19,6 +19,13 @@ public sealed class FormBuilderPage(IPage page)
 
     public ILocator PublishedNotice => Page.GetByText("This version is published");
 
+    public ILocator PublishDialog => Page.GetByRole(AriaRole.Dialog);
+
+    public ILocator PublishCloseButton => Page.GetByRole(AriaRole.Button, new() { Name = "Close" });
+
+    public ILocator DialogJumpLink(string label = "Go to question") =>
+        PublishDialog.GetByRole(AriaRole.Button, new() { Name = label });
+
     public ILocator TitleRequiredMessage => Page.GetByText("Title is required.");
 
     public ILocator QuestionRows => Page.Locator("div[aria-keyshortcuts='Alt+ArrowUp Alt+ArrowDown']");

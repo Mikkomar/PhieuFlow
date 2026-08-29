@@ -1,5 +1,3 @@
-@using PhieuFlow.Core.Entities
-
 <div role="tablist" aria-label="Form pages" @onkeydown="OnPageTabsKeyDown"
      class="flex flex-wrap items-center gap-[6px]">
     @{
@@ -19,6 +17,10 @@
                 tabindex="@(isActiveTab ? 0 : -1)"
                 @onclick="@(() => OnSelectPage.InvokeAsync(page))"
                 class="@PageTabClasses(page)">
+            @if (page.HasIssues)
+            {
+                <span aria-hidden="true" class="h-[5px] w-[5px] flex-none rounded-full bg-danger"></span>
+            }
             @PageLabel(page)
             <span aria-hidden="true" class="@PageTabCountClasses(page)">@(page.Questions.Count)</span>
         </button>
@@ -33,13 +35,13 @@
 
 @code {
     [Parameter, EditorRequired]
-    public IReadOnlyList<FormPage> Pages { get; set; } = Array.Empty<FormPage>();
+    public IReadOnlyList<FormPageEditModel> Pages { get; set; } = Array.Empty<FormPageEditModel>();
 
     [Parameter, EditorRequired]
     public Guid ActivePageId { get; set; }
 
     [Parameter, EditorRequired]
-    public EventCallback<FormPage> OnSelectPage { get; set; }
+    public EventCallback<FormPageEditModel> OnSelectPage { get; set; }
 
     [Parameter, EditorRequired]
     public EventCallback OnAddPage { get; set; }
@@ -47,13 +49,13 @@
     private ElementReference[] _pageTabRefs = Array.Empty<ElementReference>();
     private int? _focusTabIndex;
 
-    private string PageLabel(FormPage page) => string.IsNullOrWhiteSpace(page.Title)
+    private string PageLabel(FormPageEditModel page) => string.IsNullOrWhiteSpace(page.Title)
         ? $"Page {Pages.ToList().IndexOf(page) + 1}"
         : page.Title!;
 
-    private static string QuestionCountLabel(FormPage page) => page.Questions.Count == 1 ? "1 question" : $"{page.Questions.Count} questions";
+    private static string QuestionCountLabel(FormPageEditModel page) => page.Questions.Count == 1 ? "1 question" : $"{page.Questions.Count} questions";
 
-    private string PageTabClasses(FormPage page)
+    private string PageTabClasses(FormPageEditModel page)
     {
         var active = page.Id == ActivePageId;
         var baseClasses = "flex h-[30px] items-center gap-2 whitespace-nowrap rounded-md border px-3 text-[12.5px] ";
@@ -62,7 +64,7 @@
             : "border-border-control bg-white font-medium text-text-muted");
     }
 
-    private string PageTabCountClasses(FormPage page)
+    private string PageTabCountClasses(FormPageEditModel page)
     {
         var active = page.Id == ActivePageId;
         return "font-mono text-[10.5px] " + (active ? "text-[#8fada9]" : "text-text-faintest-2");

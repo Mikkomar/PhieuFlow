@@ -16,10 +16,12 @@
                 <input value="@Form.Title"
                        @oninput="OnTitleInput"
                        @onblur="@(() => OnTitleBlur.InvokeAsync())"
+                       @ref="_titleRef"
+                       disabled="@Disabled"
                        maxlength="120"
                        placeholder="Untitled form"
                        aria-label="Form title"
-                       class="-ml-[6px] w-full max-w-[560px] rounded-md border border-transparent bg-transparent px-[6px] py-[1px] text-[21px] font-semibold tracking-[-0.02em] text-text outline-none hover:border-border focus:border-accent focus:bg-surface-subtle" />
+                       class="-ml-[6px] w-full max-w-[560px] rounded-md border border-transparent bg-transparent px-[6px] py-[1px] text-[21px] font-semibold tracking-[-0.02em] text-text outline-none hover:border-border focus:border-accent focus:bg-surface-subtle disabled:opacity-60" />
                 @if (TitleLength >= 100)
                 {
                     <span class="@TitleCountClasses">@TitleLength / 120</span>
@@ -39,13 +41,14 @@
             </div>
             <StatusPill Published="@(Form.Status == FormVersionStatus.Published)" />
             <div class="hidden h-[22px] w-px bg-border-soft min-[1100px]:block"></div>
-            <button type="button" @onclick="@(() => OnTogglePreview.InvokeAsync())"
-                    class="hidden h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover min-[1100px]:flex">
+            <button type="button" @onclick="@(() => OnTogglePreview.InvokeAsync())" disabled="@Disabled"
+                    class="hidden h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover disabled:opacity-60 min-[1100px]:flex">
                 <Blazicon Svg="Lucide.Eye" class="text-sm" aria-hidden="true" />
                 @(PreviewOpen ? "Hide preview" : "Preview")
             </button>
-            <button type="button" @onclick="@(() => OnPublish.InvokeAsync())" disabled="@(Publishing || Form.Status == FormVersionStatus.Published)"
-                    title="@(Form.Status == FormVersionStatus.Published ? "This version is already published" : null)"
+            <button type="button" @ref="_publishRef" @onclick="@(() => OnPublish.InvokeAsync())"
+                    disabled="@(Publishing || Form.Status == FormVersionStatus.Published || Form.HasIssues)"
+                    title="@PublishTitle"
                     class="h-[34px] whitespace-nowrap rounded-md border border-accent bg-accent px-4 text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover disabled:cursor-default disabled:opacity-60">
                 @(Publishing ? "Publishing…" : "Publish")
             </button>
@@ -77,10 +80,14 @@
 
 @code {
     [Parameter, EditorRequired]
-    public FormVersion Form { get; set; } = null!;
+    public FormEditModel Form { get; set; } = null!;
 
     [Parameter, EditorRequired]
     public SaveState SaveState { get; set; }
+
+    /// <summary>True while a publish round-trip is in flight — freezes the title and preview controls.</summary>
+    [Parameter]
+    public bool Disabled { get; set; }
 
     [Parameter]
     public DateTimeOffset? LastSavedAt { get; set; }
@@ -114,6 +121,17 @@
 
     // Ticks the relative "saved N min ago" label forward without any user input.
     private System.Timers.Timer? _saveLabelTimer;
+
+    private ElementReference _titleRef;
+    private ElementReference _publishRef;
+
+    public ValueTask FocusPublishAsync() => _publishRef.FocusAsync();
+
+    public ValueTask FocusTitleAsync() => _titleRef.FocusAsync();
+
+    private string? PublishTitle => Form.Status == FormVersionStatus.Published
+        ? "This version is already published"
+        : Form.HasIssues ? "Fix the problems before publishing" : null;
 
     private int TitleLength => Form.Title?.Length ?? 0;
 

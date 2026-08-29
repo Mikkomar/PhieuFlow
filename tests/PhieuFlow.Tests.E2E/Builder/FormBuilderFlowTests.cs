@@ -167,13 +167,15 @@ public sealed class FormBuilderFlowTests(AppHostFixture fixture, ITestOutputHelp
     }
 
     [Fact]
-    public async Task TestAutosave_When_TitleIsEmpty_Should_NotPersistAnything()
+    public async Task TestAutosave_When_TitleIsEmpty_Should_NotPersistEdits()
     {
         var builder = new FormBuilderPage(Page);
 
-        var before = await ListFormTitlesAsync();
-
         await GotoFormBuilderAsync("/forms/new");
+        // The Hub mints a blank draft on arrival and the builder redirects to it by id.
+        await Page.WaitForURLAsync(url => !url.EndsWith("/forms/new"));
+        var id = Guid.Parse(new Uri(Page.Url).Segments[^1]);
+
         await builder.AddQuestionAsync("Text area", "Question without a form title");
         // Focus then blur so Blazor's @onblur actually fires (a bare .blur() on an
         // unfocused element is a no-op).
@@ -181,11 +183,12 @@ public sealed class FormBuilderFlowTests(AppHostFixture fixture, ITestOutputHelp
         await builder.TitleInput.BlurAsync();
 
         await Assertions.Expect(builder.TitleRequiredMessage).ToBeVisibleAsync();
-        // Give any (unexpected) autosave time to fire before checking the hub.
         await Task.Delay(AutosaveSettle);
 
-        var after = await ListFormTitlesAsync();
-        after.Should().HaveCount(before.Count);
+        // Autosave is gated on a non-empty title, so nothing the user typed reached the Hub.
+        var form = await GetFormAsync(id);
+        form.Title.Should().BeEmpty();
+        form.Pages.Should().ContainSingle().Which.Questions.Should().BeEmpty();
     }
 
     [Fact]
@@ -207,12 +210,5 @@ public sealed class FormBuilderFlowTests(AppHostFixture fixture, ITestOutputHelp
         await Assertions.Expect(reopened.GetByLabel("Form title")).ToHaveValueAsync(title);
         // The question text renders in both the editor card and the respondent preview.
         await Assertions.Expect(reopened.GetByText("Persisted question").First).ToBeVisibleAsync();
-    }
-
-    private async Task<List<string>> ListFormTitlesAsync()
-    {
-        using var client = await Fixture.CreateAuthorizedHubClientAsync("forms:read");
-        var batch = await client.GetFromJsonAsync<FormBatchResponse>("/forms?take=100");
-        return batch?.Items.Select(i => i.Title).ToList() ?? [];
     }
 }

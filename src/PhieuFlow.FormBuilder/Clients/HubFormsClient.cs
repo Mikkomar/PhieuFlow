@@ -7,6 +7,15 @@ public class HubFormsClient(HttpClient httpClient) : IHubFormsClient
 {
     private const int BatchSize = 100;
 
+    public async Task<Guid> CreateFormAsync(CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync("/forms", null, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<FormCreatedDto>(cancellationToken)
+            ?? throw new InvalidOperationException("Create-form response body was empty.");
+        return created.Id;
+    }
+
     public async Task<FormDto?> GetFormByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var response = await httpClient.GetAsync($"/forms/{id}", cancellationToken);
@@ -27,11 +36,17 @@ public class HubFormsClient(HttpClient httpClient) : IHubFormsClient
             ?? throw new InvalidOperationException("Save response body was empty.");
     }
 
-    public async Task<FormVersionStateDto> PublishFormAsync(Guid formId, CancellationToken cancellationToken = default)
+    public async Task<PublishResultDto> PublishFormAsync(Guid formId, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostAsync($"/forms/{formId}/publish", null, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<FormVersionStateDto>(cancellationToken))
+        using var response = await httpClient.PostAsync($"/forms/{formId}/publish", null, cancellationToken);
+
+        // A validation failure is a meaningful 422 body (the annotated tree), not an error.
+        if (response.StatusCode is not HttpStatusCode.UnprocessableEntity)
+        {
+            response.EnsureSuccessStatusCode();
+        }
+
+        return (await response.Content.ReadFromJsonAsync<PublishResultDto>(cancellationToken))
             ?? throw new InvalidOperationException("Publish response body was empty.");
     }
 

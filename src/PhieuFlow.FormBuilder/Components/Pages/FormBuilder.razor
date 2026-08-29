@@ -27,10 +27,12 @@ else
 {
 <PageTitle>@(string.IsNullOrWhiteSpace(_form.Title) ? "Untitled form" : _form.Title)</PageTitle>
 
-<FormBuilderHeader Form="_form"
+<FormBuilderHeader @ref="_header"
+                   Form="_form"
                    SaveState="_saveState"
                    LastSavedAt="_lastSavedAt"
                    Publishing="_publishing"
+                   Disabled="_publishing"
                    TitleBlurred="_titleBlurred"
                    PublishError="@_publishError"
                    PreviewOpen="_previewOpen"
@@ -41,6 +43,7 @@ else
                    OnRetrySave="FlushPendingSaveAsync" />
 
 <div class="flex flex-1 items-start overflow-x-auto">
+    <fieldset disabled="@_publishing" class="contents">
     <div class="flex min-w-[540px] flex-1 flex-col gap-[18px] px-7 pt-[22px] pb-12">
 
         <div class="flex flex-col gap-[6px] rounded-lg border border-border bg-surface p-[18px_20px] shadow-[0_1px_2px_rgba(16,24,24,0.04)]">
@@ -60,27 +63,39 @@ else
                       OnSelectPage="SelectPage"
                       OnAddPage="AddPage" />
 
-        <FormPageEditor @key="ActivePage.Id"
+        <FormPageEditor @key="ActivePage"
                         Page="ActivePage"
                         PageNumber="@(ActivePageIndex + 1)"
                         PageCount="_form.Pages.Count"
+                        JumpQuestionId="_jumpQuestionId"
+                        OnJumpApplied="@(() => _jumpQuestionId = null)"
                         OnPageTitleChanged="OnPageTitleChanged"
                         OnDeletePage="@(() => DeletePage(ActivePage))"
                         OnChanged="TriggerAutosave" />
     </div>
+    </fieldset>
 
     @if (_previewOpen)
     {
         <RespondentPreview Form="_form" ActivePage="ActivePage" ActivePageIndex="ActivePageIndex" />
     }
 </div>
+
+@if (_prePublishOpen && _publishResult is not null)
+{
+    <PrePublishDialog Result="_publishResult"
+                      Rows="_rows"
+                      OnClose="ClosePrePublish"
+                      OnJump="HandleJump" />
+}
 }
 
 @code {
     [Parameter]
     public Guid? FormId { get; set; }
 
-    private FormVersion _form = null!;
+    private FormEditModel _form = null!;
+    private FormBuilderHeader? _header;
     private bool _loading = true;
     private string? _loadError;
     private Guid _activePageId;
@@ -88,13 +103,27 @@ else
     private bool _titleBlurred;
     private CancellationTokenSource? _autosaveCts;
     private SaveState _saveState = SaveState.Idle;
+    // Monotonic edit counter vs. the counter value last persisted. They diverge whenever
+    // there is unsaved work — including an edit that landed while a save was in flight, a
+    // case _saveState alone can't see.
+    private int _pendingEditSeq;
+    private int _savedEditSeq;
     private DateTimeOffset? _lastSavedAt;
     private bool _publishing;
     private string? _publishError;
 
+    private bool _prePublishOpen;
+    private PublishResultDto? _publishResult;
+    private IReadOnlyList<PrePublishRow> _rows = [];
+    private Guid? _jumpQuestionId;
+
+    // The form we already hold in memory. Guards OnParametersSetAsync from re-fetching (and
+    // clobbering unsaved edits) on a spurious re-parametrization.
+    private Guid? _loadedFormId;
+
     private IDisposable? _locationChangingRegistration;
 
-    private FormPage ActivePage => _form.Pages.First(p => p.Id == _activePageId);
+    private FormPageEditModel ActivePage => _form.Pages.First(p => p.Id == _activePageId);
     private int ActivePageIndex => _form.Pages.ToList().IndexOf(ActivePage);
 
     private int DescriptionLength => _form.Description?.Length ?? 0;
@@ -108,43 +137,68 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        _loadError = null;
-
+        // "/forms/new": have the Hub mint a blank draft, then redirect to it by id so the URL
+        // always identifies the form and a reload re-opens it (its latest version).
         if (FormId is null)
         {
-            _form = FormsService.CreateNew();
-            _loading = false;
-        }
-        else
-        {
+            _loadError = null;
             _loading = true;
             StateHasChanged();
 
-            FormVersion? loaded;
+            Guid newId;
             try
             {
-                loaded = await FormsService.GetByIdAsync(FormId.Value);
+                newId = await FormsService.CreateNewAsync();
             }
             catch (HttpRequestException)
             {
-                _loadError = "Couldn't load this form from the server.";
+                _loadError = "Couldn't start a new form.";
                 _loading = false;
                 return;
             }
 
-            if (loaded is null)
-            {
-                _loadError = "This form couldn't be found.";
-                _loading = false;
-                return;
-            }
-
-            _form = loaded;
-            _loading = false;
+            Nav.NavigateTo($"/forms/{newId}", forceLoad: false, replace: true);
+            return;
         }
 
+        // We already hold this form in memory; don't re-fetch and clobber unsaved edits.
+        if (_loadedFormId == FormId)
+        {
+            _loading = false;
+            return;
+        }
+
+        _loadError = null;
+        _loading = true;
+        StateHasChanged();
+
+        FormEditModel? loaded;
+        try
+        {
+            loaded = await FormsService.GetByIdAsync(FormId.Value);
+        }
+        catch (HttpRequestException)
+        {
+            _loadError = "Couldn't load this form from the server.";
+            _loading = false;
+            return;
+        }
+
+        if (loaded is null)
+        {
+            _loadError = "This form couldn't be found.";
+            _loading = false;
+            return;
+        }
+
+        _form = loaded;
+        _loading = false;
+
+        _loadedFormId = _form.FormId;
         _activePageId = _form.Pages.First().Id;
         _titleBlurred = false;
+        _pendingEditSeq = 0;
+        _savedEditSeq = 0;
 
         if (string.IsNullOrWhiteSpace(_form.Title))
         {
@@ -180,6 +234,7 @@ else
 
     private void TriggerAutosave()
     {
+        _pendingEditSeq++;
         _autosaveCts?.Cancel();
 
         if (string.IsNullOrWhiteSpace(_form.Title))
@@ -210,38 +265,73 @@ else
 
     private async Task FlushPendingSaveAsync()
     {
-        if (_saveState is not (SaveState.Pending or SaveState.Error))
+        // Drive the persisted state up to the latest edit. Loops because a save can race a
+        // fresh keystroke (which bumps _pendingEditSeq past what that save captured); the cap
+        // stops a user who keeps typing through the flush from blocking it forever.
+        for (var attempt = 0; attempt < 4; attempt++)
         {
-            return;
+            var upToDate = _pendingEditSeq == _savedEditSeq && _saveState != SaveState.Error;
+            if (upToDate)
+            {
+                return;
+            }
+
+            _autosaveCts?.Cancel();
+
+            if (string.IsNullOrWhiteSpace(_form.Title))
+            {
+                _titleBlurred = true;
+                return;
+            }
+
+            var cts = new CancellationTokenSource();
+            _autosaveCts = cts;
+            await SaveNowAsync(cts.Token);
+
+            if (_saveState == SaveState.Error)
+            {
+                return;
+            }
         }
-
-        _autosaveCts?.Cancel();
-
-        if (string.IsNullOrWhiteSpace(_form.Title))
-        {
-            _titleBlurred = true;
-            return;
-        }
-
-        var cts = new CancellationTokenSource();
-        _autosaveCts = cts;
-        await SaveNowAsync(cts.Token);
     }
 
     private async Task SaveNowAsync(CancellationToken token)
     {
+        var seq = _pendingEditSeq;
         _saveState = SaveState.Saving;
         await InvokeAsync(StateHasChanged);
 
         try
         {
-            var result = await FormsService.SaveAsync(_form.FormId, _form, token);
+            var previousVersion = _form.VersionNumber;
+            var result = await FormsService.SaveAsync(_form, token);
             _form.VersionNumber = result.VersionNumber;
             _form.Revision = result.Revision;
             _form.Status = MapStatus(result.Status);
             _form.LastModifiedAt = result.LastModifiedAt;
-            _lastSavedAt = DateTimeOffset.Now;
-            _saveState = SaveState.Saved;
+            _form.PublishedAt = result.PublishedAt;
+            _savedEditSeq = seq;
+
+            // A keystroke landed while this save was in flight: it is not in what we just
+            // persisted, so stay Pending and let the queued debounce (or a flush) catch it.
+            if (_pendingEditSeq == seq)
+            {
+                _lastSavedAt = DateTimeOffset.Now;
+                _saveState = SaveState.Saved;
+            }
+            else
+            {
+                _saveState = SaveState.Pending;
+            }
+
+            // Editing a published version forks a new draft server-side with fresh node ids.
+            // Re-key the in-memory tree to those ids (content untouched, so edits made while
+            // this save was in flight survive) — otherwise the next save reconciles the
+            // stale published ids and collides on insert. Only on a fork.
+            if (result.VersionNumber != previousVersion && !token.IsCancellationRequested)
+            {
+                await ReKeyTreeAfterForkAsync(token);
+            }
         }
         catch (TaskCanceledException) when (token.IsCancellationRequested)
         {
@@ -255,6 +345,54 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
+    private async Task ReKeyTreeAfterForkAsync(CancellationToken token)
+    {
+        var activePageIndex = ActivePageIndex;
+
+        FormEditModel? forked;
+        try
+        {
+            forked = await FormsService.GetByIdAsync(_form.FormId, token);
+        }
+        catch (HttpRequestException)
+        {
+            return;
+        }
+
+        if (forked is null)
+        {
+            return;
+        }
+
+        // The server's fork is a structure-preserving deep clone, so match by position and
+        // copy only the ids. Content in _form (including keystrokes landed during this save)
+        // is left as the user left it.
+        _form.LiveVersionNumber = forked.LiveVersionNumber;
+
+        foreach (var (localPage, forkedPage) in _form.Pages.Zip(forked.Pages))
+        {
+            localPage.Id = forkedPage.Id;
+
+            foreach (var (localQuestion, forkedQuestion) in localPage.Questions.Zip(forkedPage.Questions))
+            {
+                localQuestion.Id = forkedQuestion.Id;
+
+                if (localQuestion is ChoiceQuestionEditModel localChoice
+                    && forkedQuestion is ChoiceQuestionEditModel forkedChoice)
+                {
+                    foreach (var (localOption, forkedOption) in localChoice.Options.Zip(forkedChoice.Options))
+                    {
+                        localOption.Id = forkedOption.Id;
+                    }
+                }
+            }
+        }
+
+        _activePageId = activePageIndex >= 0 && activePageIndex < _form.Pages.Count
+            ? _form.Pages[activePageIndex].Id
+            : _form.Pages.First().Id;
+    }
+
     private static FormVersionStatus MapStatus(FormVersionStatusDto status) => status switch
     {
         FormVersionStatusDto.Published => FormVersionStatus.Published,
@@ -263,32 +401,56 @@ else
 
     private async Task PublishNow()
     {
+        if (_form.Status == FormVersionStatus.Published)
+        {
+            return;
+        }
+
+        // An untitled form has never been autosaved, so there is nothing on the server to
+        // validate — surface the title requirement the same way a blocked save does.
         if (string.IsNullOrWhiteSpace(_form.Title))
         {
             _titleBlurred = true;
             return;
         }
 
-        if (_form.Status == FormVersionStatus.Published)
+        // Publish must not proceed on a stale server copy: flush pending edits first, and
+        // bail if that save can't reach the server (the header keeps its Retry affordance).
+        await FlushPendingSaveAsync();
+        if (_saveState == SaveState.Error)
         {
             return;
         }
 
-        await FlushPendingSaveAsync();
-
         _publishing = true;
         _publishError = null;
+        await InvokeAsync(StateHasChanged);
 
         try
         {
-            var result = await FormsService.PublishAsync(_form.FormId);
-            _form.VersionNumber = result.VersionNumber;
-            _form.Revision = result.Revision;
-            _form.Status = MapStatus(result.Status);
-            _form.LastModifiedAt = result.LastModifiedAt;
-            _form.PublishedAt = DateTimeOffset.UtcNow;
-            _lastSavedAt = DateTimeOffset.Now;
-            _saveState = SaveState.Saved;
+            _publishResult = await FormsService.PublishAsync(_form.FormId);
+            // Best-effort inline annotation; the dialog rows come from the returned tree so
+            // they are correct even if a fork just changed the server's node ids.
+            FormEditMapper.ApplyIssues(_form, _publishResult.Form);
+
+            if (_publishResult.Published)
+            {
+                _form.VersionNumber = _publishResult.VersionNumber;
+                _form.Revision = _publishResult.Revision;
+                _form.Status = MapStatus(_publishResult.Status);
+                _form.LastModifiedAt = _publishResult.LastModifiedAt;
+                _form.PublishedAt = _publishResult.PublishedAt;
+                _form.LiveVersionNumber = _publishResult.VersionNumber;
+                _lastSavedAt = DateTimeOffset.Now;
+                _saveState = SaveState.Saved;
+                _rows = [];
+            }
+            else
+            {
+                _rows = PrePublishRow.From(FormEditMapper.ToEditModel(_publishResult.Form));
+            }
+
+            _prePublishOpen = true;
         }
         catch (HttpRequestException)
         {
@@ -300,9 +462,52 @@ else
         }
     }
 
+    private async Task ClosePrePublish()
+    {
+        _prePublishOpen = false;
+        await TryFocusHeader(h => h.FocusPublishAsync());
+    }
+
+    private async Task HandleJump(PrePublishRow row)
+    {
+        _prePublishOpen = false;
+
+        if (row.Target is { PageId: null, QuestionId: null })
+        {
+            await TryFocusHeader(h => h.FocusTitleAsync());
+            return;
+        }
+
+        if (row.Target.PageId is { } pageId
+            && _form.Pages.FirstOrDefault(p => p.Id == pageId) is { } page)
+        {
+            await SelectPage(page);
+        }
+
+        _jumpQuestionId = row.Target.QuestionId;
+    }
+
+    private async Task TryFocusHeader(Func<FormBuilderHeader, ValueTask> focus)
+    {
+        if (_header is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await focus(_header);
+        }
+        catch (Exception)
+        {
+            // header no longer rendered
+        }
+    }
+
     private void OnTitleInput(string value)
     {
         _form.Title = value;
+        _form.Issues.RemoveAll(i => i.Field == ValidationField.Title);
         TriggerAutosave();
     }
 
@@ -320,7 +525,7 @@ else
 
     private void TogglePreview() => _previewOpen = !_previewOpen;
 
-    private async Task SelectPage(FormPage page)
+    private async Task SelectPage(FormPageEditModel page)
     {
         await FlushPendingSaveAsync();
         _activePageId = page.Id;
@@ -328,13 +533,13 @@ else
 
     private void AddPage()
     {
-        var page = new FormPage { Id = Guid.NewGuid(), FormVersionId = _form.Id, Order = _form.Pages.Count };
+        var page = new FormPageEditModel { Id = Guid.NewGuid(), Order = _form.Pages.Count };
         _form.Pages.Add(page);
         _activePageId = page.Id;
         TriggerAutosave();
     }
 
-    private async Task DeletePage(FormPage page)
+    private async Task DeletePage(FormPageEditModel page)
     {
         if (_form.Pages.Count <= 1)
         {

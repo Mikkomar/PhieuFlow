@@ -1,22 +1,38 @@
+@inherits JumpFocusComponent
+
 <div class="flex flex-col gap-[7px]">
     <label class="text-[12px] font-semibold text-text-body">Options</label>
-    @foreach (var option in Question.Options)
+
+    @for (var i = 0; i < Question.Options.Count; i++)
     {
-        var index = Question.Options.ToList().IndexOf(option) + 1;
+        var index = i;
+        var option = Question.Options[index];
         <div class="flex max-w-[520px] items-center gap-2">
-            <span class="w-[14px] flex-none text-right font-mono text-[10.5px] text-text-faintest-2">@index</span>
+            <span class="w-[14px] flex-none text-right font-mono text-[10.5px] text-text-faintest-2">@(index + 1)</span>
             <input value="@option.Label"
                    @oninput="@(e => OnOptionInput(option, e))"
+                   @ref="_optionRefs[option.Id]"
                    placeholder="Option label"
-                   class="h-[30px] min-w-0 flex-1 rounded-md border border-border-control bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint" />
+                   aria-invalid="@(option.HasIssues ? "true" : null)"
+                   class="@OptionInputClasses(option)" />
             <button type="button" @onclick="@(() => RemoveOption(option))"
                     aria-label="Remove option"
                     class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-danger-border-hover hover:text-danger">
                 <Blazicon Svg="Lucide.X" class="text-xs" aria-hidden="true" />
             </button>
         </div>
+        @foreach (var issue in option.Issues)
+        {
+            <span class="pl-[22px] text-[11.5px] text-danger">@issue.Message</span>
+        }
     }
-    <button type="button" @onclick="AddOption"
+
+    @foreach (var issue in Question.Issues.Where(issue => issue.Field == ValidationField.Options))
+    {
+        <span class="text-[11.5px] text-danger">@issue.Message</span>
+    }
+
+    <button type="button" @onclick="AddOption" @ref="_addOptionRef"
             class="h-7 self-start rounded-md border border-border-control bg-white px-[11px] text-[12px] font-medium text-text-body hover:border-border-control-hover">
         Add option
     </button>
@@ -24,36 +40,54 @@
 
 @code {
     [Parameter, EditorRequired]
-    public ChoiceQuestion Question { get; set; } = null!;
+    public ChoiceQuestionEditModel Question { get; set; } = null!;
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    private void OnOptionInput(QuestionOption option, ChangeEventArgs e)
+    private readonly Dictionary<Guid, ElementReference> _optionRefs = [];
+    private ElementReference _addOptionRef;
+
+    protected override Task FocusJumpTargetAsync()
+    {
+        var offending = Question.Options.FirstOrDefault(o => o.HasIssues);
+        return offending is not null && _optionRefs.TryGetValue(offending.Id, out var input)
+            ? input.FocusAsync().AsTask()
+            : _addOptionRef.FocusAsync().AsTask();
+    }
+
+    private static string OptionInputClasses(QuestionOptionEditModel option) =>
+        "h-[30px] min-w-0 flex-1 rounded-md border bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint "
+        + (option.HasIssues ? "border-danger-border" : "border-border-control");
+
+    private void OnOptionInput(QuestionOptionEditModel option, ChangeEventArgs e)
     {
         option.Label = e.Value?.ToString() ?? string.Empty;
+        option.Issues.Clear();
         OnChanged.InvokeAsync();
     }
 
     private void AddOption()
     {
-        Question.Options.Add(new QuestionOption { Id = Guid.NewGuid(), Label = string.Empty, Order = Question.Options.Count });
+        Question.Options.Add(new QuestionOptionEditModel { Id = Guid.NewGuid(), Order = Question.Options.Count });
+        Question.Issues.RemoveAll(issue => issue.Field == ValidationField.Options);
+        Renumber();
         OnChanged.InvokeAsync();
     }
 
-    private void RemoveOption(QuestionOption option)
+    private void RemoveOption(QuestionOptionEditModel option)
     {
         Question.Options.Remove(option);
+        _optionRefs.Remove(option.Id);
         Renumber();
         OnChanged.InvokeAsync();
     }
 
     private void Renumber()
     {
-        var order = 0;
-        foreach (var option in Question.Options)
+        for (var i = 0; i < Question.Options.Count; i++)
         {
-            option.Order = order++;
+            Question.Options[i].Order = i;
         }
     }
 }

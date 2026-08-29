@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Same Test<Operation>_When_<condition>_Should_<outcome> convention as the other test
+         projects; silence the xUnit analyzer's method-naming rule. -->
+    <NoWarn>$(NoWarn);xUnit1000</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Hub owns the publish gate; the FormBuilder owns the edit-model tree and mapper. -->
+    <ProjectReference Include="..\..\src\PhieuFlow.Hub\PhieuFlow.Hub.csproj" />
+    <ProjectReference Include="..\..\src\PhieuFlow.FormBuilder\PhieuFlow.FormBuilder.csproj" />
+  </ItemGroup>
+
+</Project>

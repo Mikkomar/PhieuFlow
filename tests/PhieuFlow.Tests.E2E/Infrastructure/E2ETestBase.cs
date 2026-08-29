@@ -118,7 +118,11 @@ public abstract class E2ETestBase : IAsyncLifetime
 
     protected async Task ClickPublishAsync()
     {
+        // Publish now opens the pre-publish dialog; for a valid form it is the success
+        // confirmation, dismissed with "Done".
         await Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Publish" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Done" })
+            .ClickAsync(new LocatorClickOptions { Timeout = 15_000 });
         await Page.GetByText("This version is published").WaitForAsync(new LocatorWaitForOptions { Timeout = 15_000 });
     }
 
