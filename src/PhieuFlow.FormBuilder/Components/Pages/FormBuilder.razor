@@ -8,18 +8,18 @@
 @inject IFormsService FormsService
 @implements IAsyncDisposable
 
-@if (_loadError is not null)
+@if (_session.LoadState is FormLoadState.NotFound or FormLoadState.Error)
 {
     <div class="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
         <span class="text-[15px] font-semibold text-text">Form not found</span>
-        <p class="max-w-[46ch] text-[13px] text-text-faint">@_loadError</p>
+        <p class="max-w-[46ch] text-[13px] text-text-faint">@_session.LoadError</p>
         <button type="button" @onclick="@(() => Nav.NavigateTo("/"))"
                 class="mt-2 h-[34px] rounded-md border border-border-control bg-white px-4 text-[13px] font-medium text-text-body hover:border-border-control-hover">
             Back to all forms
         </button>
     </div>
 }
-else if (_loading)
+else if (_session.LoadState == FormLoadState.Loading)
 {
     <div class="flex flex-1 items-center justify-center p-10 text-[13px] text-text-faint">Loading form…</div>
 }
@@ -29,12 +29,12 @@ else
 
 <FormBuilderHeader @ref="_header"
                    Form="_form"
-                   SaveState="_saveState"
-                   LastSavedAt="_lastSavedAt"
-                   Publishing="_publishing"
-                   Disabled="_publishing"
+                   SaveState="_session.SaveState"
+                   LastSavedAt="_session.LastSavedAt"
+                   Publishing="_session.Publishing"
+                   Disabled="_session.Publishing"
                    TitleBlurred="_titleBlurred"
-                   PublishError="@_publishError"
+                   PublishError="@_session.PublishError"
                    PreviewOpen="_previewOpen"
                    OnTitleChanged="OnTitleInput"
                    OnTitleBlur="@(() => _titleBlurred = true)"
@@ -43,7 +43,7 @@ else
                    OnRetrySave="FlushPendingSaveAsync" />
 
 <div class="flex flex-1 items-start overflow-x-auto">
-    <fieldset disabled="@_publishing" class="contents">
+    <fieldset disabled="@_session.Publishing" class="contents">
     <div class="flex min-w-[540px] flex-1 flex-col gap-[18px] px-7 pt-[22px] pb-12">
 
         <div class="flex flex-col gap-[6px] rounded-lg border border-border bg-surface p-[18px_20px] shadow-[0_1px_2px_rgba(16,24,24,0.04)]">
@@ -75,34 +75,11 @@ else
     </div>
     </fieldset>
 
-    @if (_previewOpen)
-    {
-        <aside class="sticky top-[59px] hidden max-h-[calc(100vh-59px)] w-[400px] min-w-[300px] flex-[0_1_400px] flex-col gap-[14px] self-start overflow-y-auto border-l border-border bg-surface p-[22px_24px_40px] min-[1100px]:flex">
-            <div class="flex items-center justify-between gap-[10px]">
-                <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Respondent preview</span>
-                <span class="font-mono text-[9.5px] tracking-[0.04em] text-text-faintest uppercase">Page @(ActivePageIndex + 1) of @_form.Pages.Count</span>
-            </div>
-            <RespondentPreview Form="_form" ActivePage="ActivePage" ActivePageIndex="ActivePageIndex" />
-        </aside>
-    }
-</div>
-
-@* Under 1100px the side panel is unreachable, so the same content rides up in a
-   non-modal bottom drawer. Always in the DOM so the slide plays on open and close. *@
-<div class="fixed inset-x-0 bottom-0 z-30 flex max-h-[62vh] flex-col rounded-t-[12px] border-t border-border bg-surface shadow-[0_-10px_28px_rgba(16,24,24,0.10)] min-[1100px]:hidden @(_previewOpen ? "translate-y-0" : "pointer-events-none translate-y-full") motion-safe:transition-transform motion-safe:duration-[180ms] motion-safe:ease-out"
-     aria-hidden="@(_previewOpen ? null : "true")"
-     tabindex="-1" @ref="_drawerRef" @onkeydown="OnDrawerKeyDown">
-    <div class="relative flex items-center gap-[10px] p-[12px_18px_10px]">
-        <span class="absolute left-1/2 top-[7px] h-1 w-[34px] -translate-x-1/2 rounded-full bg-border-control"></span>
-        <span class="flex-1 font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Respondent preview · page @(ActivePageIndex + 1) of @_form.Pages.Count</span>
-        <button type="button" aria-label="Close preview" @onclick="TogglePreview"
-                class="flex h-6 w-6 flex-none items-center justify-center rounded-[6px] border border-border-control bg-white text-text-soft hover:border-border-control-hover">
-            <Blazicon Svg="Lucide.X" class="text-xs" aria-hidden="true" />
-        </button>
-    </div>
-    <div class="overflow-y-auto px-[18px] pb-[18px]">
-        <RespondentPreview Form="_form" ActivePage="ActivePage" ActivePageIndex="ActivePageIndex" />
-    </div>
+    <RespondentPreviewPanel Form="_form"
+                            ActivePage="ActivePage"
+                            ActivePageIndex="ActivePageIndex"
+                            Open="_previewOpen"
+                            OnClose="TogglePreview" />
 </div>
 
 @if (_prePublishOpen && _publishResult is not null)
@@ -118,36 +95,20 @@ else
     [Parameter]
     public Guid? FormId { get; set; }
 
-    private FormEditModel _form = null!;
+    private FormEditorSession _session = null!;
     private FormBuilderHeader? _header;
-    private bool _loading = true;
-    private string? _loadError;
+
+    // Alias onto the session's tree so the markup stays terse. Only touched from the loaded branch.
+    private FormEditModel _form => _session.Form;
+
     private Guid _activePageId;
     private bool _previewOpen = true;
-    // Tracks the last rendered _previewOpen so OnAfterRenderAsync can move focus into the
-    // narrow-width drawer on a closed→open transition (Esc handling rides on that focus).
-    private bool _previewWasOpen = true;
-    private ElementReference _drawerRef;
     private bool _titleBlurred;
-    private CancellationTokenSource? _autosaveCts;
-    private SaveState _saveState = SaveState.Idle;
-    // Monotonic edit counter vs. the counter value last persisted. They diverge whenever
-    // there is unsaved work — including an edit that landed while a save was in flight, a
-    // case _saveState alone can't see.
-    private int _pendingEditSeq;
-    private int _savedEditSeq;
-    private DateTimeOffset? _lastSavedAt;
-    private bool _publishing;
-    private string? _publishError;
 
     private bool _prePublishOpen;
     private PublishResultDto? _publishResult;
     private IReadOnlyList<PrePublishRow> _rows = [];
     private Guid? _jumpQuestionId;
-
-    // The form we already hold in memory. Guards OnParametersSetAsync from re-fetching (and
-    // clobbering unsaved edits) on a spurious re-parametrization.
-    private Guid? _loadedFormId;
 
     private IDisposable? _locationChangingRegistration;
 
@@ -160,83 +121,40 @@ else
 
     protected override void OnInitialized()
     {
+        _session = new FormEditorSession(FormsService);
+        _session.Changed += OnSessionChanged;
+        _session.ForkReconciled += OnForkReconciled;
         _locationChangingRegistration = Nav.RegisterLocationChangingHandler(OnLocationChanging);
     }
 
     protected override async Task OnParametersSetAsync()
     {
-        // "/forms/new": have the Hub mint a blank draft, then redirect to it by id so the URL
-        // always identifies the form and a reload re-opens it (its latest version).
-        if (FormId is null)
+        var outcome = await _session.OpenAsync(FormId);
+
+        switch (outcome.Kind)
         {
-            _loadError = null;
-            _loading = true;
-            StateHasChanged();
+            case OpenOutcomeKind.RedirectToNew:
+                // Open the new form by id so the URL identifies it and a reload re-opens it.
+                Nav.NavigateTo($"/forms/{outcome.NewFormId}", forceLoad: false, replace: true);
+                break;
 
-            Guid newId;
-            try
-            {
-                newId = await FormsService.CreateNewAsync();
-            }
-            catch (HttpRequestException)
-            {
-                _loadError = "Couldn't start a new form.";
-                _loading = false;
-                return;
-            }
+            case OpenOutcomeKind.Opened:
+                _activePageId = _form.Pages.First().Id;
+                _titleBlurred = false;
+                break;
 
-            Nav.NavigateTo($"/forms/{newId}", forceLoad: false, replace: true);
-            return;
+            // Reopened: the form was already in memory — leave view state alone.
+            // Failed: the load-state markup takes over.
         }
+    }
 
-        // We already hold this form in memory; don't re-fetch and clobber unsaved edits.
-        if (_loadedFormId == FormId)
+    private void OnSessionChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnForkReconciled(IReadOnlyDictionary<Guid, Guid> pageIdRemap)
+    {
+        if (pageIdRemap.TryGetValue(_activePageId, out var newId))
         {
-            _loading = false;
-            return;
-        }
-
-        _loadError = null;
-        _loading = true;
-        StateHasChanged();
-
-        FormEditModel? loaded;
-        try
-        {
-            loaded = await FormsService.GetByIdAsync(FormId.Value);
-        }
-        catch (HttpRequestException)
-        {
-            _loadError = "Couldn't load this form from the server.";
-            _loading = false;
-            return;
-        }
-
-        if (loaded is null)
-        {
-            _loadError = "This form couldn't be found.";
-            _loading = false;
-            return;
-        }
-
-        _form = loaded;
-        _loading = false;
-
-        _loadedFormId = _form.FormId;
-        _activePageId = _form.Pages.First().Id;
-        _titleBlurred = false;
-        _pendingEditSeq = 0;
-        _savedEditSeq = 0;
-
-        if (string.IsNullOrWhiteSpace(_form.Title))
-        {
-            _saveState = SaveState.Idle;
-            _lastSavedAt = null;
-        }
-        else
-        {
-            _saveState = SaveState.Saved;
-            _lastSavedAt = _form.LastModifiedAt == default ? DateTimeOffset.Now : _form.LastModifiedAt;
+            _activePageId = newId;
         }
     }
 
@@ -248,11 +166,12 @@ else
     public async ValueTask DisposeAsync()
     {
         _locationChangingRegistration?.Dispose();
-        _autosaveCts?.Cancel();
+        _session.Changed -= OnSessionChanged;
+        _session.ForkReconciled -= OnForkReconciled;
 
         try
         {
-            await FlushPendingSaveAsync();
+            await _session.DisposeAsync();
         }
         catch
         {
@@ -260,233 +179,35 @@ else
         }
     }
 
-    private void TriggerAutosave()
-    {
-        _pendingEditSeq++;
-        _autosaveCts?.Cancel();
-
-        if (string.IsNullOrWhiteSpace(_form.Title))
-        {
-            _saveState = SaveState.Idle;
-            return;
-        }
-
-        _saveState = SaveState.Pending;
-        var cts = new CancellationTokenSource();
-        _autosaveCts = cts;
-        _ = DebounceSaveAsync(cts.Token);
-    }
-
-    private async Task DebounceSaveAsync(CancellationToken token)
-    {
-        try
-        {
-            await Task.Delay(800, token);
-        }
-        catch (TaskCanceledException)
-        {
-            return;
-        }
-
-        await SaveNowAsync(token);
-    }
+    private void TriggerAutosave() => _session.NotifyEdited();
 
     private async Task FlushPendingSaveAsync()
     {
-        // Drive the persisted state up to the latest edit. Loops because a save can race a
-        // fresh keystroke (which bumps _pendingEditSeq past what that save captured); the cap
-        // stops a user who keeps typing through the flush from blocking it forever.
-        for (var attempt = 0; attempt < 4; attempt++)
+        if (await _session.FlushAsync() == AutosaveFlushResult.Blocked)
         {
-            var upToDate = _pendingEditSeq == _savedEditSeq && _saveState != SaveState.Error;
-            if (upToDate)
-            {
-                return;
-            }
-
-            _autosaveCts?.Cancel();
-
-            if (string.IsNullOrWhiteSpace(_form.Title))
-            {
-                _titleBlurred = true;
-                return;
-            }
-
-            var cts = new CancellationTokenSource();
-            _autosaveCts = cts;
-            await SaveNowAsync(cts.Token);
-
-            if (_saveState == SaveState.Error)
-            {
-                return;
-            }
+            _titleBlurred = true;
         }
     }
-
-    private async Task SaveNowAsync(CancellationToken token)
-    {
-        var seq = _pendingEditSeq;
-        _saveState = SaveState.Saving;
-        await InvokeAsync(StateHasChanged);
-
-        try
-        {
-            var previousVersion = _form.VersionNumber;
-            var result = await FormsService.SaveAsync(_form, token);
-            _form.VersionNumber = result.VersionNumber;
-            _form.Revision = result.Revision;
-            _form.Status = MapStatus(result.Status);
-            _form.LastModifiedAt = result.LastModifiedAt;
-            _form.PublishedAt = result.PublishedAt;
-            _savedEditSeq = seq;
-
-            // A keystroke landed while this save was in flight: it is not in what we just
-            // persisted, so stay Pending and let the queued debounce (or a flush) catch it.
-            if (_pendingEditSeq == seq)
-            {
-                _lastSavedAt = DateTimeOffset.Now;
-                _saveState = SaveState.Saved;
-            }
-            else
-            {
-                _saveState = SaveState.Pending;
-            }
-
-            // Editing a published version forks a new draft server-side with fresh node ids.
-            // Re-key the in-memory tree to those ids (content untouched, so edits made while
-            // this save was in flight survive) — otherwise the next save reconciles the
-            // stale published ids and collides on insert. Only on a fork.
-            if (result.VersionNumber != previousVersion && !token.IsCancellationRequested)
-            {
-                await ReKeyTreeAfterForkAsync(token);
-            }
-        }
-        catch (TaskCanceledException) when (token.IsCancellationRequested)
-        {
-            return;
-        }
-        catch (HttpRequestException)
-        {
-            _saveState = SaveState.Error;
-        }
-
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task ReKeyTreeAfterForkAsync(CancellationToken token)
-    {
-        var activePageIndex = ActivePageIndex;
-
-        FormEditModel? forked;
-        try
-        {
-            forked = await FormsService.GetByIdAsync(_form.FormId, token);
-        }
-        catch (HttpRequestException)
-        {
-            return;
-        }
-
-        if (forked is null)
-        {
-            return;
-        }
-
-        // The server's fork is a structure-preserving deep clone, so match by position and
-        // copy only the ids. Content in _form (including keystrokes landed during this save)
-        // is left as the user left it.
-        _form.LiveVersionNumber = forked.LiveVersionNumber;
-
-        foreach (var (localPage, forkedPage) in _form.Pages.Zip(forked.Pages))
-        {
-            localPage.Id = forkedPage.Id;
-
-            foreach (var (localQuestion, forkedQuestion) in localPage.Questions.Zip(forkedPage.Questions))
-            {
-                localQuestion.Id = forkedQuestion.Id;
-
-                if (localQuestion is ChoiceQuestionEditModel localChoice
-                    && forkedQuestion is ChoiceQuestionEditModel forkedChoice)
-                {
-                    foreach (var (localOption, forkedOption) in localChoice.Options.Zip(forkedChoice.Options))
-                    {
-                        localOption.Id = forkedOption.Id;
-                    }
-                }
-            }
-        }
-
-        _activePageId = activePageIndex >= 0 && activePageIndex < _form.Pages.Count
-            ? _form.Pages[activePageIndex].Id
-            : _form.Pages.First().Id;
-    }
-
-    private static FormVersionStatus MapStatus(FormVersionStatusDto status) => status switch
-    {
-        FormVersionStatusDto.Published => FormVersionStatus.Published,
-        _ => FormVersionStatus.Draft,
-    };
 
     private async Task PublishNow()
     {
-        if (_form.Status == FormVersionStatus.Published)
-        {
-            return;
-        }
+        var outcome = await _session.PublishAsync();
 
-        // An untitled form has never been autosaved, so there is nothing on the server to
-        // validate — surface the title requirement the same way a blocked save does.
-        if (string.IsNullOrWhiteSpace(_form.Title))
+        switch (outcome.Kind)
         {
-            _titleBlurred = true;
-            return;
-        }
+            case PublishOutcomeKind.MissingTitle:
+                _titleBlurred = true;
+                break;
 
-        // Publish must not proceed on a stale server copy: flush pending edits first, and
-        // bail if that save can't reach the server (the header keeps its Retry affordance).
-        await FlushPendingSaveAsync();
-        if (_saveState == SaveState.Error)
-        {
-            return;
-        }
+            case PublishOutcomeKind.Published:
+            case PublishOutcomeKind.NeedsFixes:
+                _publishResult = outcome.Result;
+                _rows = outcome.Rows ?? [];
+                _prePublishOpen = true;
+                break;
 
-        _publishing = true;
-        _publishError = null;
-        await InvokeAsync(StateHasChanged);
-
-        try
-        {
-            _publishResult = await FormsService.PublishAsync(_form.FormId);
-            // Best-effort inline annotation; the dialog rows come from the returned tree so
-            // they are correct even if a fork just changed the server's node ids.
-            FormEditMapper.ApplyIssues(_form, _publishResult.Form);
-
-            if (_publishResult.Published)
-            {
-                _form.VersionNumber = _publishResult.VersionNumber;
-                _form.Revision = _publishResult.Revision;
-                _form.Status = MapStatus(_publishResult.Status);
-                _form.LastModifiedAt = _publishResult.LastModifiedAt;
-                _form.PublishedAt = _publishResult.PublishedAt;
-                _form.LiveVersionNumber = _publishResult.VersionNumber;
-                _lastSavedAt = DateTimeOffset.Now;
-                _saveState = SaveState.Saved;
-                _rows = [];
-            }
-            else
-            {
-                _rows = PrePublishRow.From(FormEditMapper.ToEditModel(_publishResult.Form));
-            }
-
-            _prePublishOpen = true;
-        }
-        catch (HttpRequestException)
-        {
-            _publishError = "Couldn't publish this form.";
-        }
-        finally
-        {
-            _publishing = false;
+            // AlreadyPublished / SaveFailed / RequestFailed: nothing to open — the header's save
+            // indicator and published pill already reflect the state.
         }
     }
 
@@ -536,45 +257,22 @@ else
     {
         _form.Title = value;
         _form.Issues.RemoveAll(i => i.Field == ValidationField.Title);
-        TriggerAutosave();
+        _session.NotifyEdited();
     }
 
     private void OnDescriptionInput(ChangeEventArgs e)
     {
         _form.Description = e.Value?.ToString() ?? string.Empty;
-        TriggerAutosave();
+        _session.NotifyEdited();
     }
 
     private void OnPageTitleChanged(string value)
     {
         ActivePage.Title = value;
-        TriggerAutosave();
+        _session.NotifyEdited();
     }
 
     private void TogglePreview() => _previewOpen = !_previewOpen;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        // On a closed→open transition, pull focus into the bottom drawer so its Esc
-        // handler is armed and a keyboard user lands on the content they just opened.
-        // Harmless at ≥1100px (the drawer is display:none, FocusAsync throws, we swallow).
-        if (_previewOpen && !_previewWasOpen)
-        {
-            try
-            {
-                await _drawerRef.FocusAsync();
-            }
-            catch (Exception)
-            {
-                // drawer not in the DOM at this width
-            }
-        }
-
-        _previewWasOpen = _previewOpen;
-    }
-
-    private Task OnDrawerKeyDown(KeyboardEventArgs e)
-        => e.Key == "Escape" && _previewOpen ? InvokeAsync(TogglePreview) : Task.CompletedTask;
 
     private async Task SelectPage(FormPageEditModel page)
     {
@@ -587,7 +285,7 @@ else
         var page = new FormPageEditModel { Id = Guid.NewGuid(), Order = _form.Pages.Count };
         _form.Pages.Add(page);
         _activePageId = page.Id;
-        TriggerAutosave();
+        _session.NotifyEdited();
     }
 
     private async Task DeletePage(FormPageEditModel page)
@@ -614,6 +312,6 @@ else
             _activePageId = _form.Pages.First().Id;
         }
 
-        TriggerAutosave();
+        _session.NotifyEdited();
     }
 }

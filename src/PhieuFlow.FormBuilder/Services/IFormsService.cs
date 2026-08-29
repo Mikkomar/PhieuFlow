@@ -24,6 +24,15 @@ public interface IFormsService
     /// </summary>
     Task<PublishResultDto> PublishAsync(Guid formId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// After a save that forked a new draft (editing a published version does this server-side
+    /// with fresh node ids), re-fetches the forked tree and copies its ids onto <paramref name="local"/>
+    /// by position — content in <paramref name="local"/> (including edits made while the save was
+    /// in flight) is left untouched. Returns old page id → new page id so the caller can keep the
+    /// same page selected; empty if the re-fetch could not be completed.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, Guid>> ReconcileForkAsync(FormEditModel local, CancellationToken cancellationToken = default);
+
     /// <summary>Deletes the form and its version history. A missing form is treated as already gone.</summary>
     Task DeleteAsync(Guid formId, CancellationToken cancellationToken = default);
 

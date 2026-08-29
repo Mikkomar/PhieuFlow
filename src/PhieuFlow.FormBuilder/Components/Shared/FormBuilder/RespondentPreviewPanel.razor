@@ -1,0 +1,76 @@
+@* Respondent preview in two guises: a sticky side panel at >=1100px, and — since the side panel
+   is unreachable below that — the same content in a non-modal bottom drawer. The drawer stays in
+   the DOM at every width so the slide plays on open and close. *@
+
+@if (Open)
+{
+    <aside class="sticky top-[59px] hidden max-h-[calc(100vh-59px)] w-[400px] min-w-[300px] flex-[0_1_400px] flex-col gap-[14px] self-start overflow-y-auto border-l border-border bg-surface p-[22px_24px_40px] min-[1100px]:flex">
+        <div class="flex items-center justify-between gap-[10px]">
+            <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Respondent preview</span>
+            <span class="font-mono text-[9.5px] tracking-[0.04em] text-text-faintest uppercase">Page @(ActivePageIndex + 1) of @Form.Pages.Count</span>
+        </div>
+        <RespondentPreview Form="Form" ActivePage="ActivePage" ActivePageIndex="ActivePageIndex" />
+    </aside>
+}
+
+<div class="fixed inset-x-0 bottom-0 z-30 flex max-h-[62vh] flex-col rounded-t-[12px] border-t border-border bg-surface shadow-[0_-10px_28px_rgba(16,24,24,0.10)] min-[1100px]:hidden @(Open ? "translate-y-0" : "pointer-events-none translate-y-full") motion-safe:transition-transform motion-safe:duration-[180ms] motion-safe:ease-out"
+     aria-hidden="@(Open ? null : "true")"
+     tabindex="-1" @ref="_drawerRef" @onkeydown="OnDrawerKeyDown">
+    <div class="relative flex items-center gap-[10px] p-[12px_18px_10px]">
+        <span class="absolute left-1/2 top-[7px] h-1 w-[34px] -translate-x-1/2 rounded-full bg-border-control"></span>
+        <span class="flex-1 font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Respondent preview · page @(ActivePageIndex + 1) of @Form.Pages.Count</span>
+        <button type="button" aria-label="Close preview" @onclick="@(() => OnClose.InvokeAsync())"
+                class="flex h-6 w-6 flex-none items-center justify-center rounded-[6px] border border-border-control bg-white text-text-soft hover:border-border-control-hover">
+            <Blazicon Svg="Lucide.X" class="text-xs" aria-hidden="true" />
+        </button>
+    </div>
+    <div class="overflow-y-auto px-[18px] pb-[18px]">
+        <RespondentPreview Form="Form" ActivePage="ActivePage" ActivePageIndex="ActivePageIndex" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public FormEditModel Form { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public FormPageEditModel ActivePage { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public int ActivePageIndex { get; set; }
+
+    [Parameter]
+    public bool Open { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    // Tracks the last rendered Open so OnAfterRenderAsync can move focus into the drawer on a
+    // closed→open transition (Esc handling rides on that focus).
+    private bool _wasOpen;
+    private ElementReference _drawerRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // On a closed→open transition, pull focus into the bottom drawer so its Esc handler is
+        // armed and a keyboard user lands on the content they just opened. Harmless at ≥1100px
+        // (the drawer is display:none, FocusAsync throws, we swallow). Skipped on first render —
+        // there is no transition to react to.
+        if (!firstRender && Open && !_wasOpen)
+        {
+            try
+            {
+                await _drawerRef.FocusAsync();
+            }
+            catch (Exception)
+            {
+                // drawer not in the DOM at this width
+            }
+        }
+
+        _wasOpen = Open;
+    }
+
+    private Task OnDrawerKeyDown(KeyboardEventArgs e)
+        => e.Key == "Escape" && Open ? OnClose.InvokeAsync() : Task.CompletedTask;
+}
