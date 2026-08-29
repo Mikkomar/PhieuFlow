@@ -1,0 +1,171 @@
+@using PhieuFlow.Core.Entities
+@inject NavigationManager Nav
+@implements IDisposable
+
+<header class="sticky top-0 z-20 flex flex-col gap-2 border-b border-border bg-surface px-8 py-3">
+    <div class="flex items-center gap-5">
+        <button type="button" title="Back to all forms" aria-label="Back to all forms"
+                @onclick="@(() => Nav.NavigateTo("/"))"
+                class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-text-faint hover:bg-surface-subtle hover:text-text">
+            <Blazicon Svg="Lucide.ArrowLeft" class="text-sm" aria-hidden="true" />
+        </button>
+
+        <div class="flex min-w-[240px] flex-1 flex-col gap-0.5">
+            <div class="font-mono text-[10px] tracking-[0.07em] text-text-faintest uppercase whitespace-nowrap">PhieuFlow / Forms / Edit</div>
+            <div class="flex items-center gap-3">
+                <input value="@Form.Title"
+                       @oninput="OnTitleInput"
+                       @onblur="@(() => OnTitleBlur.InvokeAsync())"
+                       maxlength="120"
+                       placeholder="Untitled form"
+                       aria-label="Form title"
+                       class="-ml-[6px] w-full max-w-[560px] rounded-md border border-transparent bg-transparent px-[6px] py-[1px] text-[21px] font-semibold tracking-[-0.02em] text-text outline-none hover:border-border focus:border-accent focus:bg-surface-subtle" />
+                @if (TitleLength >= 100)
+                {
+                    <span class="@TitleCountClasses">@TitleLength / 120</span>
+                }
+            </div>
+        </div>
+
+        <div class="flex flex-none items-center gap-3">
+            <div class="flex items-center gap-[7px] font-mono text-[10.5px] tracking-[0.04em] uppercase @SaveIndicatorTextClass">
+                <span class="h-[5px] w-[5px] rounded-full @SaveIndicatorDotClass"></span>
+                <span>v@(Form.VersionNumber)@(SaveLabel is { } saveLabel ? $" · {saveLabel}" : "")</span>
+                @if (SaveState == SaveState.Error)
+                {
+                    <button type="button" @onclick="@(() => OnRetrySave.InvokeAsync())"
+                            class="ml-1 text-[10.5px] font-semibold text-danger underline uppercase">Retry</button>
+                }
+            </div>
+            <StatusPill Published="@(Form.Status == FormVersionStatus.Published)" />
+            <div class="hidden h-[22px] w-px bg-border-soft min-[1100px]:block"></div>
+            <button type="button" @onclick="@(() => OnTogglePreview.InvokeAsync())"
+                    class="hidden h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover min-[1100px]:flex">
+                <Blazicon Svg="Lucide.Eye" class="text-sm" aria-hidden="true" />
+                @(PreviewOpen ? "Hide preview" : "Preview")
+            </button>
+            <button type="button" @onclick="@(() => OnPublish.InvokeAsync())" disabled="@(Publishing || Form.Status == FormVersionStatus.Published)"
+                    title="@(Form.Status == FormVersionStatus.Published ? "This version is already published" : null)"
+                    class="h-[34px] whitespace-nowrap rounded-md border border-accent bg-accent px-4 text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover disabled:cursor-default disabled:opacity-60">
+                @(Publishing ? "Publishing…" : "Publish")
+            </button>
+        </div>
+    </div>
+
+    @{
+        var showTitleRequired = TitleBlurred && string.IsNullOrWhiteSpace(Form.Title);
+        var showPublishedNotice = Form.Status == FormVersionStatus.Published;
+    }
+    @if (showTitleRequired || PublishError is not null || showPublishedNotice)
+    {
+        <div class="flex flex-col gap-1 pl-[48px]">
+            @if (showTitleRequired)
+            {
+                <span class="text-[12px] text-danger">Title is required.</span>
+            }
+            @if (PublishError is not null)
+            {
+                <span class="text-[12px] text-danger">@PublishError</span>
+            }
+            @if (showPublishedNotice)
+            {
+                <span class="text-[12px] text-text-faint">This version is published. Your next edit starts version @(Form.VersionNumber + 1).</span>
+            }
+        </div>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired]
+    public FormVersion Form { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SaveState SaveState { get; set; }
+
+    [Parameter]
+    public DateTimeOffset? LastSavedAt { get; set; }
+
+    [Parameter]
+    public bool Publishing { get; set; }
+
+    [Parameter]
+    public bool TitleBlurred { get; set; }
+
+    [Parameter]
+    public string? PublishError { get; set; }
+
+    [Parameter]
+    public bool PreviewOpen { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnTitleChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnTitleBlur { get; set; }
+
+    [Parameter]
+    public EventCallback OnTogglePreview { get; set; }
+
+    [Parameter]
+    public EventCallback OnPublish { get; set; }
+
+    [Parameter]
+    public EventCallback OnRetrySave { get; set; }
+
+    // Ticks the relative "saved N min ago" label forward without any user input.
+    private System.Timers.Timer? _saveLabelTimer;
+
+    private int TitleLength => Form.Title?.Length ?? 0;
+
+    private const string TitleCountClasses = "flex-none font-mono text-[10.5px] text-text-faintest";
+
+    private string SaveIndicatorTextClass => SaveState == SaveState.Error ? "text-danger" : "text-text-faintest";
+
+    private string SaveIndicatorDotClass => SaveState == SaveState.Error ? "bg-danger" : "bg-text-faintest-2";
+
+    private string? SaveLabel => SaveState switch
+    {
+        SaveState.Pending => "unsaved changes",
+        SaveState.Saving => "saving…",
+        SaveState.Saved => SavedLabel(),
+        SaveState.Error => "couldn't reach server",
+        _ => null,
+    };
+
+    private string SavedLabel()
+    {
+        if (LastSavedAt is not { } saved)
+        {
+            return "saved";
+        }
+
+        var elapsed = DateTimeOffset.Now - saved;
+        if (elapsed < TimeSpan.FromSeconds(45))
+        {
+            return "saved just now";
+        }
+
+        if (elapsed < TimeSpan.FromSeconds(90))
+        {
+            return "saved 1 min ago";
+        }
+
+        if (elapsed < TimeSpan.FromHours(1))
+        {
+            return $"saved {(int)elapsed.TotalMinutes} min ago";
+        }
+
+        return $"saved at {saved.ToLocalTime():HH:mm}";
+    }
+
+    protected override void OnInitialized()
+    {
+        _saveLabelTimer = new System.Timers.Timer(30_000) { AutoReset = true };
+        _saveLabelTimer.Elapsed += (_, _) => _ = InvokeAsync(StateHasChanged);
+        _saveLabelTimer.Start();
+    }
+
+    private Task OnTitleInput(ChangeEventArgs e) => OnTitleChanged.InvokeAsync(e.Value?.ToString() ?? string.Empty);
+
+    public void Dispose() => _saveLabelTimer?.Dispose();
+}

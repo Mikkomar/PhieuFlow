@@ -1,0 +1,273 @@
+@using PhieuFlow.Core.Entities
+
+<div aria-live="polite" class="sr-only">@_liveAnnouncement</div>
+
+<div class="rounded-lg border border-border bg-surface shadow-[0_1px_2px_rgba(16,24,24,0.04)]">
+    <div class="flex items-center gap-3 border-b border-border-row p-[14px_18px]">
+        <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase whitespace-nowrap">Page @PageNumber of @PageCount</span>
+            <input value="@Page.Title"
+                   @oninput="OnPageTitleInput"
+                   placeholder="Name this page"
+                   aria-label="Page title"
+                   class="-ml-[6px] w-full max-w-[400px] rounded-md border border-transparent bg-transparent px-[6px] py-[2px] text-[14.5px] font-semibold tracking-[-0.01em] text-text outline-none hover:border-border focus:border-accent focus:bg-surface-subtle" />
+        </div>
+        <span class="flex-none text-[11.5px] whitespace-nowrap text-text-faint">@QuestionCountLabel()</span>
+        <div class="relative flex-none">
+            <button type="button" @ref="_addQuestionHeaderRef" @onclick="@(() => ToggleQuestionTypePicker(PickerAnchor.Header))" aria-haspopup="menu" aria-expanded="@(_pickerAnchor == PickerAnchor.Header)"
+                    class="flex h-7 items-center gap-[6px] whitespace-nowrap rounded-md border border-border-control bg-white px-[11px] text-[12.5px] font-medium text-text-body hover:border-border-control-hover">
+                <Blazicon Svg="Lucide.Plus" class="text-xs" aria-hidden="true" />
+                Add question
+            </button>
+
+            @if (_pickerAnchor == PickerAnchor.Header)
+            {
+                <QuestionTypeMenu OnAdd="AddQuestion" OnClose="ClosePicker" FormPageId="Page.Id" AnchorClasses="top-[34px] right-0" />
+            }
+        </div>
+        <button type="button" disabled="@(PageCount <= 1)" @onclick="@(() => OnDeletePage.InvokeAsync())"
+                title="@(PageCount <= 1 ? "A form needs at least one page" : "Delete this page")"
+                aria-label="Delete page"
+                class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-border-control bg-white text-text-soft enabled:hover:border-danger-border-hover enabled:hover:text-danger disabled:cursor-default disabled:text-text-faintest-2">
+            <Blazicon Svg="Lucide.Trash2" class="text-sm" aria-hidden="true" />
+        </button>
+    </div>
+
+    <div class="flex flex-col p-[14px_18px_18px]">
+        @if (Page.Questions.Count == 0)
+        {
+            <div class="flex flex-col items-center gap-[9px] rounded-lg border border-dashed border-border-control bg-surface-panel p-[30px_20px]">
+                <span class="text-[13.5px] font-semibold text-text">This page has no questions yet</span>
+                <span class="max-w-[44ch] text-center text-[12.5px] text-text-faint text-pretty">Add your first question to get started.</span>
+                <div class="relative mt-1">
+                    <button type="button" @ref="_addQuestionEmptyRef" @onclick="@(() => ToggleQuestionTypePicker(PickerAnchor.Empty))" aria-haspopup="menu" aria-expanded="@(_pickerAnchor == PickerAnchor.Empty)"
+                            class="h-[30px] rounded-md border border-accent bg-accent px-[13px] text-[12.5px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
+                        Add question
+                    </button>
+                    @if (_pickerAnchor == PickerAnchor.Empty)
+                    {
+                        <QuestionTypeMenu OnAdd="AddQuestion" OnClose="ClosePicker" FormPageId="Page.Id" AnchorClasses="top-[34px] left-1/2 -translate-x-1/2" />
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-hidden rounded-lg border border-border-control">
+                @for (var i = 0; i < Page.Questions.Count; i++)
+                {
+                    var question = Page.Questions.ElementAt(i);
+                    var index = i;
+                    @if (index == 0)
+                    {
+                        <div @ondragover="@(() => SetDropIndex(0))" @ondragover:preventDefault="true"
+                             @ondrop="HandleDrop"
+                             class="@InsertionLineClasses(0)"></div>
+                    }
+                    else
+                    {
+                        <div class="@InsertionLineClasses(index)"></div>
+                    }
+                    <QuestionEditCard @key="question.Id"
+                                       Question="question"
+                                       Number="@(index + 1)"
+                                       Expanded="@(_expandedQuestionId == question.Id)"
+                                       Dragging="@(_draggedQuestion == question)"
+                                       AutoFocusText="@(_focusQuestionId == question.Id)"
+                                       OnToggle="@(() => ToggleExpanded(question))"
+                                       OnRemove="RemoveQuestion"
+                                       OnChanged="OnChanged"
+                                       OnDragStart="@(() => HandleDragStart(question))"
+                                       OnDragEnd="HandleDragEnd"
+                                       OnDragOverTop="@(() => SetDropIndex(index))"
+                                       OnDragOverBottom="@(() => SetDropIndex(index + 1))"
+                                       OnDrop="HandleDrop"
+                                       OnKeyMove="@(delta => MoveQuestion(question, delta))" />
+                }
+                <div @ondragover="@(() => SetDropIndex(Page.Questions.Count))" @ondragover:preventDefault="true"
+                     @ondrop="HandleDrop"
+                     class="@InsertionLineClasses(Page.Questions.Count)"></div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private enum PickerAnchor { Header, Empty }
+
+    [Parameter, EditorRequired]
+    public FormPage Page { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public int PageNumber { get; set; }
+
+    [Parameter, EditorRequired]
+    public int PageCount { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<string> OnPageTitleChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnDeletePage { get; set; }
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private Guid? _expandedQuestionId;
+    private Guid? _focusQuestionId;
+    private PickerAnchor? _pickerAnchor;
+    private Question? _draggedQuestion;
+    private int? _dropIndex;
+    private string _liveAnnouncement = string.Empty;
+
+    private ElementReference _addQuestionHeaderRef;
+    private ElementReference _addQuestionEmptyRef;
+
+    private string QuestionCountLabel() => Page.Questions.Count == 1 ? "1 question" : $"{Page.Questions.Count} questions";
+
+    private Task OnPageTitleInput(ChangeEventArgs e) => OnPageTitleChanged.InvokeAsync(e.Value?.ToString() ?? string.Empty);
+
+    private void ToggleExpanded(Question question)
+    {
+        _expandedQuestionId = _expandedQuestionId == question.Id ? null : question.Id;
+        _pickerAnchor = null;
+    }
+
+    private void ToggleQuestionTypePicker(PickerAnchor anchor)
+        => _pickerAnchor = _pickerAnchor == anchor ? null : anchor;
+
+    private async Task ClosePicker()
+    {
+        var anchor = _pickerAnchor;
+        _pickerAnchor = null;
+
+        if (anchor is { } openAnchor)
+        {
+            var trigger = openAnchor == PickerAnchor.Header ? _addQuestionHeaderRef : _addQuestionEmptyRef;
+            try
+            {
+                await trigger.FocusAsync();
+            }
+            catch (Exception)
+            {
+                // trigger may no longer be rendered
+            }
+        }
+    }
+
+    private void AddQuestion(Question question)
+    {
+        question.Order = Page.Questions.Count;
+        Page.Questions.Add(question);
+        // Close the type menu without restoring focus to its trigger — focus goes to the
+        // new question's text input via AutoFocusText.
+        _pickerAnchor = null;
+        _expandedQuestionId = question.Id;
+        _focusQuestionId = question.Id;
+        OnChanged.InvokeAsync();
+    }
+
+    private void RemoveQuestion(Question question)
+    {
+        Page.Questions.Remove(question);
+        if (_expandedQuestionId == question.Id)
+        {
+            _expandedQuestionId = null;
+        }
+
+        OnChanged.InvokeAsync();
+    }
+
+    private void HandleDragStart(Question question)
+    {
+        _draggedQuestion = question;
+        _expandedQuestionId = null;
+    }
+
+    private void HandleDragEnd()
+    {
+        _draggedQuestion = null;
+        _dropIndex = null;
+    }
+
+    private void SetDropIndex(int index)
+    {
+        if (_draggedQuestion is not null && _dropIndex != index)
+        {
+            _dropIndex = index;
+        }
+    }
+
+    private void HandleDrop()
+    {
+        if (_draggedQuestion is null || _dropIndex is null)
+        {
+            _draggedQuestion = null;
+            _dropIndex = null;
+            return;
+        }
+
+        var ordered = Page.Questions.ToList();
+        var from = ordered.IndexOf(_draggedQuestion);
+        if (from < 0)
+        {
+            _draggedQuestion = null;
+            _dropIndex = null;
+            return;
+        }
+
+        var to = Math.Clamp(from < _dropIndex.Value ? _dropIndex.Value - 1 : _dropIndex.Value, 0, ordered.Count - 1);
+        var moved = ordered[from];
+        ordered.RemoveAt(from);
+        ordered.Insert(to, moved);
+        Page.Questions = Renumbered(ordered);
+
+        var label = string.IsNullOrWhiteSpace(moved.Text) ? "Untitled question" : moved.Text;
+        _liveAnnouncement = $"{label} moved to position {to + 1} of {ordered.Count}";
+
+        _draggedQuestion = null;
+        _dropIndex = null;
+        OnChanged.InvokeAsync();
+    }
+
+    private void MoveQuestion(Question question, int delta)
+    {
+        var ordered = Page.Questions.ToList();
+        var from = ordered.IndexOf(question);
+        var to = from + delta;
+        if (from < 0 || to < 0 || to >= ordered.Count)
+        {
+            return;
+        }
+
+        ordered.RemoveAt(from);
+        ordered.Insert(to, question);
+        Page.Questions = Renumbered(ordered);
+
+        var label = string.IsNullOrWhiteSpace(question.Text) ? "Untitled question" : question.Text;
+        _liveAnnouncement = $"{label} moved to position {to + 1} of {ordered.Count}";
+        OnChanged.InvokeAsync();
+    }
+
+    private static List<Question> Renumbered(List<Question> ordered)
+    {
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            ordered[i].Order = i;
+        }
+
+        return ordered;
+    }
+
+    private string InsertionLineClasses(int index)
+    {
+        if (_draggedQuestion is not null && _dropIndex == index)
+        {
+            return "h-[3px] bg-accent";
+        }
+
+        // Hairline between adjacent rows; nothing at the list's top/bottom edge (the
+        // container border owns those).
+        return index == 0 || index == Page.Questions.Count ? "h-0" : "h-px bg-border-row";
+    }
+}

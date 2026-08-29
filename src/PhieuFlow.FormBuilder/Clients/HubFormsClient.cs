@@ -1,9 +1,9 @@
 using System.Net;
 using PhieuFlow.Hub.Contracts;
 
-namespace PhieuFlow.FormBuilder.Services;
+namespace PhieuFlow.FormBuilder.Clients;
 
-public class HubFormsClient(HttpClient httpClient)
+public class HubFormsClient(HttpClient httpClient) : IHubFormsClient
 {
     private const int BatchSize = 100;
 

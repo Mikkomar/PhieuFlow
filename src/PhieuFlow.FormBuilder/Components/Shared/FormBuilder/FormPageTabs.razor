@@ -1,0 +1,118 @@
+@using PhieuFlow.Core.Entities
+
+<div role="tablist" aria-label="Form pages" @onkeydown="OnPageTabsKeyDown"
+     class="flex flex-wrap items-center gap-[6px]">
+    @{
+        if (_pageTabRefs.Length != Pages.Count)
+        {
+            _pageTabRefs = new ElementReference[Pages.Count];
+        }
+        var tabIndex = 0;
+    }
+    @foreach (var page in Pages)
+    {
+        var slot = tabIndex;
+        var isActiveTab = page.Id == ActivePageId;
+        <button type="button" role="tab" @ref="_pageTabRefs[slot]"
+                aria-current="@(isActiveTab ? "page" : null)"
+                aria-label="@($"{PageLabel(page)}, {QuestionCountLabel(page)}")"
+                tabindex="@(isActiveTab ? 0 : -1)"
+                @onclick="@(() => OnSelectPage.InvokeAsync(page))"
+                class="@PageTabClasses(page)">
+            @PageLabel(page)
+            <span aria-hidden="true" class="@PageTabCountClasses(page)">@(page.Questions.Count)</span>
+        </button>
+        tabIndex++;
+    }
+    <button type="button" @onclick="@(() => OnAddPage.InvokeAsync())" aria-label="Add page"
+            class="flex h-[30px] items-center gap-[6px] whitespace-nowrap rounded-md border border-dashed border-border-control px-3 text-[12.5px] font-medium text-text-soft hover:border-accent hover:text-accent">
+        <Blazicon Svg="Lucide.Plus" class="text-xs" aria-hidden="true" />
+        Add page
+    </button>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<FormPage> Pages { get; set; } = Array.Empty<FormPage>();
+
+    [Parameter, EditorRequired]
+    public Guid ActivePageId { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<FormPage> OnSelectPage { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnAddPage { get; set; }
+
+    private ElementReference[] _pageTabRefs = Array.Empty<ElementReference>();
+    private int? _focusTabIndex;
+
+    private string PageLabel(FormPage page) => string.IsNullOrWhiteSpace(page.Title)
+        ? $"Page {Pages.ToList().IndexOf(page) + 1}"
+        : page.Title!;
+
+    private static string QuestionCountLabel(FormPage page) => page.Questions.Count == 1 ? "1 question" : $"{page.Questions.Count} questions";
+
+    private string PageTabClasses(FormPage page)
+    {
+        var active = page.Id == ActivePageId;
+        var baseClasses = "flex h-[30px] items-center gap-2 whitespace-nowrap rounded-md border px-3 text-[12.5px] ";
+        return baseClasses + (active
+            ? "border-accent bg-accent-surface font-semibold text-accent"
+            : "border-border-control bg-white font-medium text-text-muted");
+    }
+
+    private string PageTabCountClasses(FormPage page)
+    {
+        var active = page.Id == ActivePageId;
+        return "font-mono text-[10.5px] " + (active ? "text-[#8fada9]" : "text-text-faintest-2");
+    }
+
+    private async Task OnPageTabsKeyDown(KeyboardEventArgs e)
+    {
+        var pages = Pages.ToList();
+        var current = pages.FindIndex(p => p.Id == ActivePageId);
+        if (current < 0)
+        {
+            return;
+        }
+
+        var target = e.Key switch
+        {
+            "ArrowLeft" or "ArrowUp" => current - 1,
+            "ArrowRight" or "ArrowDown" => current + 1,
+            "Home" => 0,
+            "End" => pages.Count - 1,
+            _ => current,
+        };
+
+        if (target == current || target < 0 || target >= pages.Count)
+        {
+            return;
+        }
+
+        _focusTabIndex = target;
+        await OnSelectPage.InvokeAsync(pages[target]);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusTabIndex is not { } index)
+        {
+            return;
+        }
+
+        _focusTabIndex = null;
+        if (index < _pageTabRefs.Length)
+        {
+            try
+            {
+                await _pageTabRefs[index].FocusAsync();
+            }
+            catch (Exception)
+            {
+                // tab element may not be in the DOM yet
+            }
+        }
+    }
+}

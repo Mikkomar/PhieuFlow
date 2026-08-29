@@ -1,3 +1,4 @@
+using PhieuFlow.FormBuilder.Clients;
 using PhieuFlow.FormBuilder.Components;
 using PhieuFlow.FormBuilder.Services;
 
@@ -8,7 +9,6 @@ builder.AddServiceDefaults();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-builder.Services.AddSingleton<FormRepository>();
 
 // Service-to-service auth (ADR 0005): obtain an OAuth2 client-credentials token from
 // Keycloak and attach it to every Hub call.
@@ -28,7 +28,7 @@ if (builder.Environment.IsDevelopment())
     });
 }
 
-builder.Services.AddHttpClient<HubFormsClient>(client =>
+builder.Services.AddHttpClient<IHubFormsClient, HubFormsClient>(client =>
 {
     client.BaseAddress = new Uri("https+http://hub");
 })

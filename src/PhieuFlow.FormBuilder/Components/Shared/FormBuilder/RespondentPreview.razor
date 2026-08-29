@@ -1,0 +1,115 @@
+@using PhieuFlow.Core.Entities
+
+<div class="sticky top-[59px] hidden max-h-[calc(100vh-59px)] w-[400px] min-w-[300px] flex-[0_1_400px] flex-col gap-[14px] self-start overflow-y-auto border-l border-border bg-surface p-[22px_24px_40px] min-[1100px]:flex">
+    <div class="flex items-center justify-between gap-[10px]">
+        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Respondent preview</span>
+        <span class="font-mono text-[9.5px] tracking-[0.04em] text-text-faintest uppercase">Page @(ActivePageIndex + 1) of @Form.Pages.Count</span>
+    </div>
+
+    <div class="flex flex-col gap-4 rounded-lg border border-border bg-surface-panel p-[20px_18px]">
+        <div class="flex flex-col gap-[5px]">
+            <span class="text-[16px] font-semibold tracking-[-0.01em] text-text">@(string.IsNullOrWhiteSpace(Form.Title) ? "Untitled form" : Form.Title)</span>
+            @{
+                var previewSubline = ActivePageIndex == 0 ? Form.Description : PageLabel(ActivePage);
+            }
+            @if (!string.IsNullOrWhiteSpace(previewSubline))
+            {
+                <span class="text-[12.5px] leading-[1.5] text-text-soft text-pretty">@previewSubline</span>
+            }
+        </div>
+
+        @foreach (var question in ActivePage.Questions)
+        {
+            <div class="flex flex-col gap-[7px]">
+                <span class="text-[12.5px] font-semibold text-text">
+                    @(string.IsNullOrWhiteSpace(question.Text) ? "Untitled question" : question.Text)@if (question.IsRequired)
+                    {
+                        <span class="text-danger"> *</span>
+                    }
+                </span>
+
+                @if (question is TextAreaQuestion)
+                {
+                    <div class="h-[62px] rounded-md border border-border-control bg-white"></div>
+                }
+                else if (question is DropDownQuestion)
+                {
+                    <div class="flex h-[32px] items-center justify-between rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-faintest-2">
+                        Select an option
+                        <Blazicon Svg="Lucide.ChevronDown" class="text-xs" aria-hidden="true" />
+                    </div>
+                }
+                else if (question is CheckboxQuestion checkboxQuestion)
+                {
+                    <label class="flex items-center gap-2 text-[12.5px] text-text-body">
+                        <span class="h-[14px] w-[14px] rounded-[3px] border border-border-control-hover bg-white"></span>
+                        @(string.IsNullOrWhiteSpace(checkboxQuestion.Label) ? "Untitled option" : checkboxQuestion.Label)
+                    </label>
+                }
+                else if (question is ChoiceQuestion choiceQuestion)
+                {
+                    <div class="flex flex-col gap-[7px]">
+                        @foreach (var option in choiceQuestion.Options)
+                        {
+                            <label class="flex items-center gap-2 text-[12.5px] text-text-body">
+                                <span class="@(question is RadioButtonQuestion ? "h-[14px] w-[14px] flex-none rounded-full border border-border-control-hover bg-white" : "h-[14px] w-[14px] flex-none rounded-[3px] border border-border-control-hover bg-white")"></span>
+                                @(string.IsNullOrWhiteSpace(option.Label) ? "Untitled option" : option.Label)
+                            </label>
+                        }
+                    </div>
+                }
+
+                else if (question is NumberQuestion)
+                {
+                    <div class="flex h-[32px] w-[140px] items-center rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-faintest-2">0</div>
+                }
+                else if (question is CalendarQuestion)
+                {
+                    <div class="flex h-[32px] w-[160px] items-center justify-between rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-faintest-2">
+                        Select a date
+                        <Blazicon Svg="Lucide.Calendar" class="text-xs" aria-hidden="true" />
+                    </div>
+                }
+
+                @if (question is CheckBoxGroupQuestion { MinSelections: { } min, MaxSelections: { } max })
+                {
+                    <span class="text-[11px] text-text-faintest">Choose between @min and @max options</span>
+                }
+                else if (question is NumberQuestion { Min: { } numMin, Max: { } numMax })
+                {
+                    <span class="text-[11px] text-text-faintest">Enter a number between @numMin and @numMax</span>
+                }
+                else if (question is CalendarQuestion { MinDate: { } dateMin, MaxDate: { } dateMax })
+                {
+                    <span class="text-[11px] text-text-faintest">Pick a date between @(dateMin.ToString("yyyy-MM-dd")) and @(dateMax.ToString("yyyy-MM-dd"))</span>
+                }
+            </div>
+        }
+
+        <div class="flex items-center justify-between gap-[10px] pt-1">
+            <span class="font-mono text-[10px] text-text-faintest-2">Step @(ActivePageIndex + 1) of @Form.Pages.Count</span>
+            <span class="flex h-[30px] items-center rounded-md bg-accent px-[14px] text-[12.5px] font-semibold text-white">@(ActivePageIndex + 1 == Form.Pages.Count ? "Submit" : "Continue")</span>
+        </div>
+    </div>
+
+    <span class="text-[11.5px] text-text-faintest text-pretty">
+        @(Form.Status == FormVersionStatus.Published
+            ? $"Preview reflects unsaved edits. Respondents see version {Form.VersionNumber}; your next edit starts version {Form.VersionNumber + 1}."
+            : $"Preview reflects unsaved edits. Changes go live when you publish version {Form.VersionNumber}.")
+    </span>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public FormVersion Form { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public FormPage ActivePage { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public int ActivePageIndex { get; set; }
+
+    private string PageLabel(FormPage page) => string.IsNullOrWhiteSpace(page.Title)
+        ? $"Page {Form.Pages.ToList().IndexOf(page) + 1}"
+        : page.Title!;
+}

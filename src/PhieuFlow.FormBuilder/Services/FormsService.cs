@@ -1,11 +1,25 @@
 using PhieuFlow.Core.Entities;
+using PhieuFlow.FormBuilder.Clients;
 using PhieuFlow.FormBuilder.Models;
 using PhieuFlow.Hub.Contracts;
 
 namespace PhieuFlow.FormBuilder.Services;
 
-public class FormsService(HubFormsClient hubFormsClient) : IFormsService
+public class FormsService(IHubFormsClient hubFormsClient) : IFormsService
 {
+    public FormVersion CreateNew()
+    {
+        var formId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        return new FormVersion
+        {
+            Id = versionId,
+            FormId = formId,
+            Title = string.Empty,
+            Pages = new List<FormPage> { new() { Id = Guid.NewGuid(), FormVersionId = versionId } },
+        };
+    }
+
     public async Task<List<FormSummary>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var dtos = await hubFormsClient.GetAllFormsAsync(cancellationToken);
