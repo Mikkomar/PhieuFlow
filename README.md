@@ -27,8 +27,9 @@ the architectural decisions.
 - **ASP.NET Core HTTPS dev certificate** — trust it once with
   `dotnet dev-certs https --trust`, or start the AppHost with `dotnet watch --trust`.
 - **Node.js 20+ and npm** — the form-builder's CSS is built with Tailwind CSS v4. Run
-  `npm install` once, then `npm run build:css` (or `npm run watch:css` while working on
-  the UI); output lands in
+  `npm install` once. `dotnet build` automatically runs the Tailwind build before
+  building the form-builder; `npm run watch:css` is available for live CSS updates
+  while working on the UI. Output lands in
   `src/PhieuFlow.FormBuilder/wwwroot/css/tailwind.generated.css`.
 - **For the end-to-end tests only** — a headless **Chromium** for Playwright. The test
   fixture installs it on first run (and pulls the Keycloak image). A by-hand install
