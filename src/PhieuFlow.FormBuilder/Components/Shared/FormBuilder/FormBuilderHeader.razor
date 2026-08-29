@@ -40,9 +40,9 @@
                 }
             </div>
             <StatusPill Published="@(Form.Status == FormVersionStatus.Published)" />
-            <div class="hidden h-[22px] w-px bg-border-soft min-[1100px]:block"></div>
+            <div class="h-[22px] w-px bg-border-soft"></div>
             <button type="button" @onclick="@(() => OnTogglePreview.InvokeAsync())" disabled="@Disabled"
-                    class="hidden h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover disabled:opacity-60 min-[1100px]:flex">
+                    class="flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover disabled:opacity-60">
                 <Blazicon Svg="Lucide.Eye" class="text-sm" aria-hidden="true" />
                 @(PreviewOpen ? "Hide preview" : "Preview")
             </button>

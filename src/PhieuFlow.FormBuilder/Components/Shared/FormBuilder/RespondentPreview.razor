@@ -1,11 +1,6 @@
 @using PhieuFlow.Core.Entities
 
-<div class="sticky top-[59px] hidden max-h-[calc(100vh-59px)] w-[400px] min-w-[300px] flex-[0_1_400px] flex-col gap-[14px] self-start overflow-y-auto border-l border-border bg-surface p-[22px_24px_40px] min-[1100px]:flex">
-    <div class="flex items-center justify-between gap-[10px]">
-        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Respondent preview</span>
-        <span class="font-mono text-[9.5px] tracking-[0.04em] text-text-faintest uppercase">Page @(ActivePageIndex + 1) of @Form.Pages.Count</span>
-    </div>
-
+<div class="flex flex-col gap-[14px]">
     <div class="flex flex-col gap-4 rounded-lg border border-border bg-surface-panel p-[20px_18px]">
         <div class="flex flex-col gap-[5px]">
             <span class="text-[16px] font-semibold tracking-[-0.01em] text-text">@(string.IsNullOrWhiteSpace(Form.Title) ? "Untitled form" : Form.Title)</span>
@@ -71,17 +66,9 @@
                     </div>
                 }
 
-                @if (question is CheckBoxGroupQuestionEditModel { MinSelections: { } min, MaxSelections: { } max })
+                @if (ConstraintHint(question) is { } hint)
                 {
-                    <span class="text-[11px] text-text-faintest">Choose between @min and @max options</span>
-                }
-                else if (question is NumberQuestionEditModel { Min: { } numMin, Max: { } numMax })
-                {
-                    <span class="text-[11px] text-text-faintest">Enter a number between @numMin and @numMax</span>
-                }
-                else if (question is CalendarQuestionEditModel { MinDate: { } dateMin, MaxDate: { } dateMax })
-                {
-                    <span class="text-[11px] text-text-faintest">Pick a date between @(dateMin.ToString("yyyy-MM-dd")) and @(dateMax.ToString("yyyy-MM-dd"))</span>
+                    <span class="text-[11px] text-text-faintest">@hint</span>
                 }
             </div>
         }
@@ -112,4 +99,20 @@
     private string PageLabel(FormPageEditModel page) => string.IsNullOrWhiteSpace(page.Title)
         ? $"Page {Form.Pages.ToList().IndexOf(page) + 1}"
         : page.Title!;
+
+    // One constraint line per question, covering both bounds, min only, and max only.
+    // Returns null when neither bound is set or the type carries no hint.
+    private static string? ConstraintHint(QuestionEditModel question) => question switch
+    {
+        CheckBoxGroupQuestionEditModel { MinSelections: { } min, MaxSelections: { } max } => $"Choose between {min} and {max} options",
+        CheckBoxGroupQuestionEditModel { MinSelections: { } min } => $"Choose {min} or more",
+        CheckBoxGroupQuestionEditModel { MaxSelections: { } max } => $"Choose up to {max}",
+        NumberQuestionEditModel { Min: { } min, Max: { } max } => $"Enter a number between {min} and {max}",
+        NumberQuestionEditModel { Min: { } min } => $"{min} or more",
+        NumberQuestionEditModel { Max: { } max } => $"{max} or less",
+        CalendarQuestionEditModel { MinDate: { } min, MaxDate: { } max } => $"Pick a date between {min:yyyy-MM-dd} and {max:yyyy-MM-dd}",
+        CalendarQuestionEditModel { MinDate: { } min } => $"{min:yyyy-MM-dd} or later",
+        CalendarQuestionEditModel { MaxDate: { } max } => $"{max:yyyy-MM-dd} or earlier",
+        _ => null,
+    };
 }
