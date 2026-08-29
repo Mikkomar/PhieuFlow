@@ -5,6 +5,36 @@ the database — used to demonstrate synchronous CRUD alongside a single deliber
 asynchronous boundary (form submission over RabbitMQ). See [`docs/adr/`](docs/adr/) for
 the architectural decisions.
 
+## Prerequisites
+
+- **.NET SDK 10.0** or later — every project targets `net10.0` and the AppHost builds
+  with `Aspire.AppHost.Sdk` 13.5.2. Aspire is restored as ordinary NuGet packages, so
+  the standalone `aspire` CLI is *not* required (`AspireUseCliBundle` is off in
+  [`PhieuFlow.AppHost.csproj`](src/PhieuFlow.AppHost/PhieuFlow.AppHost.csproj)).
+- **Docker Engine — running, and with BuildKit / buildx.** Aspire 13.5 builds a
+  container-network-tunnel proxy image with `docker build --progress=…`, which the
+  legacy builder rejects (`unknown flag: --progress`). Docker Desktop and Docker CE
+  (`docker-buildx-plugin`) already bundle it; Ubuntu's `docker.io` package does not —
+  install it separately:
+
+  ```
+  sudo apt-get install docker-buildx      # Ubuntu/Debian universe
+  docker buildx version                    # verify — prints v0.x
+  ```
+
+  Your user must be able to reach the daemon (member of the `docker` group, or rootless
+  Docker). SQL Server and Keycloak run as containers, so leave ~4 GB RAM for them.
+- **ASP.NET Core HTTPS dev certificate** — trust it once with
+  `dotnet dev-certs https --trust`, or start the AppHost with `dotnet watch --trust`.
+- **Node.js 20+ and npm** — the form-builder's CSS is built with Tailwind CSS v4. Run
+  `npm install` once, then `npm run build:css` (or `npm run watch:css` while working on
+  the UI); output lands in
+  `src/PhieuFlow.FormBuilder/wwwroot/css/tailwind.generated.css`.
+- **For the end-to-end tests only** — a headless **Chromium** for Playwright. The test
+  fixture installs it on first run (and pulls the Keycloak image). A by-hand install
+  needs **PowerShell** (`pwsh`):
+  `pwsh tests/PhieuFlow.Tests.E2E/bin/Debug/net10.0/playwright.ps1 install chromium`.
+
 ## Running locally
 
 ```
@@ -12,7 +42,8 @@ dotnet run --project src/PhieuFlow.AppHost
 ```
 
 Aspire orchestrates SQL Server, Keycloak, the migration/seed services, the hub, and the
-form-builder as local containers (ADR 0004). Docker must be running.
+form-builder as local containers (ADR 0004). Docker — with buildx — must be running; see
+[Prerequisites](#prerequisites).
 
 ## Identity provider
 
