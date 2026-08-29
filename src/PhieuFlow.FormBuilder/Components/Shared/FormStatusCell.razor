@@ -1,0 +1,47 @@
+@using PhieuFlow.FormBuilder.Models
+
+@* Forms-list status, read off the same axis the tabs filter on: a live version number
+   and/or an unpublished draft on top of it. Distinct from StatusPill, which answers the
+   builder's narrower question ("is *this* version published?"). *@
+
+@{
+    var live = LiveVersionNumber;
+    var hasDraftOverLive = live is not null && Status != FormStatus.Published;
+}
+
+<div class="flex items-center gap-2">
+    @if (live is { } liveVersion)
+    {
+        <span class="inline-flex h-[22px] items-center gap-[6px] rounded-full bg-accent-surface-alt px-[9px] text-[11.5px] font-semibold text-accent">
+            <span class="h-[5px] w-[5px] rounded-full bg-accent"></span>v@(liveVersion) live
+        </span>
+    }
+
+    @if (hasDraftOverLive)
+    {
+        <span class="inline-flex h-[22px] items-center rounded-full border border-border px-[8px] font-mono text-[10.5px] text-text-soft">
+            v@(VersionNumber) draft
+        </span>
+    }
+
+    @if (live is null)
+    {
+        <span class="inline-flex h-[22px] items-center gap-[6px] rounded-full bg-[#f2f3f3] px-[9px] text-[11.5px] font-semibold text-text-soft">
+            <span class="h-[5px] w-[5px] rounded-full bg-text-faintest-2"></span>Never published
+        </span>
+    }
+</div>
+
+@code {
+    /// <summary>Status of the latest version — <c>Published</c> means the newest version is itself live.</summary>
+    [Parameter, EditorRequired]
+    public FormStatus Status { get; set; }
+
+    /// <summary>Version number currently live for respondents, if any.</summary>
+    [Parameter]
+    public int? LiveVersionNumber { get; set; }
+
+    /// <summary>Version number of the latest (possibly draft) version.</summary>
+    [Parameter, EditorRequired]
+    public int VersionNumber { get; set; }
+}

@@ -23,4 +23,7 @@ public interface IHubFormsClient
     Task<PublishResultDto> PublishFormAsync(Guid formId, CancellationToken cancellationToken = default);
 
     Task<List<FormListItemDto>> GetAllFormsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Deletes the form and its version history. A missing form is treated as already gone.</summary>
+    Task DeleteFormAsync(Guid formId, CancellationToken cancellationToken = default);
 }

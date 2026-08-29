@@ -177,6 +177,20 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         return ToVersionState(currentVersion);
     }
 
+    public async Task<bool> DeleteAsync(Guid formId, CancellationToken cancellationToken = default)
+    {
+        var form = await dbContext.Forms.FirstOrDefaultAsync(f => f.Id == formId, cancellationToken);
+        if (form is null)
+        {
+            return false;
+        }
+
+        // Versions -> pages -> questions -> options all cascade (see FormConfiguration /
+        // FormVersionConfiguration). Submissions live outside this context (ADR 0002).
+        dbContext.Forms.Remove(form);
+        return true;
+    }
+
     private static FormPage ClonePageWithFreshIds(FormPage source, Guid newVersionId)
     {
         var newPageId = Guid.NewGuid();

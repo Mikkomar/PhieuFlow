@@ -1,0 +1,84 @@
+@* Row overflow menu for the forms list. Mirrors QuestionTypeMenu's pattern: a full-screen
+   backdrop for outside-click, roving focus with Arrow keys, Esc to close. Anchored upward
+   (bottom-full) because the forms table card is overflow-hidden and clips a downward menu. *@
+
+<div class="fixed inset-0 z-20" @onclick="Close"></div>
+<div role="menu" @onkeydown="OnKeyDown"
+     class="absolute bottom-full right-0 z-30 mb-1 flex w-[190px] flex-col gap-px rounded-lg border border-border bg-surface p-[5px] shadow-[0_8px_24px_rgba(16,24,24,0.12)]">
+    <button type="button" role="menuitem" @ref="_itemRefs[0]" @onclick="Invoke(OnDuplicate)"
+            class="@ItemClasses">Duplicate form</button>
+    <button type="button" role="menuitem" @ref="_itemRefs[1]" @onclick="Invoke(OnPublish)"
+            class="@ItemClasses">Publish&hellip;</button>
+    <button type="button" role="menuitem" @ref="_itemRefs[2]" disabled="@CopyLinkDisabled" @onclick="Invoke(OnCopyLink)"
+            class="@(CopyLinkDisabled ? ItemClassesDisabled : ItemClasses)">Copy public link</button>
+    <span class="my-1 h-px bg-border-row"></span>
+    <button type="button" role="menuitem" @ref="_itemRefs[3]" @onclick="Invoke(OnDelete)"
+            class="flex w-full items-center rounded-md px-[9px] py-[7px] text-left text-[12.5px] text-danger hover:bg-danger-surface">Delete form&hellip;</button>
+</div>
+
+@code {
+    private const string ItemClasses = "flex w-full items-center rounded-md px-[9px] py-[7px] text-left text-[12.5px] text-text-body hover:bg-surface-subtle";
+    private const string ItemClassesDisabled = "flex w-full items-center rounded-md px-[9px] py-[7px] text-left text-[12.5px] text-text-faintest-2 cursor-default";
+
+    [Parameter, EditorRequired] public EventCallback OnClose { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnDuplicate { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnPublish { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnCopyLink { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnDelete { get; set; }
+    [Parameter] public bool CopyLinkDisabled { get; set; }
+
+    private readonly ElementReference[] _itemRefs = new ElementReference[4];
+    private int _focusIndex;
+    private bool _hasFocused;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_hasFocused)
+        {
+            _hasFocused = true;
+            await _itemRefs[0].FocusAsync();
+        }
+    }
+
+    private Func<Task> Invoke(EventCallback callback) => async () =>
+    {
+        await callback.InvokeAsync();
+        await OnClose.InvokeAsync();
+    };
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape":
+                await OnClose.InvokeAsync();
+                break;
+            case "ArrowDown":
+                _focusIndex = NextIndex(_focusIndex, forward: true);
+                await _itemRefs[_focusIndex].FocusAsync();
+                break;
+            case "ArrowUp":
+                _focusIndex = NextIndex(_focusIndex, forward: false);
+                await _itemRefs[_focusIndex].FocusAsync();
+                break;
+        }
+    }
+
+    // Skip the disabled Copy-link item (index 2) when cycling.
+    private int NextIndex(int from, bool forward)
+    {
+        var i = from;
+        for (var step = 0; step < _itemRefs.Length; step++)
+        {
+            i = forward ? (i + 1) % _itemRefs.Length : (i - 1 + _itemRefs.Length) % _itemRefs.Length;
+            if (!(i == 2 && CopyLinkDisabled))
+            {
+                return i;
+            }
+        }
+
+        return from;
+    }
+}

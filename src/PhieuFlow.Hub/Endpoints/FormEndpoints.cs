@@ -131,6 +131,17 @@ public static class FormEndpoints
                 PublishedAt = state.PublishedAt,
             });
         }).RequireAuthorization("forms:write");
+
+        app.MapDelete("/forms/{id:guid}", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
+        {
+            if (!await unitOfWork.Forms.DeleteAsync(id, cancellationToken))
+            {
+                return Results.NotFound();
+            }
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Results.NoContent();
+        }).RequireAuthorization("forms:write");
     }
 
     private static FormVersionStatusDto MapToDto(FormVersionStatus status) => status switch

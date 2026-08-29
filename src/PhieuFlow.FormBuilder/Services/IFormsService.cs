@@ -23,4 +23,14 @@ public interface IFormsService
     /// pending save first so the server is current.
     /// </summary>
     Task<PublishResultDto> PublishAsync(Guid formId, CancellationToken cancellationToken = default);
+
+    /// <summary>Deletes the form and its version history. A missing form is treated as already gone.</summary>
+    Task DeleteAsync(Guid formId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Mints a fresh form seeded with a deep copy of <paramref name="sourceId"/>'s latest
+    /// version (new ids throughout, "Copy of" title, back to draft) and returns its id. The
+    /// caller re-reads the list to pick up the new row.
+    /// </summary>
+    Task<Guid> DuplicateAsync(Guid sourceId, CancellationToken cancellationToken = default);
 }

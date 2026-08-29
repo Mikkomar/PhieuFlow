@@ -17,4 +17,10 @@ public interface IFormRepository
     Task<FormVersionState?> PublishAsync(Guid formId, CancellationToken cancellationToken = default);
 
     Task<int?> GetLatestPublishedVersionNumberAsync(Guid formId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes the form and its whole version tree (cascade). Returns <c>false</c> when no
+    /// form has that id, so the caller can 404 rather than reporting a phantom success.
+    /// </summary>
+    Task<bool> DeleteAsync(Guid formId, CancellationToken cancellationToken = default);
 }
