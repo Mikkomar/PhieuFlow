@@ -2,8 +2,11 @@
   <Folder Name="/src/">
     <Project Path="src/PhieuFlow.Core/PhieuFlow.Core.csproj" />
     <Project Path="src/PhieuFlow.FormBuilder/PhieuFlow.FormBuilder.csproj" />
+    <Project Path="src/PhieuFlow.Hub.Contracts/PhieuFlow.Hub.Contracts.csproj" />
     <Project Path="src/PhieuFlow.Hub/PhieuFlow.Hub.csproj" />
     <Project Path="src/PhieuFlow.MigrationService/PhieuFlow.MigrationService.csproj" />
+    <Project Path="src/PhieuFlow.Persistence/PhieuFlow.Persistence.csproj" />
+    <Project Path="src/PhieuFlow.SeedService/PhieuFlow.SeedService.csproj" />
     <Project Path="src/PhieuFlow.ServiceDefaults/PhieuFlow.ServiceDefaults.csproj" />
     <Project Path="src/PhieuFlow.AppHost/PhieuFlow.AppHost.csproj" />
   </Folder>
