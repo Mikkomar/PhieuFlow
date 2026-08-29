@@ -58,7 +58,7 @@
 
             @if (Question is ChoiceQuestionEditModel choiceQuestion)
             {
-                <ChoiceOptionsEditor Question="choiceQuestion" OnChanged="OnChanged"
+                <ChoiceOptionsEditor Question="choiceQuestion" OnChanged="OnChanged" OnAnnounce="OnAnnounce"
                                      FocusIssue="DelegateFocusToChild" OnJumpApplied="BubbleJumpApplied" />
             }
 
@@ -135,6 +135,10 @@
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
+
+    /// <summary>Forwarded from the options editor to the page's shared <c>aria-live</c> region.</summary>
+    [Parameter]
+    public EventCallback<string> OnAnnounce { get; set; }
 
     [Parameter]
     public EventCallback OnDragStart { get; set; }

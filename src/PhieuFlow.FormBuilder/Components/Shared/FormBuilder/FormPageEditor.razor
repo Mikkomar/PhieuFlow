@@ -87,6 +87,7 @@
                                        OnToggle="@(() => ToggleExpanded(question))"
                                        OnRemove="RemoveQuestion"
                                        OnChanged="OnChanged"
+                                       OnAnnounce="AnnounceText"
                                        OnDragStart="@(() => HandleDragStart(question))"
                                        OnDragEnd="HandleDragEnd"
                                        OnDragOverTop="@(() => SetDropIndex(index))"
@@ -287,6 +288,9 @@
         var label = string.IsNullOrWhiteSpace(question.Text) ? "Untitled question" : question.Text;
         _liveAnnouncement = $"{label} moved to position {position} of {count}";
     }
+
+    // Reorder messages bubbled up from a question's options editor share this one live region.
+    private void AnnounceText(string message) => _liveAnnouncement = message;
 
     private static List<QuestionEditModel> Renumbered(List<QuestionEditModel> ordered)
     {

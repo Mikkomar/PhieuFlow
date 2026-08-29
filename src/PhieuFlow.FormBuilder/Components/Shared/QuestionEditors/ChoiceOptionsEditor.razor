@@ -1,30 +1,81 @@
 @inherits JumpFocusComponent
 
-<div class="flex flex-col gap-[7px]">
-    <label class="text-[12px] font-semibold text-text-body">Options</label>
+@{
+    // One materialised, Order-sorted pass per render — helpers and the loop all read this,
+    // so nothing rescans Question.Options per row.
+    _ordered = Question.Options.OrderBy(o => o.Order).ToList();
+}
 
-    @for (var i = 0; i < Question.Options.Count; i++)
+<div class="flex flex-col gap-[7px]">
+    <div class="flex max-w-[520px] items-center justify-between">
+        <label class="text-[12px] font-semibold text-text-body">Options</label>
+        <span class="font-mono text-[10.5px] text-text-faintest">@_ordered.Count options</span>
+    </div>
+
+    @if (_ordered.Count == 0)
     {
-        var index = i;
-        var option = Question.Options[index];
-        <div class="flex max-w-[520px] items-center gap-2">
-            <span class="w-[14px] flex-none text-right font-mono text-[10.5px] text-text-faintest-2">@(index + 1)</span>
-            <input value="@option.Label"
-                   @oninput="@(e => OnOptionInput(option, e))"
-                   @ref="_optionRefs[option.Id]"
-                   placeholder="Option label"
-                   aria-invalid="@(option.HasIssues ? "true" : null)"
-                   class="@OptionInputClasses(option)" />
-            <button type="button" @onclick="@(() => RemoveOption(option))"
-                    aria-label="Remove option"
-                    class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-danger-border-hover hover:text-danger">
-                <Blazicon Svg="Lucide.X" class="text-xs" aria-hidden="true" />
+        <div class="flex flex-col items-center gap-[7px] rounded-md border border-dashed border-border-control bg-surface-panel p-[18px_20px]">
+            <span class="text-[12.5px] font-semibold text-text">No options yet</span>
+            <span class="max-w-[40ch] text-center text-[11.5px] text-text-faint text-pretty">Add at least one option so respondents have something to choose.</span>
+            <button type="button" @onclick="AddOption" @ref="_addOptionRef"
+                    class="mt-1 h-7 rounded-md border border-accent bg-accent px-[11px] text-[12px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
+                Add option
             </button>
         </div>
-        @foreach (var issue in option.Issues)
-        {
-            <span class="pl-[22px] text-[11.5px] text-danger">@issue.Message</span>
-        }
+    }
+    else
+    {
+        <div class="flex flex-col">
+            @for (var i = 0; i < _ordered.Count; i++)
+            {
+                var index = i;
+                var option = _ordered[index];
+
+                <div class="@InsertionLineClasses(index)"
+                     @ondragover="@(() => SetDropIndex(index))" @ondragover:preventDefault="true"
+                     @ondrop="HandleDrop"></div>
+
+                <div @key="option"
+                     class="flex max-w-[520px] items-center gap-2 rounded-md py-[2px] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent @(_draggedOption == option ? "opacity-40" : "")"
+                     tabindex="0"
+                     aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+                     title="Drag to reorder, or press Alt+↑ / Alt+↓"
+                     @onkeydown="@(e => OnOptionRowKeyDown(option, e))" @onkeydown:stopPropagation="true"
+                     @ondragover="@(() => SetDropIndex(index))" @ondragover:preventDefault="true"
+                     @ondrop="HandleDrop">
+                    <span draggable="true"
+                          @onclick:stopPropagation="true"
+                          @ondragstart="@(() => HandleDragStart(option))"
+                          @ondragend="HandleDragEnd"
+                          aria-hidden="true"
+                          title="Drag to reorder, or press Alt+↑ / Alt+↓"
+                          class="relative z-20 flex w-[14px] flex-none cursor-grab items-center text-text-faintest-2 hover:text-text-faint active:cursor-grabbing">
+                        <Blazicon Svg="Lucide.GripVertical" class="text-[13px]" />
+                    </span>
+                    <span class="w-[14px] flex-none text-right font-mono text-[10.5px] text-text-faintest-2">@(index + 1)</span>
+                    <input value="@option.Label"
+                           @oninput="@(e => OnOptionInput(option, e))"
+                           @ref="_optionRefs[option.Id]"
+                           placeholder="Option label"
+                           aria-invalid="@(option.HasIssues ? "true" : null)"
+                           class="@OptionInputClasses(option)" />
+                    <button type="button" @onclick="@(() => RemoveOption(option))"
+                            disabled="@(_ordered.Count <= 1)"
+                            title="@(_ordered.Count <= 1 ? $"A {TypeName} needs at least one option" : "Remove option")"
+                            aria-label="Remove option"
+                            class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-border-control bg-white text-text-soft enabled:hover:border-danger-border-hover enabled:hover:text-danger disabled:cursor-default disabled:text-text-faintest-2">
+                        <Blazicon Svg="Lucide.X" class="text-xs" aria-hidden="true" />
+                    </button>
+                </div>
+                @foreach (var issue in option.Issues)
+                {
+                    <span class="pl-[44px] text-[11.5px] text-danger">@issue.Message</span>
+                }
+            }
+            <div class="@InsertionLineClasses(_ordered.Count)"
+                 @ondragover="@(() => SetDropIndex(_ordered.Count))" @ondragover:preventDefault="true"
+                 @ondrop="HandleDrop"></div>
+        </div>
     }
 
     @foreach (var issue in Question.Issues.Where(issue => issue.Field == ValidationField.Options))
@@ -32,10 +83,13 @@
         <span class="text-[11.5px] text-danger">@issue.Message</span>
     }
 
-    <button type="button" @onclick="AddOption" @ref="_addOptionRef"
-            class="h-7 self-start rounded-md border border-border-control bg-white px-[11px] text-[12px] font-medium text-text-body hover:border-border-control-hover">
-        Add option
-    </button>
+    @if (_ordered.Count > 0)
+    {
+        <button type="button" @onclick="AddOption" @ref="_addOptionRef"
+                class="h-7 self-start rounded-md border border-border-control bg-white px-[11px] text-[12px] font-medium text-text-body hover:border-border-control-hover">
+            Add option
+        </button>
+    }
 </div>
 
 @code {
@@ -45,8 +99,17 @@
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
+    /// <summary>Bubbles a reorder message to the page's shared <c>aria-live</c> region (no live node here).</summary>
+    [Parameter]
+    public EventCallback<string> OnAnnounce { get; set; }
+
     private readonly Dictionary<Guid, ElementReference> _optionRefs = [];
     private ElementReference _addOptionRef;
+    private List<QuestionOptionEditModel> _ordered = [];
+    private QuestionOptionEditModel? _draggedOption;
+    private int? _dropIndex;
+
+    private string TypeName => QuestionEditCard.TypeLabel(Question).ToLowerInvariant();
 
     protected override Task FocusJumpTargetAsync()
     {
@@ -60,6 +123,10 @@
         "h-[30px] min-w-0 flex-1 rounded-md border bg-page-bg px-[10px] text-[13px] text-text outline-none focus:border-accent placeholder:text-text-faint "
         + (option.HasIssues ? "border-danger-border" : "border-border-control");
 
+    private string InsertionLineClasses(int index) =>
+        "h-[3px] transition-colors "
+        + (_draggedOption is not null && _dropIndex == index ? "bg-accent" : "bg-transparent");
+
     private void OnOptionInput(QuestionOptionEditModel option, ChangeEventArgs e)
     {
         option.Label = e.Value?.ToString() ?? string.Empty;
@@ -67,27 +134,124 @@
         OnChanged.InvokeAsync();
     }
 
+    private async Task OnOptionRowKeyDown(QuestionOptionEditModel option, KeyboardEventArgs e)
+    {
+        if (!e.AltKey)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case "ArrowUp":
+                await MoveOption(option, -1);
+                break;
+            case "ArrowDown":
+                await MoveOption(option, 1);
+                break;
+        }
+    }
+
     private void AddOption()
     {
-        Question.Options.Add(new QuestionOptionEditModel { Id = Guid.NewGuid(), Order = Question.Options.Count });
+        var ordered = Question.Options.OrderBy(o => o.Order).ToList();
+        ordered.Add(new QuestionOptionEditModel { Id = Guid.NewGuid(), Order = ordered.Count });
+        Question.Options = Renumbered(ordered);
         Question.Issues.RemoveAll(issue => issue.Field == ValidationField.Options);
-        Renumber();
         OnChanged.InvokeAsync();
     }
 
     private void RemoveOption(QuestionOptionEditModel option)
     {
-        Question.Options.Remove(option);
+        if (Question.Options.Count <= 1)
+        {
+            return;
+        }
+
+        var ordered = Question.Options.OrderBy(o => o.Order).ToList();
+        ordered.Remove(option);
         _optionRefs.Remove(option.Id);
-        Renumber();
+        Question.Options = Renumbered(ordered);
         OnChanged.InvokeAsync();
     }
 
-    private void Renumber()
+    private void HandleDragStart(QuestionOptionEditModel option) => _draggedOption = option;
+
+    private void HandleDragEnd()
     {
-        for (var i = 0; i < Question.Options.Count; i++)
+        _draggedOption = null;
+        _dropIndex = null;
+    }
+
+    private void SetDropIndex(int index)
+    {
+        if (_draggedOption is not null && _dropIndex != index)
         {
-            Question.Options[i].Order = i;
+            _dropIndex = index;
         }
+    }
+
+    private void HandleDrop()
+    {
+        if (_draggedOption is null || _dropIndex is null)
+        {
+            _draggedOption = null;
+            _dropIndex = null;
+            return;
+        }
+
+        var ordered = Question.Options.OrderBy(o => o.Order).ToList();
+        var from = ordered.IndexOf(_draggedOption);
+        if (from < 0)
+        {
+            _draggedOption = null;
+            _dropIndex = null;
+            return;
+        }
+
+        var to = Math.Clamp(from < _dropIndex.Value ? _dropIndex.Value - 1 : _dropIndex.Value, 0, ordered.Count - 1);
+        var moved = ordered[from];
+        ordered.RemoveAt(from);
+        ordered.Insert(to, moved);
+        Question.Options = Renumbered(ordered);
+
+        Announce(moved, to + 1, ordered.Count);
+
+        _draggedOption = null;
+        _dropIndex = null;
+        OnChanged.InvokeAsync();
+    }
+
+    private async Task MoveOption(QuestionOptionEditModel option, int delta)
+    {
+        var ordered = Question.Options.OrderBy(o => o.Order).ToList();
+        var from = ordered.IndexOf(option);
+        var to = from + delta;
+        if (from < 0 || to < 0 || to >= ordered.Count)
+        {
+            return;
+        }
+
+        ordered.RemoveAt(from);
+        ordered.Insert(to, option);
+        Question.Options = Renumbered(ordered);
+        Announce(option, to + 1, ordered.Count);
+        await OnChanged.InvokeAsync();
+    }
+
+    private void Announce(QuestionOptionEditModel option, int position, int count)
+    {
+        var label = string.IsNullOrWhiteSpace(option.Label) ? "Option" : option.Label;
+        OnAnnounce.InvokeAsync($"{label} moved to position {position} of {count}");
+    }
+
+    private static List<QuestionOptionEditModel> Renumbered(List<QuestionOptionEditModel> ordered)
+    {
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            ordered[i].Order = i;
+        }
+
+        return ordered;
     }
 }
