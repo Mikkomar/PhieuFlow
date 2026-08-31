@@ -13,6 +13,9 @@ public enum AutosaveFlushResult
 
     /// <summary>A save was attempted and the server could not be reached.</summary>
     Failed,
+
+    /// <summary>The retry budget ran out while edits kept arriving — the server is still behind.</summary>
+    Incomplete,
 }
 
 /// <summary>
@@ -29,7 +32,8 @@ public enum AutosaveFlushResult
 public sealed class AutosaveController : IDisposable
 {
     // A user who keeps typing straight through a flush would loop it forever; give up after this
-    // many saves and let the caller proceed (a publish re-flushes anyway).
+    // many saves. The caller is told the flush did not catch up (Incomplete) rather than that
+    // everything is saved.
     private const int MaxFlushAttempts = 4;
 
     private readonly Func<CancellationToken, Task> _saveAsync;
@@ -105,7 +109,11 @@ public sealed class AutosaveController : IDisposable
             }
         }
 
-        return AutosaveFlushResult.UpToDate;
+        // Fell out of the loop: either an edit is still queued past the last save, or the last
+        // save left an error. Never report UpToDate while HasUnsavedWork is true.
+        return HasUnsavedWork || State == SaveState.Error
+            ? AutosaveFlushResult.Incomplete
+            : AutosaveFlushResult.UpToDate;
     }
 
     /// <summary>Seed the controller as "everything saved" — used right after a fresh load or a publish.</summary>

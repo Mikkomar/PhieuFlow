@@ -55,6 +55,31 @@ public class AutosaveControllerTests
     }
 
     [Fact]
+    public async Task TestFlushAsync_When_EditsOutrunEveryRetry_Should_ReportIncomplete()
+    {
+        AutosaveController controller = null!;
+        var save = new SaveSpy
+        {
+            // Every save is immediately followed by a fresh edit, so the flush can never catch up.
+            Behavior = () =>
+            {
+                controller.NotifyEdited();
+                return Task.CompletedTask;
+            },
+        };
+        controller = new AutosaveController(save.Run, canSave: () => true, TimeSpan.FromSeconds(30));
+
+        using (controller)
+        {
+            controller.NotifyEdited();
+            var result = await controller.FlushAsync();
+
+            result.Should().Be(AutosaveFlushResult.Incomplete);
+            controller.HasUnsavedWork.Should().BeTrue();
+        }
+    }
+
+    [Fact]
     public async Task TestFlushAsync_When_GateClosed_Should_ReportBlockedWithoutSaving()
     {
         var save = new SaveSpy();

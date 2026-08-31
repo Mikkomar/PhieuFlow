@@ -144,7 +144,7 @@ public sealed class FormEditorSession : IAsyncDisposable
         // Publish must not proceed on a stale server copy: bail if the flush can't reach the
         // server (the header keeps its Retry affordance).
         var flush = await _autosave.FlushAsync();
-        if (flush is AutosaveFlushResult.Failed or AutosaveFlushResult.Blocked)
+        if (flush is AutosaveFlushResult.Failed or AutosaveFlushResult.Blocked or AutosaveFlushResult.Incomplete)
         {
             return new PublishOutcome(PublishOutcomeKind.SaveFailed);
         }
