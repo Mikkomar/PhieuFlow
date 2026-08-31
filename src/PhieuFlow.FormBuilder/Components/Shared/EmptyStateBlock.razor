@@ -1,0 +1,50 @@
+@* Centred failure/empty state shared by Error.razor, NotFound.razor and FormBuilder's
+   load-failure branches. Callers pass their own <a>/<button> markup as ChildContent so
+   both non-interactive (static SSR) and interactive callers work; use PrimaryClasses /
+   SecondaryClasses for the button styling. *@
+
+<div class="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
+    @if (Tone == EmptyStateTone.Danger && Icon is not null)
+    {
+        <span class="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-danger-border bg-danger-surface text-danger">
+            <Blazicon Svg="Icon" class="text-[15px]" aria-hidden="true" />
+        </span>
+    }
+
+    <h1 class="text-[15px] font-semibold text-text">@Heading</h1>
+    <p class="max-w-[46ch] text-[13px] leading-[1.55] text-text-faint text-pretty">@Body</p>
+
+    @if (ChildContent is not null)
+    {
+        <div class="flex items-center gap-[10px] pt-1.5">@ChildContent</div>
+    }
+
+    @if (!string.IsNullOrEmpty(Meta))
+    {
+        <p class="pt-2 font-mono text-[11px] text-text-faintest-2">@Meta</p>
+    }
+</div>
+
+@code {
+    /// <summary>Classes for the primary (accent) action inside <see cref="ChildContent"/>.</summary>
+    public const string PrimaryClasses =
+        "inline-flex h-[34px] items-center rounded-md border border-accent bg-accent px-4 " +
+        "text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover";
+
+    /// <summary>Classes for the secondary action inside <see cref="ChildContent"/>.</summary>
+    public const string SecondaryClasses =
+        "inline-flex h-[34px] items-center rounded-md border border-border-control bg-white " +
+        "px-[14px] text-[13px] font-medium text-text-body hover:border-border-control-hover";
+
+    [Parameter] public SvgIcon? Icon { get; set; }
+
+    [Parameter] public EmptyStateTone Tone { get; set; } = EmptyStateTone.Neutral;
+
+    [Parameter, EditorRequired] public string Heading { get; set; } = "";
+
+    [Parameter, EditorRequired] public string Body { get; set; } = "";
+
+    [Parameter] public string? Meta { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

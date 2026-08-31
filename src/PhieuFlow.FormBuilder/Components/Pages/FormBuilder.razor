@@ -8,16 +8,19 @@
 @inject IFormsService FormsService
 @implements IAsyncDisposable
 
-@if (_session.LoadState is FormLoadState.NotFound or FormLoadState.Error)
+@if (_session.LoadState == FormLoadState.Error)
 {
-    <div class="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
-        <span class="text-[15px] font-semibold text-text">Form not found</span>
-        <p class="max-w-[46ch] text-[13px] text-text-faint">@_session.LoadError</p>
-        <button type="button" @onclick="@(() => Nav.NavigateTo("/"))"
-                class="mt-2 h-[34px] rounded-md border border-border-control bg-white px-4 text-[13px] font-medium text-text-body hover:border-border-control-hover">
-            Back to all forms
-        </button>
-    </div>
+    <EmptyStateBlock Tone="EmptyStateTone.Danger" Icon="Lucide.TriangleAlert"
+                     Heading="Couldn't load this form" Body="@_session.LoadError">
+        <button type="button" @onclick="RetryOpen" class="@EmptyStateBlock.PrimaryClasses">Try again</button>
+        <button type="button" @onclick="@(() => Nav.NavigateTo("/"))" class="@EmptyStateBlock.SecondaryClasses">Back to all forms</button>
+    </EmptyStateBlock>
+}
+else if (_session.LoadState == FormLoadState.NotFound)
+{
+    <EmptyStateBlock Heading="Form not found" Body="@_session.LoadError">
+        <button type="button" @onclick="@(() => Nav.NavigateTo("/"))" class="@EmptyStateBlock.SecondaryClasses">Back to all forms</button>
+    </EmptyStateBlock>
 }
 else if (_session.LoadState == FormLoadState.Loading)
 {
@@ -145,6 +148,17 @@ else
 
             // Reopened: the form was already in memory — leave view state alone.
             // Failed: the load-state markup takes over.
+        }
+    }
+
+    private async Task RetryOpen()
+    {
+        // Re-run the load rather than reloading the browser, so an in-memory draft survives.
+        var outcome = await _session.OpenAsync(FormId);
+        if (outcome.Kind == OpenOutcomeKind.Opened)
+        {
+            _activePageId = _form.Pages.First().Id;
+            _titleBlurred = false;
         }
     }
 
