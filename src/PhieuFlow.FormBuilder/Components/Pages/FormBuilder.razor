@@ -112,7 +112,7 @@ else
 
     private IDisposable? _locationChangingRegistration;
 
-    private FormPageEditModel ActivePage => _form.Pages.First(p => p.Id == _activePageId);
+    private FormPageEditModel ActivePage => _form.Pages.FirstOrDefault(p => p.Id == _activePageId) ?? _form.Pages[0];
     private int ActivePageIndex => _form.Pages.ToList().IndexOf(ActivePage);
 
     private int DescriptionLength => _form.Description?.Length ?? 0;
