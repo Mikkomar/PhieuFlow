@@ -189,6 +189,36 @@ public class FormEditorSessionTests
     }
 
     [Fact]
+    public async Task TestPublishAsync_When_FlushCannotCatchUp_Should_ReturnIncompleteWithoutCallingHub()
+    {
+        var id = Guid.NewGuid();
+        FormEditorSession? session = null;
+        var forms = new FakeFormsService
+        {
+            OnGetById = _ => FormWith(id, "Survey"),
+            SaveResult = StateDto(version: 1),
+            // Every save is immediately followed by a fresh edit, so the flush can never catch up
+            // — mirrors AutosaveControllerTests.TestFlushAsync_When_EditsOutrunEveryRetry_Should_ReportIncomplete.
+            OnSave = () => session!.NotifyEdited(),
+        };
+        await using var s = new FormEditorSession(forms);
+        session = s;
+        await session.OpenAsync(id);
+
+        session.Form.Title = "Survey v2";
+        session.NotifyEdited();
+
+        var outcome = await session.PublishAsync();
+
+        outcome.Kind.Should().Be(PublishOutcomeKind.Incomplete);
+        outcome.Rows.Should().ContainSingle();
+        outcome.Rows![0].Message.Should().Contain("haven't reached the server yet");
+        outcome.Result.Should().NotBeNull();
+        outcome.Result!.Published.Should().BeFalse();
+        forms.PublishCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task TestAutosaveFlush_When_ServerForksVersion_Should_ReconcileOnce()
     {
         var id = Guid.NewGuid();
@@ -249,6 +279,8 @@ public class FormEditorSessionTests
 
         public Func<Guid, FormEditModel?>? OnGetById { get; init; }
 
+        public Action? OnSave { get; init; }
+
         public Exception? GetByIdError { get; init; }
 
         public Exception? PublishError { get; init; }
@@ -256,6 +288,8 @@ public class FormEditorSessionTests
         public int GetByIdCalls { get; private set; }
 
         public int SaveCalls { get; private set; }
+
+        public int PublishCalls { get; private set; }
 
         public int ReconcileForkCalls { get; private set; }
 
@@ -288,13 +322,17 @@ public class FormEditorSessionTests
         public Task<FormVersionStateDto> SaveAsync(FormEditModel form, CancellationToken cancellationToken = default)
         {
             SaveCalls++;
+            OnSave?.Invoke();
             return Task.FromResult(SaveResult);
         }
 
-        public Task<PublishResultDto> PublishAsync(Guid formId, CancellationToken cancellationToken = default) =>
-            PublishError is not null
+        public Task<PublishResultDto> PublishAsync(Guid formId, CancellationToken cancellationToken = default)
+        {
+            PublishCalls++;
+            return PublishError is not null
                 ? Task.FromException<PublishResultDto>(PublishError)
                 : Task.FromResult(PublishResult ?? throw new InvalidOperationException("PublishResult was not set."));
+        }
 
         public Task DeleteAsync(Guid formId, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;

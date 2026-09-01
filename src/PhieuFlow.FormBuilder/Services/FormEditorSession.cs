@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PhieuFlow.Core.Entities;
 using PhieuFlow.FormBuilder.Enums;
 using PhieuFlow.FormBuilder.Models.Editing;
@@ -25,10 +26,10 @@ public sealed class FormEditorSession : IAsyncDisposable
     // edits) on a spurious re-parametrization.
     private Guid? _loadedFormId;
 
-    public FormEditorSession(IFormsService forms)
+    public FormEditorSession(IFormsService forms, ILogger<AutosaveController>? autosaveLogger = null)
     {
         _forms = forms;
-        _autosave = new AutosaveController(SaveCoreAsync, CanSave, TimeSpan.FromMilliseconds(800));
+        _autosave = new AutosaveController(SaveCoreAsync, CanSave, TimeSpan.FromMilliseconds(800), autosaveLogger);
         _autosave.StateChanged += () => Changed?.Invoke();
     }
 
@@ -144,9 +145,33 @@ public sealed class FormEditorSession : IAsyncDisposable
         // Publish must not proceed on a stale server copy: bail if the flush can't reach the
         // server (the header keeps its Retry affordance).
         var flush = await _autosave.FlushAsync();
-        if (flush is AutosaveFlushResult.Failed or AutosaveFlushResult.Blocked or AutosaveFlushResult.Incomplete)
+        if (flush is AutosaveFlushResult.Failed or AutosaveFlushResult.Blocked)
         {
             return new PublishOutcome(PublishOutcomeKind.SaveFailed);
+        }
+
+        // The flush retried until its budget ran out and is still behind — publishing now would
+        // ship a version missing whatever the user typed during the flush. No round-trip; tell
+        // the user via the same dialog a real validation failure would use.
+        if (flush is AutosaveFlushResult.Incomplete)
+        {
+            var pendingResult = new PublishResultDto
+            {
+                Published = false,
+                Form = FormEditMapper.ToDto(form),
+                VersionNumber = form.VersionNumber,
+                LiveVersionNumber = form.LiveVersionNumber,
+                IsFirstPublish = form.LiveVersionNumber is null,
+            };
+            var pendingRows = new[]
+            {
+                new PrePublishRow(
+                    string.Empty,
+                    "Some edits haven't reached the server yet. Wait a moment and publish again.",
+                    string.Empty,
+                    new JumpTarget(null, null)),
+            };
+            return new PublishOutcome(PublishOutcomeKind.Incomplete, pendingResult, pendingRows);
         }
 
         Publishing = true;

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PhieuFlow.FormBuilder.Enums;
 
 namespace PhieuFlow.FormBuilder.Services;
@@ -39,16 +40,22 @@ public sealed class AutosaveController : IDisposable
     private readonly Func<CancellationToken, Task> _saveAsync;
     private readonly Func<bool> _canSave;
     private readonly TimeSpan _debounce;
+    private readonly ILogger<AutosaveController>? _logger;
 
     private int _pendingSeq;
     private int _savedSeq;
     private CancellationTokenSource? _cts;
 
-    public AutosaveController(Func<CancellationToken, Task> saveAsync, Func<bool> canSave, TimeSpan debounce)
+    public AutosaveController(
+        Func<CancellationToken, Task> saveAsync,
+        Func<bool> canSave,
+        TimeSpan debounce,
+        ILogger<AutosaveController>? logger = null)
     {
         _saveAsync = saveAsync;
         _canSave = canSave;
         _debounce = debounce;
+        _logger = logger;
     }
 
     public SaveState State { get; private set; } = SaveState.Idle;
@@ -111,9 +118,15 @@ public sealed class AutosaveController : IDisposable
 
         // Fell out of the loop: either an edit is still queued past the last save, or the last
         // save left an error. Never report UpToDate while HasUnsavedWork is true.
-        return HasUnsavedWork || State == SaveState.Error
-            ? AutosaveFlushResult.Incomplete
-            : AutosaveFlushResult.UpToDate;
+        if (HasUnsavedWork || State == SaveState.Error)
+        {
+            _logger?.LogWarning(
+                "Autosave flush exhausted {MaxFlushAttempts} attempts with unsaved work still pending (state={State}).",
+                MaxFlushAttempts, State);
+            return AutosaveFlushResult.Incomplete;
+        }
+
+        return AutosaveFlushResult.UpToDate;
     }
 
     /// <summary>Seed the controller as "everything saved" — used right after a fresh load or a publish.</summary>

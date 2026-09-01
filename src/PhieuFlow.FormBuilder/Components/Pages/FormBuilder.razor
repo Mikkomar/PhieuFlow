@@ -6,6 +6,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject IFormsService FormsService
+@inject ILogger<AutosaveController> AutosaveLogger
 @implements IAsyncDisposable
 
 @if (_session.LoadState == FormLoadState.Error)
@@ -124,7 +125,7 @@ else
 
     protected override void OnInitialized()
     {
-        _session = new FormEditorSession(FormsService);
+        _session = new FormEditorSession(FormsService, AutosaveLogger);
         _session.Changed += OnSessionChanged;
         _session.ForkReconciled += OnForkReconciled;
         _locationChangingRegistration = Nav.RegisterLocationChangingHandler(OnLocationChanging);
@@ -215,6 +216,7 @@ else
 
             case PublishOutcomeKind.Published:
             case PublishOutcomeKind.NeedsFixes:
+            case PublishOutcomeKind.Incomplete:
                 _publishResult = outcome.Result;
                 _rows = outcome.Rows ?? [];
                 _prePublishOpen = true;
