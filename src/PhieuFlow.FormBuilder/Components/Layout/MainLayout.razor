@@ -11,7 +11,11 @@
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    <div class="row">
+        <span class="message">Something went wrong. Reload to continue.</span>
+        <a href="." class="reload">Reload</a>
+        <button type="button" class="dismiss" aria-label="Dismiss">
+            <Blazicon Svg="Lucide.X" aria-hidden="true" />
+        </button>
+    </div>
 </div>

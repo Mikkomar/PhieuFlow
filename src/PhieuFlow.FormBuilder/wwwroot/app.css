@@ -1,22 +1,52 @@
 #blazor-error-ui {
-    color-scheme: light only;
-    background: lightyellow;
-    bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
-    box-sizing: border-box;
     display: none;
-    left: 0;
-    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
     position: fixed;
-    width: 100%;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 1000;
 }
 
+    #blazor-error-ui .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px 10px 14px;
+        border-radius: 7px;
+        background: #1a1f1e; /* text */
+        box-shadow: 0 8px 24px rgba(16, 24, 24, .18);
+    }
+
+    #blazor-error-ui .message {
+        font-size: 12.5px;
+        color: #e8ebea;
+    }
+
+    #blazor-error-ui .reload {
+        height: 26px;
+        padding: 0 10px;
+        border-radius: 6px;
+        border: 1px solid #3f4a48; /* text-body */
+        background: transparent;
+        font: 600 12px "IBM Plex Sans", sans-serif;
+        color: #fff;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+    }
+
     #blazor-error-ui .dismiss {
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+        border: 0;
+        background: transparent;
+        font-size: 13px;
+        color: #8b9694; /* text-faint */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         cursor: pointer;
-        position: absolute;
-        right: 0.75rem;
-        top: 0.5rem;
     }
 
 .blazor-error-boundary {
@@ -29,14 +59,3 @@
         content: "An error has occurred."
     }
 
-.valid.modified:not([type=checkbox]) {
-    outline: 1px solid #26b050;
-}
-
-.invalid {
-    outline: 1px solid #e50000;
-}
-
-.validation-message {
-    color: #e50000;
-}
