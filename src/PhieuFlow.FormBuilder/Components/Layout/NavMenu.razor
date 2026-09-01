@@ -14,32 +14,80 @@
         <Blazicon Svg="Lucide.FileText" class="text-[15px]" />
         All forms
     </NavLink>
-    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-muted hover:bg-page-bg">
+    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-faintest-2" aria-disabled="true">
         <Blazicon Svg="Lucide.ChartColumn" class="text-[15px]" />
         Responses
+        <span class="ml-auto rounded-[4px] border border-border-soft px-[5px] font-mono text-[9.5px] tracking-[0.06em] uppercase text-text-faintest-2">Soon</span>
     </div>
-    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-muted hover:bg-page-bg">
+    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-faintest-2" aria-disabled="true">
         <Blazicon Svg="Lucide.Grid2x2" class="text-[15px]" />
         Templates
+        <span class="ml-auto rounded-[4px] border border-border-soft px-[5px] font-mono text-[9.5px] tracking-[0.06em] uppercase text-text-faintest-2">Soon</span>
     </div>
 
     <div class="px-2 pt-[18px] pb-1.5 font-mono text-[9.5px] tracking-[0.08em] text-text-faintest uppercase">Service</div>
-    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-muted hover:bg-page-bg">
+    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-faintest-2" aria-disabled="true">
         <Blazicon Svg="Lucide.Settings" class="text-[15px]" />
         Settings
+        <span class="ml-auto rounded-[4px] border border-border-soft px-[5px] font-mono text-[9.5px] tracking-[0.06em] uppercase text-text-faintest-2">Soon</span>
     </div>
-    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-muted hover:bg-page-bg">
+    <div class="flex cursor-default items-center gap-[10px] rounded-md px-2.5 py-2 text-[13.5px] text-text-faintest-2" aria-disabled="true">
         <Blazicon Svg="Lucide.Clock" class="text-[15px]" />
         Audit log
+        <span class="ml-auto rounded-[4px] border border-border-soft px-[5px] font-mono text-[9.5px] tracking-[0.06em] uppercase text-text-faintest-2">Soon</span>
     </div>
 </nav>
 
-<div class="mt-auto border-t border-border-soft px-3 py-3.5">
-    <div class="flex items-center gap-[10px] rounded-md px-2 py-1.5 hover:bg-page-bg">
+<div class="relative mt-auto border-t border-border-soft px-3 py-3.5">
+    <button type="button" @ref="_accountMenuTriggerRef" @onclick="ToggleAccountMenu"
+            aria-haspopup="menu" aria-expanded="@(_accountMenuOpen ? "true" : "false")"
+            class="flex w-full items-center gap-[10px] rounded-md px-2 py-1.5 hover:bg-page-bg">
         <div class="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#dfe7e5] text-[11.5px] font-semibold text-text-body">SL</div>
         <div class="flex min-w-0 flex-col gap-px">
             <span class="text-[12.5px] font-medium text-text">Sanna Laine</span>
             <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-text-faint">Nordkraft Oy</span>
         </div>
-    </div>
+        <Blazicon Svg="Lucide.EllipsisVertical" class="ml-auto text-[13px] text-text-faintest-2" aria-hidden="true" />
+    </button>
+
+    @if (_accountMenuOpen)
+    {
+        <div class="fixed inset-0 z-20" @onclick="CloseAccountMenu"></div>
+        <div role="menu" @onkeydown="OnAccountMenuKeyDown"
+             class="absolute bottom-full left-3 z-30 mb-1 w-[190px] rounded-lg border border-border bg-surface p-[5px] shadow-[0_8px_24px_rgba(16,24,24,0.12)]">
+            <div class="px-[9px] py-[7px] text-[11px] text-text-faintest">sanna.laine@nordkraft.fi</div>
+        </div>
+    }
 </div>
+
+@code {
+    private bool _accountMenuOpen;
+    private bool _returnFocusPending;
+    private ElementReference _accountMenuTriggerRef;
+
+    private void ToggleAccountMenu() => _accountMenuOpen = !_accountMenuOpen;
+
+    private void CloseAccountMenu()
+    {
+        _accountMenuOpen = false;
+        _returnFocusPending = true;
+    }
+
+    private void OnAccountMenuKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            CloseAccountMenu();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_returnFocusPending)
+        {
+            _returnFocusPending = false;
+            try { await _accountMenuTriggerRef.FocusAsync(); }
+            catch (Exception) { /* trigger may not be in the DOM yet */ }
+        }
+    }
+}
