@@ -56,7 +56,10 @@ public enum PublishOutcomeKind
     /// <summary>Blocked because pending edits could not be flushed to the server first.</summary>
     SaveFailed,
 
-    /// <summary>Blocked because the autosave flush exhausted its retry budget while edits were still unsaved.</summary>
+    /// <summary>
+    /// Blocked because the autosave flush exhausted its retry budget while edits were still
+    /// unsaved. See <see cref="FormEditorSession.PublishNotice"/>.
+    /// </summary>
     Incomplete,
 
     /// <summary>The publish request itself failed; see <see cref="FormEditorSession.PublishError"/>.</summary>

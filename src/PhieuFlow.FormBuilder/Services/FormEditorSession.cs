@@ -44,6 +44,8 @@ public sealed class FormEditorSession : IAsyncDisposable
 
     public string? PublishError { get; private set; }
 
+    public string? PublishNotice { get; private set; }
+
     public SaveState SaveState => _autosave.State;
 
     public DateTimeOffset? LastSavedAt => _autosave.LastSavedAt;
@@ -117,7 +119,11 @@ public sealed class FormEditorSession : IAsyncDisposable
     }
 
     /// <summary>Record an edit to <see cref="Form"/> and (re)arm the debounced autosave.</summary>
-    public void NotifyEdited() => _autosave.NotifyEdited();
+    public void NotifyEdited()
+    {
+        PublishNotice = null;
+        _autosave.NotifyEdited();
+    }
 
     /// <summary>Persist any pending edit now. Callers flush before navigating away or publishing.</summary>
     public Task<AutosaveFlushResult> FlushAsync() => _autosave.FlushAsync();
@@ -151,29 +157,16 @@ public sealed class FormEditorSession : IAsyncDisposable
         }
 
         // The flush retried until its budget ran out and is still behind — publishing now would
-        // ship a version missing whatever the user typed during the flush. No round-trip; tell
-        // the user via the same dialog a real validation failure would use.
+        // ship a version missing whatever the user typed during the flush. No round-trip; this
+        // is one transient sentence, not a validation report, so it goes in the header next to
+        // the save indicator rather than opening the (validation-failure-shaped) dialog.
         if (flush is AutosaveFlushResult.Incomplete)
         {
-            var pendingResult = new PublishResultDto
-            {
-                Published = false,
-                Form = FormEditMapper.ToDto(form),
-                VersionNumber = form.VersionNumber,
-                LiveVersionNumber = form.LiveVersionNumber,
-                IsFirstPublish = form.LiveVersionNumber is null,
-            };
-            var pendingRows = new[]
-            {
-                new PrePublishRow(
-                    string.Empty,
-                    "Some edits haven't reached the server yet. Wait a moment and publish again.",
-                    string.Empty,
-                    new JumpTarget(null, null)),
-            };
-            return new PublishOutcome(PublishOutcomeKind.Incomplete, pendingResult, pendingRows);
+            PublishNotice = "Some edits haven't reached the server yet. Publishing again in a moment will include them.";
+            return new PublishOutcome(PublishOutcomeKind.Incomplete);
         }
 
+        PublishNotice = null;
         Publishing = true;
         PublishError = null;
         Changed?.Invoke();

@@ -189,7 +189,7 @@ public class FormEditorSessionTests
     }
 
     [Fact]
-    public async Task TestPublishAsync_When_FlushCannotCatchUp_Should_ReturnIncompleteWithoutCallingHub()
+    public async Task TestPublishAsync_When_FlushCannotCatchUp_Should_SetPublishNoticeWithoutCallingHub()
     {
         var id = Guid.NewGuid();
         FormEditorSession? session = null;
@@ -211,11 +211,32 @@ public class FormEditorSessionTests
         var outcome = await session.PublishAsync();
 
         outcome.Kind.Should().Be(PublishOutcomeKind.Incomplete);
-        outcome.Rows.Should().ContainSingle();
-        outcome.Rows![0].Message.Should().Contain("haven't reached the server yet");
-        outcome.Result.Should().NotBeNull();
-        outcome.Result!.Published.Should().BeFalse();
+        session.PublishNotice.Should().Contain("haven't reached the server yet");
         forms.PublishCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task TestNotifyEdited_When_PublishNoticeWasSet_Should_ClearIt()
+    {
+        var id = Guid.NewGuid();
+        FormEditorSession? session = null;
+        var forms = new FakeFormsService
+        {
+            OnGetById = _ => FormWith(id, "Survey"),
+            SaveResult = StateDto(version: 1),
+            OnSave = () => session!.NotifyEdited(),
+        };
+        await using var s = new FormEditorSession(forms);
+        session = s;
+        await session.OpenAsync(id);
+        session.Form.Title = "Survey v2";
+        session.NotifyEdited();
+        await session.PublishAsync();
+        session.PublishNotice.Should().NotBeNull();
+
+        session.NotifyEdited();
+
+        session.PublishNotice.Should().BeNull();
     }
 
     [Fact]

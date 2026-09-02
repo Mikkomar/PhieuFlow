@@ -59,7 +59,7 @@
         var showTitleRequired = TitleBlurred && string.IsNullOrWhiteSpace(Form.Title);
         var showPublishedNotice = Form.Status == FormVersionStatus.Published;
     }
-    @if (showTitleRequired || PublishError is not null || showPublishedNotice)
+    @if (showTitleRequired || PublishError is not null || PublishNotice is not null || showPublishedNotice)
     {
         <div class="flex flex-col gap-1 pl-[48px]">
             @if (showTitleRequired)
@@ -69,6 +69,10 @@
             @if (PublishError is not null)
             {
                 <span class="text-[12px] text-danger">@PublishError</span>
+            }
+            @if (PublishNotice is not null)
+            {
+                <span class="text-[12px] text-text-faint">@PublishNotice</span>
             }
             @if (showPublishedNotice)
             {
@@ -100,6 +104,9 @@
 
     [Parameter]
     public string? PublishError { get; set; }
+
+    [Parameter]
+    public string? PublishNotice { get; set; }
 
     [Parameter]
     public bool PreviewOpen { get; set; }

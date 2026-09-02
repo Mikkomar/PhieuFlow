@@ -39,6 +39,7 @@ else
                    Disabled="_session.Publishing"
                    TitleBlurred="_titleBlurred"
                    PublishError="@_session.PublishError"
+                   PublishNotice="@_session.PublishNotice"
                    PreviewOpen="_previewOpen"
                    OnTitleChanged="OnTitleInput"
                    OnTitleBlur="@(() => _titleBlurred = true)"
@@ -216,14 +217,13 @@ else
 
             case PublishOutcomeKind.Published:
             case PublishOutcomeKind.NeedsFixes:
-            case PublishOutcomeKind.Incomplete:
                 _publishResult = outcome.Result;
                 _rows = outcome.Rows ?? [];
                 _prePublishOpen = true;
                 break;
 
-            // AlreadyPublished / SaveFailed / RequestFailed: nothing to open — the header's save
-            // indicator and published pill already reflect the state.
+            // AlreadyPublished / SaveFailed / Incomplete / RequestFailed: nothing to open — the
+            // header's save indicator, publish notice, and published pill already reflect the state.
         }
     }
 
