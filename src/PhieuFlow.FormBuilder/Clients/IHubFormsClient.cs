@@ -26,4 +26,7 @@ public interface IHubFormsClient
 
     /// <summary>Deletes the form and its version history. A missing form is treated as already gone.</summary>
     Task DeleteFormAsync(Guid formId, CancellationToken cancellationToken = default);
+
+    /// <summary>Asks the Hub to deep-copy an existing form's latest version into a new draft; returns the new form's id.</summary>
+    Task<Guid> DuplicateFormAsync(Guid sourceId, CancellationToken cancellationToken = default);
 }

@@ -132,6 +132,18 @@ public static class FormEndpoints
             });
         }).RequireAuthorization("forms:write");
 
+        app.MapPost("/forms/{id:guid}/duplicate", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
+        {
+            var newFormId = await unitOfWork.Forms.DuplicateAsync(id, cancellationToken);
+            if (newFormId is null)
+            {
+                return Results.NotFound();
+            }
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Results.Ok(new FormCreatedDto { Id = newFormId.Value });
+        }).RequireAuthorization("forms:write");
+
         app.MapDelete("/forms/{id:guid}", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
             if (!await unitOfWork.Forms.DeleteAsync(id, cancellationToken))

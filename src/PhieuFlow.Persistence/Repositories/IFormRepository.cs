@@ -23,4 +23,11 @@ public interface IFormRepository
     /// form has that id, so the caller can 404 rather than reporting a phantom success.
     /// </summary>
     Task<bool> DeleteAsync(Guid formId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deep-copies <paramref name="sourceId"/>'s latest version into a brand-new form (v1, draft,
+    /// "Copy of" title, fresh ids throughout). Returns the new form's id, or <c>null</c> when the
+    /// source doesn't exist.
+    /// </summary>
+    Task<Guid?> DuplicateAsync(Guid sourceId, CancellationToken cancellationToken = default);
 }

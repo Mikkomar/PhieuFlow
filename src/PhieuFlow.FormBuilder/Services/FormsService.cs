@@ -1,4 +1,3 @@
-using PhieuFlow.Core.Entities;
 using PhieuFlow.FormBuilder.Clients;
 using PhieuFlow.FormBuilder.Models;
 using PhieuFlow.FormBuilder.Models.Editing;
@@ -95,43 +94,8 @@ public class FormsService(IHubFormsClient hubFormsClient) : IFormsService
     public Task DeleteAsync(Guid formId, CancellationToken cancellationToken = default) =>
         hubFormsClient.DeleteFormAsync(formId, cancellationToken);
 
-    public async Task<Guid> DuplicateAsync(Guid sourceId, CancellationToken cancellationToken = default)
-    {
-        var source = await GetByIdAsync(sourceId, cancellationToken)
-            ?? throw new InvalidOperationException($"Form {sourceId} no longer exists.");
-
-        var newId = await CreateNewAsync(cancellationToken);
-
-        var copy = FormEditMapper.ToEditModel(FormEditMapper.ToDto(source));
-        copy.FormId = newId;
-        copy.Status = FormVersionStatus.Draft;
-        copy.LiveVersionNumber = null;
-        copy.Title = string.IsNullOrWhiteSpace(source.Title) ? "Copy of untitled form" : $"Copy of {source.Title}";
-        RefreshIds(copy);
-
-        await SaveAsync(copy, cancellationToken);
-        return newId;
-    }
-
-    /// <summary>Assigns fresh ids to every page, question and option so the copy shares nothing with its source.</summary>
-    private static void RefreshIds(FormEditModel form)
-    {
-        foreach (var page in form.Pages)
-        {
-            page.Id = Guid.NewGuid();
-            foreach (var question in page.Questions)
-            {
-                question.Id = Guid.NewGuid();
-                if (question is ChoiceQuestionEditModel choice)
-                {
-                    foreach (var option in choice.Options)
-                    {
-                        option.Id = Guid.NewGuid();
-                    }
-                }
-            }
-        }
-    }
+    public Task<Guid> DuplicateAsync(Guid sourceId, CancellationToken cancellationToken = default) =>
+        hubFormsClient.DuplicateFormAsync(sourceId, cancellationToken);
 
     private static FormStatus MapToModel(FormVersionStatusDto status) => status switch
     {

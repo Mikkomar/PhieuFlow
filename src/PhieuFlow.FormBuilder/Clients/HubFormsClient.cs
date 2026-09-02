@@ -92,4 +92,18 @@ public class HubFormsClient(HttpClient httpClient) : IHubFormsClient
 
         response.EnsureSuccessStatusCode();
     }
+
+    public async Task<Guid> DuplicateFormAsync(Guid sourceId, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync($"/forms/{sourceId}/duplicate", null, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new InvalidOperationException($"Form {sourceId} no longer exists.");
+        }
+
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<FormCreatedDto>(cancellationToken)
+            ?? throw new InvalidOperationException("Duplicate-form response body was empty.");
+        return created.Id;
+    }
 }

@@ -191,6 +191,45 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         return true;
     }
 
+    public async Task<Guid?> DuplicateAsync(Guid sourceId, CancellationToken cancellationToken = default)
+    {
+        var source = await dbContext.FormVersions
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Where(v => v.FormId == sourceId)
+            .OrderByDescending(v => v.VersionNumber)
+            .Include(v => v.Pages.OrderBy(p => p.Order))
+                .ThenInclude(p => p.Questions)
+                    .ThenInclude(q => (q as ChoiceQuestion)!.Options)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (source is null)
+        {
+            return null;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var newFormId = Guid.NewGuid();
+        var newVersionId = Guid.NewGuid();
+
+        dbContext.Forms.Add(new Form { Id = newFormId, CreatedAt = now });
+        dbContext.FormVersions.Add(new FormVersion
+        {
+            Id = newVersionId,
+            FormId = newFormId,
+            VersionNumber = 1,
+            Status = FormVersionStatus.Draft,
+            Title = string.IsNullOrWhiteSpace(source.Title) ? "Copy of untitled form" : $"Copy of {source.Title}",
+            Description = source.Description,
+            Revision = 1,
+            CreatedAt = now,
+            LastModifiedAt = now,
+            Pages = source.Pages.Select(p => ClonePageWithFreshIds(p, newVersionId)).ToList(),
+        });
+
+        return newFormId;
+    }
+
     private static FormPage ClonePageWithFreshIds(FormPage source, Guid newVersionId)
     {
         var newPageId = Guid.NewGuid();
