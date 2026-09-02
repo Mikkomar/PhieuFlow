@@ -4,15 +4,15 @@
     <div class="flex gap-3">
         <div class="flex flex-1 flex-col gap-[5px]">
             <span class="text-[11.5px] text-text-faint">Min value</span>
-            <input type="number" aria-label="Min value" value="@(Question.Min?.ToString() ?? string.Empty)" @ref="MinRef"
-                   @oninput="@(e => Edit(() => Question.Min = MinMaxValidation.ParseNullableDecimal(e.Value)))"
+            <input type="number" aria-label="Min value" value="@_minText" @ref="MinRef"
+                   @oninput="@(e => OnMinInput(e.Value))"
                    aria-invalid="@(Invalid ? "true" : null)"
                    class="@MinMaxValidation.InputClasses(Invalid)" />
         </div>
         <div class="flex flex-1 flex-col gap-[5px]">
             <span class="text-[11.5px] text-text-faint">Max value</span>
-            <input type="number" aria-label="Max value" value="@(Question.Max?.ToString() ?? string.Empty)" @ref="MaxRef"
-                   @oninput="@(e => Edit(() => Question.Max = MinMaxValidation.ParseNullableDecimal(e.Value)))"
+            <input type="number" aria-label="Max value" value="@_maxText" @ref="MaxRef"
+                   @oninput="@(e => OnMaxInput(e.Value))"
                    aria-invalid="@(Invalid ? "true" : null)"
                    class="@MinMaxValidation.InputClasses(Invalid)" />
         </div>
@@ -34,6 +34,27 @@
     protected override IReadOnlyList<ValidationIssue> Issues => Question.Issues;
 
     private bool Invalid => MinMaxValidation.ExceedsMax(Question.Min, Question.Max) || Question.Issues.Count > 0;
+
+    private string _minText = string.Empty;
+    private string _maxText = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        _minText = Question.Min?.ToString() ?? string.Empty;
+        _maxText = Question.Max?.ToString() ?? string.Empty;
+    }
+
+    private void OnMinInput(object? value)
+    {
+        _minText = value?.ToString() ?? string.Empty;
+        Edit(() => Question.Min = MinMaxValidation.ParseNullableDecimal(_minText));
+    }
+
+    private void OnMaxInput(object? value)
+    {
+        _maxText = value?.ToString() ?? string.Empty;
+        Edit(() => Question.Max = MinMaxValidation.ParseNullableDecimal(_maxText));
+    }
 
     private void Edit(Action apply)
     {
