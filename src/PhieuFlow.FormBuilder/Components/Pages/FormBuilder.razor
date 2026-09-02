@@ -292,8 +292,8 @@ else
 
     private async Task SelectPage(FormPageEditModel page)
     {
-        await FlushPendingSaveAsync();
         _activePageId = page.Id;
+        await FlushPendingSaveAsync();
     }
 
     private void AddPage()
