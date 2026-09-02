@@ -193,7 +193,7 @@ public sealed class FormEditorSession : IAsyncDisposable
                 form.LastModifiedAt = result.LastModifiedAt;
                 form.PublishedAt = result.PublishedAt;
                 form.LiveVersionNumber = result.VersionNumber;
-                _autosave.SeedSaved(DateTimeOffset.Now);
+                _autosave.SeedSaved(result.PublishedAt ?? result.LastModifiedAt);
                 return new PublishOutcome(PublishOutcomeKind.Published, result);
             }
 
@@ -229,7 +229,7 @@ public sealed class FormEditorSession : IAsyncDisposable
     private bool CanSave() => !string.IsNullOrWhiteSpace(_form?.Title);
 
     /// <summary>The round-trip behind the autosave: save, absorb the returned state, reconcile a fork.</summary>
-    private async Task SaveCoreAsync(CancellationToken token)
+    private async Task<DateTimeOffset> SaveCoreAsync(CancellationToken token)
     {
         var form = Form;
         var previousVersion = form.VersionNumber;
@@ -252,6 +252,8 @@ public sealed class FormEditorSession : IAsyncDisposable
                 ForkReconciled?.Invoke(pageIdRemap);
             }
         }
+
+        return result.LastModifiedAt;
     }
 
     private void EnterLoading()

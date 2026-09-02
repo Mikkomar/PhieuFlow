@@ -239,6 +239,31 @@ public class FormEditorSessionTests
     }
 
     [Fact]
+    public async Task TestAutosaveFlush_Should_SeedLastSavedAtFromServerTimestamp()
+    {
+        var id = Guid.NewGuid();
+        var forms = new FakeFormsService
+        {
+            OnGetById = _ => FormWith(id, "Survey"),
+            SaveResult = new FormVersionStateDto
+            {
+                VersionNumber = 1,
+                Revision = 1,
+                Status = FormVersionStatusDto.Draft,
+                LastModifiedAt = DateTimeOffset.UtcNow.AddMinutes(-5),
+            },
+        };
+        await using var session = new FormEditorSession(forms);
+        await session.OpenAsync(id);
+
+        session.Form.Title = "Survey edited";
+        session.NotifyEdited();
+        await session.FlushAsync();
+
+        session.LastSavedAt.Should().Be(forms.SaveResult.LastModifiedAt);
+    }
+
+    [Fact]
     public async Task TestAutosaveFlush_When_VersionUnchanged_Should_NotReconcile()
     {
         var id = Guid.NewGuid();

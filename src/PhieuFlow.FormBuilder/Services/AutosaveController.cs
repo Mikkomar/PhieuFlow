@@ -37,7 +37,7 @@ public sealed class AutosaveController : IDisposable
     // everything is saved.
     private const int MaxFlushAttempts = 4;
 
-    private readonly Func<CancellationToken, Task> _saveAsync;
+    private readonly Func<CancellationToken, Task<DateTimeOffset>> _saveAsync;
     private readonly Func<bool> _canSave;
     private readonly TimeSpan _debounce;
     private readonly ILogger<AutosaveController>? _logger;
@@ -47,7 +47,7 @@ public sealed class AutosaveController : IDisposable
     private CancellationTokenSource? _cts;
 
     public AutosaveController(
-        Func<CancellationToken, Task> saveAsync,
+        Func<CancellationToken, Task<DateTimeOffset>> saveAsync,
         Func<bool> canSave,
         TimeSpan debounce,
         ILogger<AutosaveController>? logger = null)
@@ -171,12 +171,12 @@ public sealed class AutosaveController : IDisposable
 
         try
         {
-            await _saveAsync(token);
+            var savedAt = await _saveAsync(token);
             _savedSeq = seq;
 
             if (_pendingSeq == seq)
             {
-                LastSavedAt = DateTimeOffset.Now;
+                LastSavedAt = savedAt;
                 SetState(SaveState.Saved);
             }
             else
