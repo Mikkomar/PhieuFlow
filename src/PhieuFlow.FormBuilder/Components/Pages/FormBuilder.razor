@@ -11,7 +11,7 @@
 
 @if (_session.LoadState == FormLoadState.Error)
 {
-    <EmptyStateBlock Tone="EmptyStateTone.Danger" Icon="Lucide.TriangleAlert"
+    <EmptyStateBlock Tone="EmptyStateTone.Danger"
                      Heading="Couldn't load this form" Body="@_session.LoadError">
         <button type="button" @onclick="RetryOpen" class="@EmptyStateBlock.PrimaryClasses">Try again</button>
         <button type="button" @onclick="@(() => Nav.NavigateTo("/"))" class="@EmptyStateBlock.SecondaryClasses">Back to all forms</button>

@@ -4,10 +4,10 @@
    SecondaryClasses for the button styling. *@
 
 <div class="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
-    @if (Tone == EmptyStateTone.Danger && Icon is not null)
+    @if (Tone == EmptyStateTone.Danger && EffectiveIcon is not null)
     {
         <span class="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-danger-border bg-danger-surface text-danger">
-            <Blazicon Svg="Icon" class="text-[15px]" aria-hidden="true" />
+            <Blazicon Svg="EffectiveIcon" class="text-[15px]" aria-hidden="true" />
         </span>
     }
 
@@ -39,6 +39,8 @@
     [Parameter] public SvgIcon? Icon { get; set; }
 
     [Parameter] public EmptyStateTone Tone { get; set; } = EmptyStateTone.Neutral;
+
+    private SvgIcon? EffectiveIcon => Icon ?? (Tone == EmptyStateTone.Danger ? Lucide.TriangleAlert : null);
 
     [Parameter, EditorRequired] public string Heading { get; set; } = "";
 
