@@ -8,8 +8,7 @@
                  Heading="Something went wrong"
                  Body="The page couldn't finish loading. Nothing you had saved is affected."
                  Meta="@(ShowRequestId ? $"Request {RequestId}" : null)">
-    <a href="/Error" class="@EmptyStateBlock.PrimaryClasses">Try again</a>
-    <a href="/" class="@EmptyStateBlock.SecondaryClasses">Back to all forms</a>
+    <a href="/" class="@EmptyStateBlock.PrimaryClasses">Back to all forms</a>
 </EmptyStateBlock>
 
 @code{
