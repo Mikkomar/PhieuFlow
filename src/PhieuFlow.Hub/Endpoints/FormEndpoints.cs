@@ -1,6 +1,7 @@
 using PhieuFlow.Hub.Contracts;
 using PhieuFlow.Hub.Mapping;
 using PhieuFlow.Hub.Validation;
+using PhieuFlow.Persistence.Projections;
 using PhieuFlow.Persistence.UnitOfWork;
 
 namespace PhieuFlow.Hub.Endpoints;
@@ -66,19 +67,26 @@ public static class FormEndpoints
         app.MapPut("/forms/{id:guid}", async (Guid id, FormDto dto, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
             var result = await unitOfWork.Forms.SaveAsync(id, FormRequestMapper.ToEntity(dto, id), cancellationToken);
-            if (result is null)
+            if (result.Status == FormSaveStatus.FormNotFound)
             {
                 return Results.NotFound();
             }
 
+            if (result.Status == FormSaveStatus.RevisionMismatch)
+            {
+                // Optimistic concurrency: another session advanced this form. Nothing written.
+                return Results.Conflict();
+            }
+
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            var state = result.State!;
             return Results.Ok(new FormVersionStateDto
             {
-                VersionNumber = result.VersionNumber,
-                Revision = result.Revision,
-                Status = FormResponseMapper.ToDto(result.Status),
-                LastModifiedAt = result.LastModifiedAt,
-                PublishedAt = result.PublishedAt,
+                VersionNumber = state.VersionNumber,
+                Revision = state.Revision,
+                Status = FormResponseMapper.ToDto(state.Status),
+                LastModifiedAt = state.LastModifiedAt,
+                PublishedAt = state.PublishedAt,
             });
         }).RequireAuthorization("forms:write");
 

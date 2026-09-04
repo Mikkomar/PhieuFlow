@@ -13,6 +13,11 @@ internal static class FormRequestMapper
     {
         Id = Guid.NewGuid(),
         FormId = formId,
+        // On PUT these carry the client's *expected* version/revision, which SaveAsync's
+        // optimistic-concurrency check reads. They are ignored for the persisted row: the
+        // Draft branch mutates the tracked current version, the fork branch mints its own.
+        VersionNumber = dto.VersionNumber,
+        Revision = dto.Revision,
         Title = dto.Title,
         Description = dto.Description,
         // TODO ADR-0005: the calling client id is now available via User.FindFirst("azp").

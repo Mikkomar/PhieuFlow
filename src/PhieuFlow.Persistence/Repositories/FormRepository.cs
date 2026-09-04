@@ -60,7 +60,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         return version;
     }
 
-    public async Task<FormVersionState?> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default)
+    public async Task<FormSaveResult> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -77,7 +77,17 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         {
             // No form for this id (never existed, or deleted while a builder tab stayed open):
             // never recreate it from a client-supplied id. Creation is POST /forms only.
-            return null;
+            return FormSaveResult.NotFound;
+        }
+
+        // Optimistic concurrency (ADR 0002/0007): the save must target the exact row the server
+        // holds now. VersionNumber is part of the key because a fork resets Revision to 1, so a
+        // stale client can otherwise collide with a different version's Revision and clobber it
+        // via ReconcilePages. The server never trusts these incoming numbers for the write.
+        if (incomingContent.VersionNumber != currentVersion.VersionNumber
+            || incomingContent.Revision != currentVersion.Revision)
+        {
+            return FormSaveResult.Conflict;
         }
 
         if (currentVersion.Status == FormVersionStatus.Draft)
@@ -89,7 +99,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             currentVersion.Revision += 1;
 
             ReconcilePages(currentVersion, incomingContent.Pages);
-            return ToVersionState(currentVersion);
+            return FormSaveResult.Saved(ToVersionState(currentVersion));
         }
 
         // Published: currentVersion is immutable from here on. Fork a new draft.
@@ -111,7 +121,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         };
         dbContext.FormVersions.Add(forked);
 
-        return ToVersionState(forked);
+        return FormSaveResult.Saved(ToVersionState(forked));
     }
 
     private static FormVersionState ToVersionState(FormVersion version) => new()

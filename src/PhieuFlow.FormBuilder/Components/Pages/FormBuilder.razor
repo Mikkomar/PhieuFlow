@@ -45,7 +45,8 @@ else
                    OnTitleBlur="@(() => _titleBlurred = true)"
                    OnTogglePreview="TogglePreview"
                    OnPublish="PublishNow"
-                   OnRetrySave="FlushPendingSaveAsync" />
+                   OnRetrySave="FlushPendingSaveAsync"
+                   OnReload="ReloadFromServer" />
 
 <div class="flex flex-1 items-start overflow-x-auto">
     <fieldset disabled="@_session.Publishing" class="contents">
@@ -204,6 +205,8 @@ else
             _titleBlurred = true;
         }
     }
+
+    private void ReloadFromServer() => Nav.NavigateTo(Nav.Uri, forceLoad: true);
 
     private async Task PublishNow()
     {

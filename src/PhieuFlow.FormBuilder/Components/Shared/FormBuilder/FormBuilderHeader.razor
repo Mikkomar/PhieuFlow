@@ -38,6 +38,11 @@
                     <button type="button" @onclick="@(() => OnRetrySave.InvokeAsync())"
                             class="ml-1 text-[10.5px] font-semibold text-danger underline uppercase">Retry</button>
                 }
+                else if (SaveState == SaveState.Conflict)
+                {
+                    <button type="button" @onclick="@(() => OnReload.InvokeAsync())"
+                            class="ml-1 text-[10.5px] font-semibold text-danger underline uppercase">Reload</button>
+                }
             </div>
             <StatusPill Published="@(Form.Status == FormVersionStatus.Published)" />
             <div class="h-[22px] w-px bg-border-soft"></div>
@@ -126,6 +131,10 @@
     [Parameter]
     public EventCallback OnRetrySave { get; set; }
 
+    /// <summary>Invoked from the conflict state's "Reload" button — re-fetches the form from the server.</summary>
+    [Parameter]
+    public EventCallback OnReload { get; set; }
+
     // Ticks the relative "saved N min ago" label forward without any user input.
     private System.Timers.Timer? _saveLabelTimer;
 
@@ -144,9 +153,11 @@
 
     private const string TitleCountClasses = "flex-none font-mono text-[10.5px] text-text-faintest";
 
-    private string SaveIndicatorTextClass => SaveState == SaveState.Error ? "text-danger" : "text-text-faintest";
+    private bool SaveIndicatorIsDanger => SaveState is SaveState.Error or SaveState.Conflict;
 
-    private string SaveIndicatorDotClass => SaveState == SaveState.Error ? "bg-danger" : "bg-text-faintest-2";
+    private string SaveIndicatorTextClass => SaveIndicatorIsDanger ? "text-danger" : "text-text-faintest";
+
+    private string SaveIndicatorDotClass => SaveIndicatorIsDanger ? "bg-danger" : "bg-text-faintest-2";
 
     private string? SaveLabel => SaveState switch
     {
@@ -154,6 +165,7 @@
         SaveState.Saving => "saving…",
         SaveState.Saved => SavedLabel(),
         SaveState.Error => "couldn't reach server",
+        SaveState.Conflict => "couldn't save — changed in another tab",
         _ => null,
     };
 

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net.Http;
 using AwesomeAssertions;
+using PhieuFlow.FormBuilder.Clients;
 using PhieuFlow.FormBuilder.Enums;
 using PhieuFlow.FormBuilder.Services;
 using Xunit;
@@ -124,6 +125,37 @@ public class AutosaveControllerTests
 
         result.Should().Be(AutosaveFlushResult.Failed);
         controller.State.Should().Be(SaveState.Error);
+    }
+
+    [Fact]
+    public async Task TestSave_When_RevisionConflicts_Should_EnterConflictAndFlushReportsFailed()
+    {
+        var save = new SaveSpy { Behavior = () => Task.FromException(new FormRevisionConflictException(Guid.NewGuid())) };
+        using var controller = new AutosaveController(save.Run, canSave: () => true, TimeSpan.FromSeconds(30));
+
+        controller.NotifyEdited();
+        var result = await controller.FlushAsync();
+
+        result.Should().Be(AutosaveFlushResult.Failed);
+        controller.State.Should().Be(SaveState.Conflict);
+    }
+
+    [Fact]
+    public async Task TestNotifyEdited_When_InConflict_Should_NotReschedule()
+    {
+        var save = new SaveSpy { Behavior = () => Task.FromException(new FormRevisionConflictException(Guid.NewGuid())) };
+        using var controller = new AutosaveController(save.Run, canSave: () => true, TimeSpan.FromMilliseconds(10));
+
+        controller.NotifyEdited();
+        await controller.FlushAsync();
+        controller.State.Should().Be(SaveState.Conflict);
+        var callsAtConflict = save.Calls;
+
+        controller.NotifyEdited();
+        await Task.Delay(60);
+
+        save.Calls.Should().Be(callsAtConflict);
+        controller.State.Should().Be(SaveState.Conflict);
     }
 
     [Fact]

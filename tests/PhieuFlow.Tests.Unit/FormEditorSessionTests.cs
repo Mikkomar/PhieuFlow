@@ -1,6 +1,7 @@
 using System.Net.Http;
 using AwesomeAssertions;
 using PhieuFlow.Core.Entities;
+using PhieuFlow.FormBuilder.Clients;
 using PhieuFlow.FormBuilder.Enums;
 using PhieuFlow.FormBuilder.Models;
 using PhieuFlow.FormBuilder.Models.Editing;
@@ -304,6 +305,26 @@ public class FormEditorSessionTests
         forms.ReconcileForkCalls.Should().Be(0);
     }
 
+    [Fact]
+    public async Task TestAutosaveFlush_When_SaveConflicts_Should_SetConflictState()
+    {
+        var id = Guid.NewGuid();
+        var forms = new FakeFormsService
+        {
+            OnGetById = _ => FormWith(id, "Survey"),
+            SaveError = new FormRevisionConflictException(id),
+        };
+        await using var session = new FormEditorSession(forms);
+        await session.OpenAsync(id);
+
+        session.Form.Title = "Survey edited elsewhere";
+        session.NotifyEdited();
+        var result = await session.FlushAsync();
+
+        result.Should().Be(AutosaveFlushResult.Failed);
+        session.SaveState.Should().Be(SaveState.Conflict);
+    }
+
     private static FormEditModel FormWith(Guid id, string title)
     {
         var form = new FormEditModel { FormId = id, Title = title, VersionNumber = 1 };
@@ -328,6 +349,8 @@ public class FormEditorSessionTests
         public Action? OnSave { get; init; }
 
         public Exception? GetByIdError { get; init; }
+
+        public Exception? SaveError { get; init; }
 
         public Exception? PublishError { get; init; }
 
@@ -369,7 +392,9 @@ public class FormEditorSessionTests
         {
             SaveCalls++;
             OnSave?.Invoke();
-            return Task.FromResult(SaveResult);
+            return SaveError is not null
+                ? Task.FromException<FormVersionStateDto>(SaveError)
+                : Task.FromResult(SaveResult);
         }
 
         public Task<PublishResultDto> PublishAsync(Guid formId, CancellationToken cancellationToken = default)

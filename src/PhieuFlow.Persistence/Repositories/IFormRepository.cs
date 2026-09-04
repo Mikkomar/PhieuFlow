@@ -14,10 +14,12 @@ public interface IFormRepository
 
     /// <summary>
     /// Applies the incoming draft content to the form's latest version, forking a new draft when
-    /// the latest version is published. Returns <c>null</c> when no form has that id, so the caller
-    /// can 404 rather than resurrecting a deleted form — creation is <c>POST /forms</c> only.
+    /// the latest version is published. Returns <see cref="FormSaveStatus.FormNotFound"/> when no
+    /// form has that id (the caller 404s — creation is <c>POST /forms</c> only), and
+    /// <see cref="FormSaveStatus.RevisionMismatch"/> when the incoming <c>VersionNumber</c>/
+    /// <c>Revision</c> no longer matches the persisted row (the caller 409s and nothing is written).
     /// </summary>
-    Task<FormVersionState?> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default);
+    Task<FormSaveResult> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default);
 
     Task<FormVersionState?> PublishAsync(Guid formId, CancellationToken cancellationToken = default);
 

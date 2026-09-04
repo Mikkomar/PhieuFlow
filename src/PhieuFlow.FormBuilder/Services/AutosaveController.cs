@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PhieuFlow.FormBuilder.Clients;
 using PhieuFlow.FormBuilder.Enums;
 
 namespace PhieuFlow.FormBuilder.Services;
@@ -74,6 +75,14 @@ public sealed class AutosaveController : IDisposable
         _pendingSeq++;
         _cts?.Cancel();
 
+        if (State == SaveState.Conflict)
+        {
+            // A stale-revision conflict is terminal until the form is reloaded. Record the edit
+            // (HasUnsavedWork stays true) but don't re-arm the debounce — every attempt would just
+            // 409 again.
+            return;
+        }
+
         if (!_canSave())
         {
             SetState(SaveState.Idle);
@@ -90,6 +99,13 @@ public sealed class AutosaveController : IDisposable
     /// <summary>Drive the server up to the latest edit now, bypassing the debounce.</summary>
     public async Task<AutosaveFlushResult> FlushAsync()
     {
+        // A stale-revision conflict is terminal — re-sending would just 409 again. Report Failed
+        // so callers (publish, navigate-away) don't proceed on a copy the server rejected.
+        if (State == SaveState.Conflict)
+        {
+            return AutosaveFlushResult.Failed;
+        }
+
         // Loops because a save can race a fresh keystroke that bumps the pending counter past
         // what that save captured.
         for (var attempt = 0; attempt < MaxFlushAttempts; attempt++)
@@ -110,7 +126,7 @@ public sealed class AutosaveController : IDisposable
             _cts = cts;
             await SaveAsync(cts.Token);
 
-            if (State == SaveState.Error)
+            if (State is SaveState.Error or SaveState.Conflict)
             {
                 return AutosaveFlushResult.Failed;
             }
@@ -189,6 +205,12 @@ public sealed class AutosaveController : IDisposable
         catch (TaskCanceledException) when (token.IsCancellationRequested)
         {
             // Superseded by a newer edit or flush, which owns the state from here.
+        }
+        catch (FormRevisionConflictException)
+        {
+            // Another session advanced the form; the server refused this save. Terminal until a
+            // reload — NotifyEdited/FlushAsync stop attempting from here.
+            SetState(SaveState.Conflict);
         }
         catch (HttpRequestException)
         {

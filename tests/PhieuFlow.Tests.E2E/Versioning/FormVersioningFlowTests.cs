@@ -136,8 +136,7 @@ public sealed class FormVersioningFlowTests(AppHostFixture fixture, ITestOutputH
         v1!.Pages[0].Questions.Select(q => q.Text).Should().Equal("Question A", "Question B");
     }
 
-    [Fact(Skip = "optimistic-concurrency conflict on stale Revision not surfaced by PUT /forms/{id} / the builder UI — ADR 0002/0007")]
-    [Trait("Category", "Future")]
+    [Fact]
     public async Task TestSaveAsync_When_SecondEditUsesStaleRevision_Should_RejectWithConflict()
     {
         var builder = new FormBuilderPage(Page);
