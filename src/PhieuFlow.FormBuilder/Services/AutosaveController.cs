@@ -45,6 +45,7 @@ public sealed class AutosaveController : IDisposable
 
     private int _pendingSeq;
     private int _savedSeq;
+    private int _generation;
     private CancellationTokenSource? _cts;
 
     public AutosaveController(
@@ -154,12 +155,15 @@ public sealed class AutosaveController : IDisposable
     public void MarkConflict()
     {
         _cts?.Cancel();
+        _generation++;
         SetState(SaveState.Conflict);
     }
 
     /// <summary>Seed the controller as "everything saved" — used right after a fresh load or a publish.</summary>
     public void SeedSaved(DateTimeOffset savedAt)
     {
+        _cts?.Cancel();
+        _generation++;
         _pendingSeq = 0;
         _savedSeq = 0;
         LastSavedAt = savedAt;
@@ -170,6 +174,7 @@ public sealed class AutosaveController : IDisposable
     public void Reset()
     {
         _cts?.Cancel();
+        _generation++;
         _pendingSeq = 0;
         _savedSeq = 0;
         LastSavedAt = null;
@@ -195,11 +200,20 @@ public sealed class AutosaveController : IDisposable
     private async Task SaveAsync(CancellationToken token)
     {
         var seq = _pendingSeq;
+        var generation = _generation;
         SetState(SaveState.Saving);
 
         try
         {
             var savedAt = await _saveAsync(token);
+
+            if (generation != _generation)
+            {
+                // SeedSaved/Reset/MarkConflict ran while this save was in flight and already
+                // reset the counters and state; a stale seq here would wedge HasUnsavedWork.
+                return;
+            }
+
             _savedSeq = seq;
 
             if (_pendingSeq == seq)
@@ -222,11 +236,17 @@ public sealed class AutosaveController : IDisposable
         {
             // Another session advanced the form; the server refused this save. Terminal until a
             // reload — NotifyEdited/FlushAsync stop attempting from here.
-            SetState(SaveState.Conflict);
+            if (generation == _generation)
+            {
+                SetState(SaveState.Conflict);
+            }
         }
         catch (HttpRequestException)
         {
-            SetState(SaveState.Error);
+            if (generation == _generation)
+            {
+                SetState(SaveState.Error);
+            }
         }
     }
 

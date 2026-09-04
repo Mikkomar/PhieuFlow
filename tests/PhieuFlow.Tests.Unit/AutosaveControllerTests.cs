@@ -180,6 +180,30 @@ public class AutosaveControllerTests
         controller.LastSavedAt.Should().NotBeNull();
     }
 
+    [Fact]
+    public async Task TestSeedSaved_When_RacingAnInFlightSave_Should_NotWedgeUnsavedWorkForever()
+    {
+        var release = new TaskCompletionSource();
+        var save = new SaveSpy { Behavior = () => release.Task };
+        using var controller = new AutosaveController(save.Run, canSave: () => true, TimeSpan.FromMilliseconds(10));
+
+        controller.NotifyEdited();
+        await WaitUntil(() => controller.State == SaveState.Saving);
+
+        // Simulates publish seeding "everything saved" right after a fork, while the debounced
+        // save from before the fork is still in flight.
+        var seededAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        controller.SeedSaved(seededAt);
+
+        release.SetResult();
+        await WaitUntil(() => save.Calls == 1);
+        await Task.Delay(30); // give the superseded save's continuation a chance to run
+
+        controller.HasUnsavedWork.Should().BeFalse();
+        controller.State.Should().Be(SaveState.Saved);
+        controller.LastSavedAt.Should().Be(seededAt);
+    }
+
     private static async Task WaitUntil(Func<bool> condition, int timeoutMs = 3000)
     {
         var stopwatch = Stopwatch.StartNew();
