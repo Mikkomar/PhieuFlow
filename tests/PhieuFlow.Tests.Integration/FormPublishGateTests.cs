@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Persistence.Projections;
+using PhieuFlow.Persistence.Repositories;
 using PhieuFlow.Tests.Integration.Infrastructure;
 using Xunit;
 
@@ -51,6 +54,38 @@ public sealed class FormPublishGateTests(HubAuthWebApplicationFactory factory)
 
         var persisted = await client.GetFromJsonAsync<FormDto>($"/forms/{id}");
         persisted!.Status.Should().Be(FormVersionStatusDto.Published);
+    }
+
+    [Fact]
+    public async Task TestPublish_When_AnotherSaveLandsBetweenValidateAndFlip_Should_RejectWithoutPublishing()
+    {
+        using var client = WriteClient;
+        var id = await SaveFormAsync(client, "Raced", Question("All good"));
+        // id is now v1/r1.
+
+        // A second session's save lands (bumping to r2) — the exact window between the publish
+        // handler's validate-read (which would have captured r1) and its flip.
+        await client.PutAsJsonAsync($"/forms/{id}", new FormDto
+        {
+            Id = id,
+            Title = "Raced (edited)",
+            CreatedAt = DateTimeOffset.UtcNow,
+            LastModifiedAt = DateTimeOffset.UtcNow,
+            Revision = 1,
+            VersionNumber = 1,
+            Status = FormVersionStatusDto.Draft,
+            Pages = [new FormPageDto { Id = Guid.NewGuid(), Title = "Page 1", Questions = [Question("All good")] }],
+        });
+
+        using var scope = factory.Services.CreateScope();
+        var repo = scope.ServiceProvider.GetRequiredService<IFormRepository>();
+
+        var result = await repo.PublishAsync(id, expectedVersionNumber: 1, expectedRevision: 1, CancellationToken.None);
+
+        result.Status.Should().Be(FormPublishStatus.RevisionMismatch);
+
+        var persisted = await client.GetFromJsonAsync<FormDto>($"/forms/{id}");
+        persisted!.Status.Should().Be(FormVersionStatusDto.Draft);
     }
 
     private static async Task<Guid> SaveFormAsync(HttpClient client, string title, params QuestionDto[] questions)

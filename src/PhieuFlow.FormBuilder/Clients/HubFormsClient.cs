@@ -45,6 +45,11 @@ public class HubFormsClient(HttpClient httpClient) : IHubFormsClient
     {
         using var response = await httpClient.PostAsync($"/forms/{formId}/publish", null, cancellationToken);
 
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            throw new FormRevisionConflictException(formId);
+        }
+
         // A validation failure is a meaningful 422 body (the annotated tree), not an error.
         if (response.StatusCode is not HttpStatusCode.UnprocessableEntity)
         {

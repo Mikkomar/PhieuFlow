@@ -159,6 +159,16 @@ public class AutosaveControllerTests
     }
 
     [Fact]
+    public void TestMarkConflict_Should_SetConflictState()
+    {
+        using var controller = new AutosaveController(_ => Task.FromResult(DateTimeOffset.UtcNow), canSave: () => true, TimeSpan.FromSeconds(30));
+
+        controller.MarkConflict();
+
+        controller.State.Should().Be(SaveState.Conflict);
+    }
+
+    [Fact]
     public void TestSeedSaved_Should_ReportSavedWithNoUnsavedWork()
     {
         using var controller = new AutosaveController(_ => Task.FromResult(DateTimeOffset.UtcNow), canSave: () => true, TimeSpan.FromSeconds(30));

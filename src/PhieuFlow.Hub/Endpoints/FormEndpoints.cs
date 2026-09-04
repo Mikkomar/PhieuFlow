@@ -123,13 +123,26 @@ public static class FormEndpoints
                 });
             }
 
-            var state = await unitOfWork.Forms.PublishAsync(id, cancellationToken);
-            if (state is null)
+            var result = await unitOfWork.Forms.PublishAsync(id, version.VersionNumber, version.Revision, cancellationToken);
+            if (result.Status == FormPublishStatus.FormNotFound)
             {
                 return Results.NotFound();
             }
 
+            if (result.Status == FormPublishStatus.RevisionMismatch)
+            {
+                // Another session's save landed between validate and flip; nothing was published.
+                return Results.Conflict();
+            }
+
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            var state = result.State!;
+
+            // `dto` was mapped before the flip, so its Status still reads pre-publish (Draft).
+            // Correct the one field that changed rather than paying for a second full-tree fetch —
+            // content is guaranteed identical since the row just matched
+            // expectedVersionNumber/expectedRevision exactly.
+            dto.Status = FormResponseMapper.ToDto(state.Status);
 
             return Results.Ok(new PublishResultDto
             {

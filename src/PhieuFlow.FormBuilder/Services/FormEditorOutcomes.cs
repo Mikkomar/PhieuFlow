@@ -64,6 +64,13 @@ public enum PublishOutcomeKind
 
     /// <summary>The publish request itself failed; see <see cref="FormEditorSession.PublishError"/>.</summary>
     RequestFailed,
+
+    /// <summary>
+    /// The Hub rejected the publish with 409 — another session's save landed between validate and
+    /// flip. See <see cref="FormEditorSession.SaveState"/> (now <c>Conflict</c>) for the header's
+    /// reload affordance; nothing else to show.
+    /// </summary>
+    Conflict,
 }
 
 /// <inheritdoc cref="PublishOutcomeKind"/>

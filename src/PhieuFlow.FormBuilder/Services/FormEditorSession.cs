@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PhieuFlow.Core.Entities;
+using PhieuFlow.FormBuilder.Clients;
 using PhieuFlow.FormBuilder.Enums;
 using PhieuFlow.FormBuilder.Models.Editing;
 using PhieuFlow.Hub.Contracts;
@@ -192,6 +193,11 @@ public sealed class FormEditorSession : IAsyncDisposable
 
             var rows = PrePublishRow.From(FormEditMapper.ToEditModel(result.Form));
             return new PublishOutcome(PublishOutcomeKind.NeedsFixes, result, rows);
+        }
+        catch (FormRevisionConflictException)
+        {
+            _autosave.MarkConflict();
+            return new PublishOutcome(PublishOutcomeKind.Conflict);
         }
         catch (HttpRequestException)
         {

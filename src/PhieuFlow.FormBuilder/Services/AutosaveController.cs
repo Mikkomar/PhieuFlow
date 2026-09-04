@@ -145,6 +145,18 @@ public sealed class AutosaveController : IDisposable
         return AutosaveFlushResult.UpToDate;
     }
 
+    /// <summary>
+    /// Externally marks the controller stale-revision conflicted — used when a publish attempt
+    /// 409s. This session's own last save may have succeeded, but the Hub's publish validated a
+    /// row another session has since moved past, so this copy is exactly as stale as a 409'd
+    /// autosave. Same terminal handling either way: stop retrying, the header offers Reload.
+    /// </summary>
+    public void MarkConflict()
+    {
+        _cts?.Cancel();
+        SetState(SaveState.Conflict);
+    }
+
     /// <summary>Seed the controller as "everything saved" — used right after a fresh load or a publish.</summary>
     public void SeedSaved(DateTimeOffset savedAt)
     {

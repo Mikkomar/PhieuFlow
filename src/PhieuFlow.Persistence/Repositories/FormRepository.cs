@@ -143,7 +143,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<FormVersionState?> PublishAsync(Guid formId, CancellationToken cancellationToken = default)
+    public async Task<FormPublishResult> PublishAsync(Guid formId, int expectedVersionNumber, int expectedRevision, CancellationToken cancellationToken = default)
     {
         var currentVersion = await dbContext.FormVersions
             .Where(v => v.FormId == formId)
@@ -152,7 +152,12 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
 
         if (currentVersion is null)
         {
-            return null;
+            return FormPublishResult.NotFound;
+        }
+
+        if (currentVersion.VersionNumber != expectedVersionNumber || currentVersion.Revision != expectedRevision)
+        {
+            return FormPublishResult.Conflict;
         }
 
         if (currentVersion.Status != FormVersionStatus.Published)
@@ -161,7 +166,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             currentVersion.PublishedAt = DateTimeOffset.UtcNow;
         }
 
-        return ToVersionState(currentVersion);
+        return FormPublishResult.Published(ToVersionState(currentVersion));
     }
 
     public async Task<bool> DeleteAsync(Guid formId, CancellationToken cancellationToken = default)

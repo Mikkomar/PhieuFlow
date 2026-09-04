@@ -190,6 +190,24 @@ public class FormEditorSessionTests
     }
 
     [Fact]
+    public async Task TestPublishAsync_When_HubRejectsWithRevisionConflict_Should_MarkConflictAndReturnConflictOutcome()
+    {
+        var id = Guid.NewGuid();
+        var forms = new FakeFormsService
+        {
+            OnGetById = _ => FormWith(id, "Survey"),
+            PublishError = new FormRevisionConflictException(id),
+        };
+        await using var session = new FormEditorSession(forms);
+        await session.OpenAsync(id);
+
+        var outcome = await session.PublishAsync();
+
+        outcome.Kind.Should().Be(PublishOutcomeKind.Conflict);
+        session.SaveState.Should().Be(SaveState.Conflict);
+    }
+
+    [Fact]
     public async Task TestPublishAsync_When_FlushCannotCatchUp_Should_SetPublishNoticeWithoutCallingHub()
     {
         var id = Guid.NewGuid();

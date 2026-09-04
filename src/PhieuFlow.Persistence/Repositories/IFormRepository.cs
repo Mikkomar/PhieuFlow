@@ -21,7 +21,14 @@ public interface IFormRepository
     /// </summary>
     Task<FormSaveResult> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default);
 
-    Task<FormVersionState?> PublishAsync(Guid formId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Flips exactly the row identified by <paramref name="expectedVersionNumber"/>/
+    /// <paramref name="expectedRevision"/> to Published. Returns
+    /// <see cref="FormPublishStatus.RevisionMismatch"/> instead of flipping a different row if the
+    /// server's current row has moved on (mirrors the optimistic-concurrency check in
+    /// <see cref="SaveAsync"/>).
+    /// </summary>
+    Task<FormPublishResult> PublishAsync(Guid formId, int expectedVersionNumber, int expectedRevision, CancellationToken cancellationToken = default);
 
     Task<int?> GetLatestPublishedVersionNumberAsync(Guid formId, CancellationToken cancellationToken = default);
 
