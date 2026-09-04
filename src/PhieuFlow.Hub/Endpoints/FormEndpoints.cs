@@ -66,6 +66,11 @@ public static class FormEndpoints
         app.MapPut("/forms/{id:guid}", async (Guid id, FormDto dto, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
             var result = await unitOfWork.Forms.SaveAsync(id, FormRequestMapper.ToEntity(dto, id), cancellationToken);
+            if (result is null)
+            {
+                return Results.NotFound();
+            }
+
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return Results.Ok(new FormVersionStateDto
             {

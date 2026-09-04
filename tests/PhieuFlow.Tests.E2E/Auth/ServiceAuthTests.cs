@@ -47,8 +47,10 @@ public sealed class ServiceAuthTests(AppHostFixture fixture)
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", await GetTokenAsync("forms:read", "forms:write"));
 
-        var id = Guid.NewGuid();
-        var write = await client.PutAsJsonAsync($"/forms/{id}", NewFormDto());
+        var created = await (await client.PostAsync("/forms", null)).Content.ReadFromJsonAsync<FormCreatedDto>();
+        var id = created!.Id;
+
+        var write = await client.PutAsJsonAsync($"/forms/{id}", NewFormDto(id));
         write.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var read = await client.GetAsync($"/forms/{id}");
@@ -57,9 +59,9 @@ public sealed class ServiceAuthTests(AppHostFixture fixture)
 
     private Task<string> GetTokenAsync(params string[] scopes) => fixture.GetServiceTokenAsync(scopes);
 
-    private static FormDto NewFormDto() => new()
+    private static FormDto NewFormDto(Guid? id = null) => new()
     {
-        Id = Guid.NewGuid(),
+        Id = id ?? Guid.NewGuid(),
         Title = "Auth probe",
         CreatedAt = DateTimeOffset.UtcNow,
         LastModifiedAt = DateTimeOffset.UtcNow,

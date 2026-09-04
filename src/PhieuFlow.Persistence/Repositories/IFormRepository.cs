@@ -12,7 +12,12 @@ public interface IFormRepository
 
     Task<FormVersion?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default);
 
-    Task<FormVersionState> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Applies the incoming draft content to the form's latest version, forking a new draft when
+    /// the latest version is published. Returns <c>null</c> when no form has that id, so the caller
+    /// can 404 rather than resurrecting a deleted form — creation is <c>POST /forms</c> only.
+    /// </summary>
+    Task<FormVersionState?> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default);
 
     Task<FormVersionState?> PublishAsync(Guid formId, CancellationToken cancellationToken = default);
 

@@ -60,7 +60,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         return version;
     }
 
-    public async Task<FormVersionState> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default)
+    public async Task<FormVersionState?> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -75,32 +75,9 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
 
         if (currentVersion is null)
         {
-            var newVersionId = Guid.NewGuid();
-
-            foreach (var page in incomingContent.Pages)
-            {
-                page.FormVersionId = newVersionId;
-            }
-
-            dbContext.Forms.Add(new Form { Id = formId, CreatedAt = now });
-
-            var created = new FormVersion
-            {
-                Id = newVersionId,
-                FormId = formId,
-                VersionNumber = 1,
-                Status = FormVersionStatus.Draft,
-                Title = incomingContent.Title,
-                Description = incomingContent.Description,
-                Revision = 1,
-                CreatedAt = now,
-                LastModifiedAt = now,
-                LastModifiedBy = incomingContent.LastModifiedBy,
-                Pages = incomingContent.Pages,
-            };
-            dbContext.FormVersions.Add(created);
-
-            return ToVersionState(created);
+            // No form for this id (never existed, or deleted while a builder tab stayed open):
+            // never recreate it from a client-supplied id. Creation is POST /forms only.
+            return null;
         }
 
         if (currentVersion.Status == FormVersionStatus.Draft)

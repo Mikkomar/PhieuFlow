@@ -117,7 +117,9 @@ public sealed class HubAuthorizationTests(HubAuthWebApplicationFactory factory)
     {
         var token = TestJwt.Create(scope: "forms:read forms:write");
         using var client = factory.CreateClientWithToken(token);
-        var id = Guid.NewGuid();
+
+        var created = await (await client.PostAsync("/forms", null)).Content.ReadFromJsonAsync<FormCreatedDto>();
+        var id = created!.Id;
 
         var write = await client.PutAsJsonAsync($"/forms/{id}", NewFormDto(id));
         write.StatusCode.Should().Be(HttpStatusCode.OK);
