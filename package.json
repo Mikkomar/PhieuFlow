@@ -2,7 +2,9 @@
   "name": "phieuflow-web",
   "private": true,
   "scripts": {
-    "build:css": "tailwindcss -i ./tailwind.css -o ./src/PhieuFlow.FormBuilder/wwwroot/css/tailwind.generated.css --minify",
+    "build:css": "npm run build:css:formbuilder && npm run build:css:formfiller",
+    "build:css:formbuilder": "tailwindcss -i ./tailwind.css -o ./src/PhieuFlow.FormBuilder/wwwroot/css/tailwind.generated.css --minify",
+    "build:css:formfiller": "tailwindcss -i ./tailwind.css -o ./src/PhieuFlow.FormFiller/wwwroot/css/tailwind.generated.css --minify",
     "watch:css": "tailwindcss -i ./tailwind.css -o ./src/PhieuFlow.FormBuilder/wwwroot/css/tailwind.generated.css --watch"
   },
   "devDependencies": {

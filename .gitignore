@@ -301,6 +301,7 @@ node_modules/
 
 # Generated Tailwind output (ADR 0003) — built via `npm run build:css`
 src/PhieuFlow.FormBuilder/wwwroot/css/tailwind.generated.css
+src/PhieuFlow.FormFiller/wwwroot/css/tailwind.generated.css
 
 # Visual Studio 6 build log
 *.plg

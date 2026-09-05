@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/PhieuFlow.Core/PhieuFlow.Core.csproj" />
     <Project Path="src/PhieuFlow.FormBuilder/PhieuFlow.FormBuilder.csproj" />
+    <Project Path="src/PhieuFlow.FormFiller/PhieuFlow.FormFiller.csproj" />
     <Project Path="src/PhieuFlow.Hub.Contracts/PhieuFlow.Hub.Contracts.csproj" />
     <Project Path="src/PhieuFlow.Hub/PhieuFlow.Hub.csproj" />
     <Project Path="src/PhieuFlow.MigrationService/PhieuFlow.MigrationService.csproj" />

@@ -27,6 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\PhieuFlow.Hub\PhieuFlow.Hub.csproj" />
     <ProjectReference Include="..\PhieuFlow.FormBuilder\PhieuFlow.FormBuilder.csproj" />
+    <ProjectReference Include="..\PhieuFlow.FormFiller\PhieuFlow.FormFiller.csproj" />
     <ProjectReference Include="..\PhieuFlow.MigrationService\PhieuFlow.MigrationService.csproj" />
     <ProjectReference Include="..\PhieuFlow.SeedService\PhieuFlow.SeedService.csproj" />
   </ItemGroup>

@@ -56,4 +56,10 @@ builder.AddProject<Projects.PhieuFlow_FormBuilder>("formbuilder")
     .WithEnvironment("Keycloak__ClientSecret", formBuilderClientSecret)
     .WithHttpHealthCheck("/health");
 
+builder.AddProject<Projects.PhieuFlow_FormFiller>("formfiller")
+    .WithExternalHttpEndpoints()
+    .WithReference(hub)
+    .WaitFor(hub)
+    .WithHttpHealthCheck("/health");
+
 builder.Build().Run();

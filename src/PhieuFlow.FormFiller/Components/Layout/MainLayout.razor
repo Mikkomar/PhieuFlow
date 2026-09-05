@@ -1,0 +1,19 @@
+@inherits LayoutComponentBase
+
+<div class="flex min-h-screen bg-page-bg">
+    <aside class="sticky top-0 flex h-screen w-[236px] flex-none flex-col border-r border-border bg-surface">
+        <NavMenu />
+    </aside>
+
+    <main class="flex min-w-0 flex-1 flex-col">
+        @Body
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    <div class="row">
+        <span class="message">Something went wrong. Reload to continue.</span>
+        <a href="." class="reload">Reload</a>
+        <button type="button" class="dismiss" aria-label="Dismiss">&times;</button>
+    </div>
+</div>
