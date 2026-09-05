@@ -97,7 +97,7 @@
     public int ActivePageIndex { get; set; }
 
     private string PageLabel(FormPageEditModel page) => string.IsNullOrWhiteSpace(page.Title)
-        ? $"Page {Form.Pages.ToList().IndexOf(page) + 1}"
+        ? $"Page {ActivePageIndex + 1}"
         : page.Title!;
 
     // One constraint line per question, covering both bounds, min only, and max only.

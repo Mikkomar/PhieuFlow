@@ -13,7 +13,7 @@
         var isActiveTab = page.Id == ActivePageId;
         <button type="button" role="tab" @ref="_pageTabRefs[slot]"
                 aria-current="@(isActiveTab ? "page" : null)"
-                aria-label="@($"{PageLabel(page)}, {QuestionCountLabel(page)}")"
+                aria-label="@($"{PageLabel(page, slot)}, {QuestionCountLabel(page)}")"
                 tabindex="@(isActiveTab ? 0 : -1)"
                 @onclick="@(() => OnSelectPage.InvokeAsync(page))"
                 class="@PageTabClasses(page)">
@@ -21,7 +21,7 @@
             {
                 <span aria-hidden="true" class="h-[5px] w-[5px] flex-none rounded-full bg-danger"></span>
             }
-            @PageLabel(page)
+            @PageLabel(page, slot)
             <span aria-hidden="true" class="@PageTabCountClasses(page)">@(page.Questions.Count)</span>
         </button>
         tabIndex++;
@@ -49,8 +49,8 @@
     private ElementReference[] _pageTabRefs = Array.Empty<ElementReference>();
     private int? _focusTabIndex;
 
-    private string PageLabel(FormPageEditModel page) => string.IsNullOrWhiteSpace(page.Title)
-        ? $"Page {Pages.ToList().IndexOf(page) + 1}"
+    private string PageLabel(FormPageEditModel page, int index) => string.IsNullOrWhiteSpace(page.Title)
+        ? $"Page {index + 1}"
         : page.Title!;
 
     private static string QuestionCountLabel(FormPageEditModel page) => page.Questions.Count == 1 ? "1 question" : $"{page.Questions.Count} questions";

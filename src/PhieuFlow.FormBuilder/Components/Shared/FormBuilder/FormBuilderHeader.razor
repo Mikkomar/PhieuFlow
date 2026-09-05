@@ -195,14 +195,49 @@
         return $"saved at {saved.ToLocalTime():HH:mm}";
     }
 
-    protected override void OnInitialized()
+    protected override void OnParametersSet()
     {
-        _saveLabelTimer = new System.Timers.Timer(30_000) { AutoReset = true };
-        _saveLabelTimer.Elapsed += (_, _) => _ = InvokeAsync(StateHasChanged);
-        _saveLabelTimer.Start();
+        var shouldTick = SaveState == SaveState.Saved
+            && LastSavedAt is { } saved
+            && DateTimeOffset.Now - saved < TimeSpan.FromHours(1);
+
+        if (shouldTick && _saveLabelTimer is null)
+        {
+            _saveLabelTimer = new System.Timers.Timer(30_000) { AutoReset = true };
+            _saveLabelTimer.Elapsed += OnSaveLabelTick;
+            _saveLabelTimer.Start();
+        }
+        else if (!shouldTick && _saveLabelTimer is not null)
+        {
+            _saveLabelTimer.Stop();
+            _saveLabelTimer.Elapsed -= OnSaveLabelTick;
+            _saveLabelTimer.Dispose();
+            _saveLabelTimer = null;
+        }
+    }
+
+    private void OnSaveLabelTick(object? sender, System.Timers.ElapsedEventArgs e)
+    {
+        if (SaveState != SaveState.Saved || LastSavedAt is not { } saved
+            || DateTimeOffset.Now - saved >= TimeSpan.FromHours(1))
+        {
+            _saveLabelTimer?.Stop();
+            return;
+        }
+
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private Task OnTitleInput(ChangeEventArgs e) => OnTitleChanged.InvokeAsync(e.Value?.ToString() ?? string.Empty);
 
-    public void Dispose() => _saveLabelTimer?.Dispose();
+    public void Dispose()
+    {
+        if (_saveLabelTimer is null)
+        {
+            return;
+        }
+
+        _saveLabelTimer.Elapsed -= OnSaveLabelTick;
+        _saveLabelTimer.Dispose();
+    }
 }

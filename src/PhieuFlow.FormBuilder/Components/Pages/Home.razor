@@ -3,6 +3,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @inject IFormsService FormsService
+@implements IDisposable
 
 <PageTitle>All forms</PageTitle>
 
@@ -93,7 +94,7 @@
                 <span class="text-sm font-semibold">@_loadError</span>
             </div>
         }
-        else if (PagedForms.Count == 0)
+        else if (_pagedForms.Count == 0)
         {
             <div class="flex flex-col items-center gap-2 px-5 py-16">
                 @if (!string.IsNullOrWhiteSpace(_query))
@@ -120,7 +121,7 @@
         }
         else
         {
-            var pageRows = PagedForms;
+            var pageRows = _pagedForms;
             @for (var r = 0; r < pageRows.Count; r++)
             {
                 var rowIndex = r;
@@ -241,7 +242,7 @@
 
             <div class="flex items-center justify-between gap-4 bg-surface-subtle px-[18px] py-3">
                 <span class="text-[12.5px] text-text-faint">
-                    Rows <span class="font-semibold text-text-body">@FirstRowNumber–@LastRowNumber</span> of @FilteredForms.Count
+                    Rows <span class="font-semibold text-text-body">@_firstRowNumber–@_lastRowNumber</span> of @_filteredForms.Count
                     <span class="text-text-faintest-2">· ↑ ↓ to move, Enter to expand</span>
                 </span>
                 <div class="flex items-center gap-1">
@@ -249,8 +250,8 @@
                             class="h-7 rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-body enabled:hover:border-border-control-hover disabled:cursor-default disabled:text-text-faintest-2">
                         Previous
                     </button>
-                    <span class="px-2 text-[12.5px] text-text-faint">Page @ClampedPage / @TotalPages</span>
-                    <button type="button" disabled="@(_page >= TotalPages)" @onclick="@(() => GoToPage(_page + 1))"
+                    <span class="px-2 text-[12.5px] text-text-faint">Page @_clampedPage / @_totalPages</span>
+                    <button type="button" disabled="@(_page >= _totalPages)" @onclick="@(() => GoToPage(_page + 1))"
                             class="h-7 rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-body enabled:hover:border-border-control-hover disabled:cursor-default disabled:text-text-faintest-2">
                         Next
                     </button>
@@ -291,6 +292,15 @@
     private Guid? _openRowMenuId;
     private int _page = 1;
 
+    private List<FormSummary> _filteredForms = [];
+    private List<FormSummary> _pagedForms = [];
+    private int _totalPages = 1;
+    private int _clampedPage = 1;
+    private int _firstRowNumber;
+    private int _lastRowNumber;
+    private readonly int[] _tabCounts = new int[Tabs.Length];
+    private CancellationTokenSource? _searchDebounceCts;
+
     private bool _prePublishOpen;
     private PublishResultDto? _publishResult;
     private IReadOnlyList<PrePublishRow> _rows = [];
@@ -328,6 +338,8 @@
         {
             _loading = false;
         }
+
+        RecomputeView();
     }
 
     // The query string is the source of truth for the view; hydrate local state from it so
@@ -343,6 +355,8 @@
         _tab = ParseTab(TabParam);
         (_sortColumn, _sortDescending) = ParseSort(SortParam);
         _page = PageParam is > 0 ? PageParam.Value : 1;
+
+        RecomputeView();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -377,25 +391,32 @@
         _ => _forms,
     };
 
-    private int TabCount(FormListTab tab) => TabFiltered(tab).Count();
+    private int TabCount(FormListTab tab) => _tabCounts[Array.IndexOf(Tabs, tab)];
 
-    private List<FormSummary> FilteredForms
+    private void RecomputeView()
     {
-        get
+        for (var i = 0; i < Tabs.Length; i++)
         {
-            var query = _query.Trim();
-            var result = TabFiltered(_tab);
-
-            if (!string.IsNullOrEmpty(query))
-            {
-                result = result.Where(f =>
-                    f.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                    (f.Description ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                    f.Id.ToString().Contains(query, StringComparison.OrdinalIgnoreCase));
-            }
-
-            return Sort(result).ToList();
+            _tabCounts[i] = TabFiltered(Tabs[i]).Count();
         }
+
+        var query = _query.Trim();
+        var result = TabFiltered(_tab);
+
+        if (!string.IsNullOrEmpty(query))
+        {
+            result = result.Where(f =>
+                f.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                (f.Description ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                f.Id.ToString().Contains(query, StringComparison.OrdinalIgnoreCase));
+        }
+
+        _filteredForms = Sort(result).ToList();
+        _totalPages = Math.Max(1, (int)Math.Ceiling(_filteredForms.Count / (double)PageSize));
+        _clampedPage = Math.Clamp(_page, 1, _totalPages);
+        _pagedForms = _filteredForms.Skip((_clampedPage - 1) * PageSize).Take(PageSize).ToList();
+        _firstRowNumber = _filteredForms.Count == 0 ? 0 : (_clampedPage - 1) * PageSize + 1;
+        _lastRowNumber = Math.Min(_clampedPage * PageSize, _filteredForms.Count);
     }
 
     private IEnumerable<FormSummary> Sort(IEnumerable<FormSummary> forms)
@@ -421,17 +442,6 @@
         f.LatestPublishedVersionNumber is null ? 0
         : f.Status != FormStatus.Published ? 1
         : 2;
-
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredForms.Count / (double)PageSize));
-
-    private int ClampedPage => Math.Clamp(_page, 1, TotalPages);
-
-    private List<FormSummary> PagedForms =>
-        FilteredForms.Skip((ClampedPage - 1) * PageSize).Take(PageSize).ToList();
-
-    private int FirstRowNumber => FilteredForms.Count == 0 ? 0 : (ClampedPage - 1) * PageSize + 1;
-
-    private int LastRowNumber => Math.Min(ClampedPage * PageSize, FilteredForms.Count);
 
     private static string TabLabel(FormListTab tab) => tab switch
     {
@@ -508,6 +518,25 @@
     private void OnSearchInput(ChangeEventArgs e)
     {
         _query = e.Value?.ToString() ?? string.Empty;
+
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _searchDebounceCts = cts;
+        _ = DebounceSearchAsync(cts.Token);
+    }
+
+    private async Task DebounceSearchAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(200, token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
         _page = 1;
         SyncUrl(replace: true);
     }
@@ -564,7 +593,7 @@
 
     private void GoToPage(int page)
     {
-        _page = Math.Clamp(page, 1, TotalPages);
+        _page = Math.Clamp(page, 1, _totalPages);
         SyncUrl();
     }
 
@@ -594,7 +623,7 @@
 
     private async Task FocusRow(int index)
     {
-        if (index < 0 || index >= PagedForms.Count)
+        if (index < 0 || index >= _pagedForms.Count)
         {
             return;
         }
@@ -657,6 +686,8 @@
         {
             form.PublicUrl = $"https://forms.phieuflow.app/f/{form.Id.ToString()[..8]}";
         }
+
+        RecomputeView();
     }
 
     private void HandleJump(PrePublishRow row)
@@ -675,8 +706,29 @@
 
         try
         {
-            await FormsService.DuplicateAsync(form.Id);
-            _forms = await FormsService.GetAllAsync();
+            var newId = await FormsService.DuplicateAsync(form.Id);
+            var loaded = await FormsService.GetByIdAsync(newId);
+            if (loaded is not null)
+            {
+                _forms.Insert(0, new FormSummary
+                {
+                    Id = newId,
+                    Title = loaded.Title,
+                    Description = loaded.Description,
+                    Status = FormStatus.Draft,
+                    CreatedAt = loaded.CreatedAt,
+                    LastModifiedAt = loaded.LastModifiedAt,
+                    LastModifiedBy = loaded.LastModifiedBy ?? string.Empty,
+                    Revision = loaded.Revision,
+                    VersionNumber = loaded.VersionNumber,
+                    LatestPublishedVersionNumber = null,
+                    LatestPublishedAt = null,
+                    QuestionCount = loaded.Pages.Sum(p => p.Questions.Count),
+                    PageCount = loaded.Pages.Count,
+                });
+            }
+
+            RecomputeView();
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
         {
@@ -711,7 +763,8 @@
             _expandedId = null;
         }
 
-        _page = Math.Clamp(_page, 1, TotalPages);
+        RecomputeView();
+        _page = _clampedPage;
     }
 
     private async Task CopyLink(string? url)
@@ -725,4 +778,6 @@
 
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
     }
+
+    public void Dispose() => _searchDebounceCts?.Cancel();
 }
