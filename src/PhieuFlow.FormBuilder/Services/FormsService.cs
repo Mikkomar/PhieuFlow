@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using PhieuFlow.FormBuilder.Clients;
 using PhieuFlow.FormBuilder.Models;
 using PhieuFlow.FormBuilder.Models.Editing;
@@ -10,25 +11,28 @@ public class FormsService(IHubFormsClient hubFormsClient) : IFormsService
     public Task<Guid> CreateNewAsync(CancellationToken cancellationToken = default) =>
         hubFormsClient.CreateFormAsync(cancellationToken);
 
-    public async Task<List<FormSummary>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<List<FormSummary>> GetAllStreamingAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var dtos = await hubFormsClient.GetAllFormsAsync(cancellationToken);
-        return dtos.Select(dto => new FormSummary
+        await foreach (var batch in hubFormsClient.GetFormBatchesAsync(cancellationToken))
         {
-            Id = dto.Id,
-            Title = dto.Title,
-            Description = dto.Description,
-            Status = MapToModel(dto.Status),
-            CreatedAt = dto.CreatedAt,
-            LastModifiedAt = dto.LastModifiedAt,
-            LastModifiedBy = dto.LastModifiedBy ?? string.Empty,
-            Revision = dto.Revision,
-            VersionNumber = dto.VersionNumber,
-            LatestPublishedVersionNumber = dto.LatestPublishedVersionNumber,
-            LatestPublishedAt = dto.LatestPublishedAt,
-            QuestionCount = dto.QuestionCount,
-            PageCount = dto.PageCount,
-        }).ToList();
+            yield return batch.Select(dto => new FormSummary
+            {
+                Id = dto.Id,
+                Title = dto.Title,
+                Description = dto.Description,
+                Status = MapToModel(dto.Status),
+                CreatedAt = dto.CreatedAt,
+                LastModifiedAt = dto.LastModifiedAt,
+                LastModifiedBy = dto.LastModifiedBy ?? string.Empty,
+                Revision = dto.Revision,
+                VersionNumber = dto.VersionNumber,
+                LatestPublishedVersionNumber = dto.LatestPublishedVersionNumber,
+                LatestPublishedAt = dto.LatestPublishedAt,
+                QuestionCount = dto.QuestionCount,
+                PageCount = dto.PageCount,
+            }).ToList();
+        }
     }
 
     public async Task<FormEditModel?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default)

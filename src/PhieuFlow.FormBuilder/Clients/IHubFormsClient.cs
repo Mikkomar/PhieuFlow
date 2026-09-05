@@ -22,7 +22,8 @@ public interface IHubFormsClient
     /// </summary>
     Task<PublishResultDto> PublishFormAsync(Guid formId, CancellationToken cancellationToken = default);
 
-    Task<List<FormListItemDto>> GetAllFormsAsync(CancellationToken cancellationToken = default);
+    /// <summary>Streams the forms list one server-fetched batch at a time, so callers can render as data arrives.</summary>
+    IAsyncEnumerable<List<FormListItemDto>> GetFormBatchesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Deletes the form and its version history. A missing form is treated as already gone.</summary>
     Task DeleteFormAsync(Guid formId, CancellationToken cancellationToken = default);

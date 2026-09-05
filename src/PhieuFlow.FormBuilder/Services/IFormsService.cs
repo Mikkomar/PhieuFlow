@@ -12,7 +12,8 @@ public interface IFormsService
     /// </summary>
     Task<Guid> CreateNewAsync(CancellationToken cancellationToken = default);
 
-    Task<List<FormSummary>> GetAllAsync(CancellationToken cancellationToken = default);
+    /// <summary>Streams the forms list one server-fetched batch at a time, so callers can render as data arrives.</summary>
+    IAsyncEnumerable<List<FormSummary>> GetAllStreamingAsync(CancellationToken cancellationToken = default);
 
     Task<FormEditModel?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default);
 

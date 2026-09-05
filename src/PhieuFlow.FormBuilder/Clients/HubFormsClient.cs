@@ -1,4 +1,5 @@
 using System.Net;
+using System.Runtime.CompilerServices;
 using PhieuFlow.Hub.Contracts;
 
 namespace PhieuFlow.FormBuilder.Clients;
@@ -60,9 +61,9 @@ public class HubFormsClient(HttpClient httpClient) : IHubFormsClient
             ?? throw new InvalidOperationException("Publish response body was empty.");
     }
 
-    public async Task<List<FormListItemDto>> GetAllFormsAsync(CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<List<FormListItemDto>> GetFormBatchesAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var forms = new List<FormListItemDto>();
         Guid? startId = null;
 
         while (true)
@@ -74,20 +75,18 @@ public class HubFormsClient(HttpClient httpClient) : IHubFormsClient
             var response = await httpClient.GetFromJsonAsync<FormBatchResponse>(url, cancellationToken);
             if (response is null)
             {
-                break;
+                yield break;
             }
 
-            forms.AddRange(response.Items);
+            yield return response.Items.ToList();
 
             if (response.NextStartId is null)
             {
-                break;
+                yield break;
             }
 
             startId = response.NextStartId;
         }
-
-        return forms;
     }
 
     public async Task DeleteFormAsync(Guid formId, CancellationToken cancellationToken = default)

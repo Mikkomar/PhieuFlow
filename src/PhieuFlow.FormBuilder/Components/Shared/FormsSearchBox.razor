@@ -1,0 +1,45 @@
+@implements IDisposable
+
+<div class="flex h-[34px] w-[210px] flex-none items-center gap-2 rounded-md border border-border bg-page-bg px-[10px] focus-within:border-accent">
+    <Blazicon Svg="Lucide.Search" class="text-sm text-text-faint" />
+    <input type="text"
+           placeholder="Search forms"
+           value="@_query"
+           @oninput="OnInput"
+           class="w-full border-none bg-transparent text-[13px] text-text outline-none placeholder:text-text-faint" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public EventCallback<string> OnSearch { get; set; }
+
+    private string _query = string.Empty;
+    private CancellationTokenSource? _debounceCts;
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? string.Empty;
+
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _debounceCts = cts;
+        _ = DebounceAsync(cts.Token);
+    }
+
+    private async Task DebounceAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(200, token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        await OnSearch.InvokeAsync(_query);
+    }
+
+    public void Dispose() => _debounceCts?.Cancel();
+}

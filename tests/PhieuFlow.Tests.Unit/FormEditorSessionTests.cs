@@ -395,8 +395,12 @@ public class FormEditorSessionTests
         public Task<Guid> CreateNewAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(NewFormId);
 
-        public Task<List<FormSummary>> GetAllAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(new List<FormSummary>());
+        public async IAsyncEnumerable<List<FormSummary>> GetAllStreamingAsync(
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
 
         public Task<FormEditModel?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default)
         {

@@ -26,14 +26,7 @@
             <h1 class="m-0 text-[21px] font-semibold tracking-[-0.02em]">All forms</h1>
         </div>
         <div class="flex items-center gap-[10px]">
-            <div class="flex h-[34px] w-[210px] flex-none items-center gap-2 rounded-md border border-border bg-page-bg px-[10px] focus-within:border-accent">
-                <Blazicon Svg="Lucide.Search" class="text-sm text-text-faint" />
-                <input type="text"
-                       placeholder="Search forms"
-                       value="@_query"
-                       @oninput="OnSearchInput"
-                       class="w-full border-none bg-transparent text-[13px] text-text outline-none placeholder:text-text-faint" />
-            </div>
+            <FormsSearchBox OnSearch="HandleSearch" />
             <button type="button" @onclick="@(() => Nav.NavigateTo("/forms/new"))"
                     class="flex h-[34px] flex-none items-center gap-[7px] whitespace-nowrap rounded-md border border-accent bg-accent px-4 text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
                 <Blazicon Svg="Lucide.Plus" class="text-[13px]" />
@@ -244,6 +237,10 @@
                 <span class="text-[12.5px] text-text-faint">
                     Rows <span class="font-semibold text-text-body">@_firstRowNumber–@_lastRowNumber</span> of @_filteredForms.Count
                     <span class="text-text-faintest-2">· ↑ ↓ to move, Enter to expand</span>
+                    @if (_loadingMore)
+                    {
+                        <span class="text-text-faintest-2">· Loading more forms…</span>
+                    }
                 </span>
                 <div class="flex items-center gap-1">
                     <button type="button" disabled="@(_page <= 1)" @onclick="@(() => GoToPage(_page - 1))"
@@ -281,8 +278,10 @@
 
     private List<FormSummary> _forms = [];
     private bool _loading = true;
+    private bool _loadingMore;
     private string? _loadError;
     private string? _actionError;
+    private CancellationTokenSource? _loadCts;
 
     private string _query = string.Empty;
     private FormListTab _tab = FormListTab.All;
@@ -299,7 +298,6 @@
     private int _firstRowNumber;
     private int _lastRowNumber;
     private readonly int[] _tabCounts = new int[Tabs.Length];
-    private CancellationTokenSource? _searchDebounceCts;
 
     private bool _prePublishOpen;
     private PublishResultDto? _publishResult;
@@ -312,9 +310,6 @@
     private int? _focusTabIndex;
     private int? _focusMenuTriggerIndex;
 
-    [Parameter, SupplyParameterFromQuery(Name = "q")]
-    public string? QueryParam { get; set; }
-
     [Parameter, SupplyParameterFromQuery(Name = "tab")]
     public string? TabParam { get; set; }
 
@@ -324,39 +319,55 @@
     [Parameter, SupplyParameterFromQuery(Name = "page")]
     public int? PageParam { get; set; }
 
+    private void HydrateFromQuery()
+    {
+        _tab = ParseTab(TabParam);
+        (_sortColumn, _sortDescending) = ParseSort(SortParam);
+        _page = PageParam is > 0 ? PageParam.Value : 1;
+    }
+
     protected override async Task OnInitializedAsync()
     {
+        HydrateFromQuery();
+        await StreamFormsAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        HydrateFromQuery();
+        RecomputeView();
+    }
+
+    private async Task StreamFormsAsync()
+    {
+        _forms = [];
+        _loadError = null;
+        _loadingMore = true;
+        _loadCts = new CancellationTokenSource();
+
         try
         {
-            _forms = await FormsService.GetAllAsync();
+            await foreach (var batch in FormsService.GetAllStreamingAsync(_loadCts.Token))
+            {
+                _forms.AddRange(batch);
+                RecomputeView();
+                _loading = false;
+                StateHasChanged();
+            }
         }
         catch (HttpRequestException)
         {
             _loadError = "Couldn't load forms from the server.";
         }
+        catch (OperationCanceledException)
+        {
+            // navigated away mid-stream — nothing to show, nothing to report
+        }
         finally
         {
             _loading = false;
+            _loadingMore = false;
         }
-
-        RecomputeView();
-    }
-
-    // The query string is the source of truth for the view; hydrate local state from it so
-    // deep links and back/forward work. The search box keeps _query live between navigations.
-    protected override void OnParametersSet()
-    {
-        var q = QueryParam ?? string.Empty;
-        if (q != _query)
-        {
-            _query = q;
-        }
-
-        _tab = ParseTab(TabParam);
-        (_sortColumn, _sortDescending) = ParseSort(SortParam);
-        _page = PageParam is > 0 ? PageParam.Value : 1;
-
-        RecomputeView();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -506,7 +517,6 @@
     {
         var uri = Nav.GetUriWithQueryParameters(new Dictionary<string, object?>
         {
-            ["q"] = string.IsNullOrWhiteSpace(_query) ? null : _query,
             ["tab"] = TabSlug(_tab),
             ["sort"] = SortSlug(),
             ["page"] = _page <= 1 ? null : _page,
@@ -515,30 +525,11 @@
         Nav.NavigateTo(uri, forceLoad: false, replace: replace);
     }
 
-    private void OnSearchInput(ChangeEventArgs e)
+    private void HandleSearch(string query)
     {
-        _query = e.Value?.ToString() ?? string.Empty;
-
-        _searchDebounceCts?.Cancel();
-        _searchDebounceCts?.Dispose();
-        var cts = new CancellationTokenSource();
-        _searchDebounceCts = cts;
-        _ = DebounceSearchAsync(cts.Token);
-    }
-
-    private async Task DebounceSearchAsync(CancellationToken token)
-    {
-        try
-        {
-            await Task.Delay(200, token);
-        }
-        catch (TaskCanceledException)
-        {
-            return;
-        }
-
+        _query = query;
         _page = 1;
-        SyncUrl(replace: true);
+        RecomputeView();
     }
 
     private void SelectTab(FormListTab tab)
@@ -779,5 +770,5 @@
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
     }
 
-    public void Dispose() => _searchDebounceCts?.Cancel();
+    public void Dispose() => _loadCts?.Cancel();
 }
