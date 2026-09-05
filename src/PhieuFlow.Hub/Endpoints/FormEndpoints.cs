@@ -43,6 +43,33 @@ public static class FormEndpoints
             });
         }).RequireAuthorization("forms:read");
 
+        // Respondent-facing (form-filler): published forms only, never draft/current content.
+        // Gated on its own scope (not forms:read) so a form-filler token structurally cannot
+        // reach the builder's draft-exposing endpoints above, and a form-builder token cannot
+        // reach this one.
+        app.MapGet("/forms/published", async (IUnitOfWork unitOfWork, int take = 20, Guid? startId = null, CancellationToken cancellationToken = default) =>
+        {
+            if (take < 1 || take > MaxTake)
+            {
+                return Results.BadRequest($"'take' must be between 1 and {MaxTake}.");
+            }
+
+            var result = await unitOfWork.Forms.GetPublishedBatchAsync(startId, take, cancellationToken);
+
+            return Results.Ok(new PublishedFormBatchResponse
+            {
+                Items = result.Items.Select(i => new PublishedFormListItemDto
+                {
+                    Id = i.Id,
+                    Title = i.Title,
+                    Description = i.Description,
+                    VersionNumber = i.VersionNumber,
+                    PublishedAt = i.PublishedAt,
+                }).ToList(),
+                NextStartId = result.NextStartId,
+            });
+        }).RequireAuthorization("published-forms:read");
+
         app.MapPost("/forms", async (IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
             var formId = await unitOfWork.Forms.CreateAsync(cancellationToken);

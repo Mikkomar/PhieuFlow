@@ -128,6 +128,52 @@ public sealed class HubAuthorizationTests(HubAuthWebApplicationFactory factory)
         read.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
+    [Fact]
+    public async Task TestGetFormsPublished_Without_BearerToken_Should_Return401()
+    {
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/forms/published");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task TestGetFormsPublished_When_TokenHasPublishedFormsReadScope_Should_Return200()
+    {
+        var token = TestJwt.Create(scope: "published-forms:read");
+        using var client = factory.CreateClientWithToken(token);
+
+        var response = await client.GetAsync("/forms/published");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    // Isolation (ADR 0005 extension): form-filler's token must never satisfy forms:read, and
+    // form-builder's token must never satisfy published-forms:read — the two clients are
+    // scoped to disjoint capabilities so form-filler structurally cannot read draft content.
+    [Fact]
+    public async Task TestGetForms_When_TokenHasOnlyPublishedFormsReadScope_Should_Return403()
+    {
+        var token = TestJwt.Create(scope: "published-forms:read");
+        using var client = factory.CreateClientWithToken(token);
+
+        var response = await client.GetAsync("/forms");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task TestGetFormsPublished_When_TokenHasOnlyFormsReadScope_Should_Return403()
+    {
+        var token = TestJwt.Create(scope: "forms:read");
+        using var client = factory.CreateClientWithToken(token);
+
+        var response = await client.GetAsync("/forms/published");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
     private static FormDto NewFormDto(Guid? id = null) => new()
     {
         Id = id ?? Guid.NewGuid(),

@@ -32,6 +32,15 @@
       }
     },
     {
+      "name": "published-forms:read",
+      "description": "Read published forms via the Hub REST API (respondent-facing, read-only).",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
       "name": "phieuflow-hub-audience",
       "description": "Adds the Hub as an accepted audience on the access token.",
       "protocol": "openid-connect",
@@ -75,6 +84,24 @@
         "forms:write",
         "submissions:write"
       ]
+    },
+    {
+      "clientId": "form-filler",
+      "description": "The form-filler service, calling the Hub REST API with an OAuth2 client-credentials token (ADR 0005). Scoped to published forms only — it must never read draft/unpublished content.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "form-filler-dev-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "defaultClientScopes": [
+        "published-forms:read",
+        "phieuflow-hub-audience"
+      ],
+      "optionalClientScopes": []
     }
   ]
 }

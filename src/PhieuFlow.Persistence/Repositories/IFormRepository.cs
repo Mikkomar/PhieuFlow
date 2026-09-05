@@ -7,6 +7,14 @@ public interface IFormRepository
 {
     Task<FormBatchResult> GetBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Batches only forms that have a published version (ADR 0007: the highest-VersionNumber
+    /// row with Status == Published, regardless of whether a newer draft has since superseded
+    /// it), projecting the published version's own Title/Description — never the current
+    /// draft's. Used by the respondent-facing form-filler, which must never see draft content.
+    /// </summary>
+    Task<PublishedFormBatchResult> GetPublishedBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default);
+
     /// <summary>Persists a blank draft (v1, one empty page) and returns its form id.</summary>
     Task<Guid> CreateAsync(CancellationToken cancellationToken = default);
 

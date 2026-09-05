@@ -1,3 +1,4 @@
+using PhieuFlow.FormFiller.Clients;
 using PhieuFlow.FormFiller.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +8,30 @@ builder.AddServiceDefaults();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Service-to-service auth (ADR 0005): obtain an OAuth2 client-credentials token from
+// Keycloak, scoped to published-forms:read only, and attach it to every Hub call.
+builder.Services.Configure<KeycloakClientOptions>(builder.Configuration.GetSection("Keycloak"));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ClientCredentialsTokenProvider>();
+builder.Services.AddTransient<ClientCredentialsTokenHandler>();
+
+var keycloakTokenClient = builder.Services.AddHttpClient("keycloak-token");
+if (builder.Environment.IsDevelopment())
+{
+    // Local orchestration only: Aspire serves Keycloak over a self-signed certificate.
+    keycloakTokenClient.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback =
+            HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+    });
+}
+
+builder.Services.AddHttpClient<IHubFormsClient, HubFormsClient>(client =>
+{
+    client.BaseAddress = new Uri("https+http://hub");
+})
+.AddHttpMessageHandler<ClientCredentialsTokenHandler>();
 
 var app = builder.Build();
 

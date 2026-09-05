@@ -7,6 +7,8 @@ var hubDb = sql.AddDatabase("HubDatabase", "PhieuFlowHub");
 const string hubAudience = "phieuflow-hub";
 const string formBuilderClientId = "form-builder";
 const string formBuilderClientSecret = "form-builder-dev-secret";
+const string formFillerClientId = "form-filler";
+const string formFillerClientSecret = "form-filler-dev-secret";
 
 var keycloak = builder.AddKeycloak("keycloak")
     .WithRealmImport(Path.Combine(builder.AppHostDirectory, "realms"));
@@ -59,7 +61,14 @@ builder.AddProject<Projects.PhieuFlow_FormBuilder>("formbuilder")
 builder.AddProject<Projects.PhieuFlow_FormFiller>("formfiller")
     .WithExternalHttpEndpoints()
     .WithReference(hub)
+    .WithReference(keycloak)
     .WaitFor(hub)
+    .WaitFor(keycloak)
+    .WithEnvironment("Keycloak__Authority", keycloakRealmAuthority)
+    .WithEnvironment("Keycloak__ClientId", formFillerClientId)
+    .WithEnvironment("Keycloak__ClientSecret", formFillerClientSecret)
+    .WithEnvironment("Keycloak__RequireHttpsMetadata", "false")
+    .WithEnvironment("Keycloak__DangerousAcceptAnyServerCertificate", "true")
     .WithHttpHealthCheck("/health");
 
 builder.Build().Run();

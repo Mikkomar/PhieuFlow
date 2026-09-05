@@ -454,4 +454,51 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             NextStartId = nextStartId,
         };
     }
+
+    public async Task<PublishedFormBatchResult> GetPublishedBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Forms
+            .AsNoTracking()
+            .Select(f => new
+            {
+                f.Id,
+                LatestPublished = f.Versions
+                    .Where(v => v.Status == FormVersionStatus.Published)
+                    .OrderByDescending(v => v.VersionNumber)
+                    .Select(v => new { v.Title, v.Description, v.VersionNumber, v.PublishedAt })
+                    .FirstOrDefault(),
+            })
+            .Where(x => x.LatestPublished != null);
+
+        if (startId is not null)
+        {
+            query = query.Where(x => x.Id >= startId.Value);
+        }
+
+        var page = await query
+            .OrderBy(x => x.Id)
+            .Take(take + 1)
+            .Select(x => new PublishedFormListItem
+            {
+                Id = x.Id,
+                Title = x.LatestPublished!.Title,
+                Description = x.LatestPublished.Description,
+                VersionNumber = x.LatestPublished.VersionNumber,
+                PublishedAt = x.LatestPublished.PublishedAt,
+            })
+            .ToListAsync(cancellationToken);
+
+        Guid? nextStartId = null;
+        if (page.Count > take)
+        {
+            nextStartId = page[take].Id;
+            page.RemoveAt(take);
+        }
+
+        return new PublishedFormBatchResult
+        {
+            Items = page,
+            NextStartId = nextStartId,
+        };
+    }
 }

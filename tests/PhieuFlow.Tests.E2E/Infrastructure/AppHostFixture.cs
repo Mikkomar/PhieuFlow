@@ -26,6 +26,8 @@ public sealed class AppHostFixture : IAsyncLifetime
     private const string Realm = "phieuflow";
     private const string FormBuilderClientId = "form-builder";
     private const string FormBuilderClientSecret = "form-builder-dev-secret";
+    private const string FormFillerClientId = "form-filler";
+    private const string FormFillerClientSecret = "form-filler-dev-secret";
 
     private DistributedApplication _app = null!;
     private IPlaywright _playwright = null!;
@@ -68,7 +70,29 @@ public sealed class AppHostFixture : IAsyncLifetime
     /// Runs the OAuth2 client-credentials exchange against Keycloak for the form-builder
     /// client, requesting <paramref name="scopes"/> (a subset of its allowed scopes).
     /// </summary>
-    public async Task<string> GetServiceTokenAsync(params string[] scopes)
+    public Task<string> GetServiceTokenAsync(params string[] scopes) =>
+        GetServiceTokenAsync(FormBuilderClientId, FormBuilderClientSecret, scopes);
+
+    /// <summary>
+    /// HTTP client pointed at the hub REST API carrying a client-credentials bearer token
+    /// for the form-filler client. Defaults to its only scope, <c>published-forms:read</c>,
+    /// when no scope is given.
+    /// </summary>
+    public async Task<HttpClient> CreateFormFillerAuthorizedHubClientAsync(params string[] scopes)
+    {
+        var requested = scopes.Length == 0 ? ["published-forms:read"] : scopes;
+        var client = _app.CreateHttpClient("hub");
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer", await GetServiceTokenAsync(FormFillerClientId, FormFillerClientSecret, requested));
+        return client;
+    }
+
+    /// <summary>
+    /// Runs the OAuth2 client-credentials exchange against Keycloak for an arbitrary client,
+    /// requesting <paramref name="scopes"/> (a subset of that client's allowed scopes).
+    /// </summary>
+    private async Task<string> GetServiceTokenAsync(string clientId, string clientSecret, string[] scopes)
     {
         // Aspire serves Keycloak over a self-signed certificate.
         using var handler = new HttpClientHandler
@@ -80,8 +104,8 @@ public sealed class AppHostFixture : IAsyncLifetime
         using var body = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "client_credentials",
-            ["client_id"] = FormBuilderClientId,
-            ["client_secret"] = FormBuilderClientSecret,
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret,
             ["scope"] = string.Join(' ', scopes),
         });
 
