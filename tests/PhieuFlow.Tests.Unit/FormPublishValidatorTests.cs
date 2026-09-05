@@ -99,6 +99,17 @@ public class FormPublishValidatorTests
     }
 
     [Fact]
+    public void TestValidate_When_CheckboxLabelEmpty_Should_AddLabelIssueToThatQuestion()
+    {
+        var checkbox = Checkbox("Terms", "  ");
+        var form = Form("Survey", Page(null, checkbox));
+
+        _validator.Validate(form).Should().BeFalse();
+
+        checkbox.Issues.Should().ContainSingle().Which.Field.Should().Be(ValidationField.Label);
+    }
+
+    [Fact]
     public void TestValidate_When_NumberMinExceedsMax_Should_AddMinIssue()
     {
         var number = Number("Age", min: 40, max: 10);

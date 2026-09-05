@@ -81,6 +81,16 @@ public sealed class FormPublishValidator : IFormPublishValidator
             clean &= ValidateChoice(choice, questionNumber);
         }
 
+        if (question is CheckboxQuestionDto checkbox && string.IsNullOrWhiteSpace(checkbox.Label))
+        {
+            question.Issues.Add(new ValidationIssueDto
+            {
+                Message = $"Question {questionNumber} has no checkbox label.",
+                Field = ValidationField.Label,
+            });
+            clean = false;
+        }
+
         var minGreaterThanMax = question switch
         {
             NumberQuestionDto n => ExceedsMax((n.Min, n.Max)),

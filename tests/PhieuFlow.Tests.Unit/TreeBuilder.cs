@@ -31,6 +31,14 @@ internal static class TreeBuilder
         IsRequired = false,
     };
 
+    public static CheckboxQuestionDto Checkbox(string text, string label) => new()
+    {
+        Id = Guid.NewGuid(),
+        Text = text,
+        IsRequired = false,
+        Label = label,
+    };
+
     public static NumberQuestionDto Number(string text, decimal? min = null, decimal? max = null) => new()
     {
         Id = Guid.NewGuid(),
