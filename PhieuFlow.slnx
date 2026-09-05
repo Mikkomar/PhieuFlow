@@ -9,6 +9,7 @@
     <Project Path="src/PhieuFlow.Persistence/PhieuFlow.Persistence.csproj" />
     <Project Path="src/PhieuFlow.SeedService/PhieuFlow.SeedService.csproj" />
     <Project Path="src/PhieuFlow.ServiceDefaults/PhieuFlow.ServiceDefaults.csproj" />
+    <Project Path="src/PhieuFlow.Ui/PhieuFlow.Ui.csproj" />
     <Project Path="src/PhieuFlow.AppHost/PhieuFlow.AppHost.csproj" />
   </Folder>
   <Folder Name="/tests/">

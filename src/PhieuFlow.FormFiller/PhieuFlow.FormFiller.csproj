@@ -3,6 +3,12 @@
   <ItemGroup>
     <ProjectReference Include="..\PhieuFlow.Hub.Contracts\PhieuFlow.Hub.Contracts.csproj" />
     <ProjectReference Include="..\PhieuFlow.ServiceDefaults\PhieuFlow.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\PhieuFlow.Ui\PhieuFlow.Ui.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Blazicons" Version="4.0.21" />
+    <PackageReference Include="Blazicons.Lucide" Version="3.0.8" />
   </ItemGroup>
 
   <PropertyGroup>

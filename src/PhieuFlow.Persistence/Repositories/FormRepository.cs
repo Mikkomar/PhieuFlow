@@ -465,7 +465,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
                 LatestPublished = f.Versions
                     .Where(v => v.Status == FormVersionStatus.Published)
                     .OrderByDescending(v => v.VersionNumber)
-                    .Select(v => new { v.Title, v.Description, v.VersionNumber, v.PublishedAt })
+                    .Select(v => new { v.Title, v.Description, v.VersionNumber, v.PublishedAt, PageCount = v.Pages.Count })
                     .FirstOrDefault(),
             })
             .Where(x => x.LatestPublished != null);
@@ -485,6 +485,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
                 Description = x.LatestPublished.Description,
                 VersionNumber = x.LatestPublished.VersionNumber,
                 PublishedAt = x.LatestPublished.PublishedAt,
+                PageCount = x.LatestPublished.PageCount,
             })
             .ToListAsync(cancellationToken);
 

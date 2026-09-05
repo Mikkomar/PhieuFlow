@@ -4,6 +4,7 @@
     <ProjectReference Include="..\PhieuFlow.Core\PhieuFlow.Core.csproj" />
     <ProjectReference Include="..\PhieuFlow.Hub.Contracts\PhieuFlow.Hub.Contracts.csproj" />
     <ProjectReference Include="..\PhieuFlow.ServiceDefaults\PhieuFlow.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\PhieuFlow.Ui\PhieuFlow.Ui.csproj" />
   </ItemGroup>
 
   <ItemGroup>

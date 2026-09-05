@@ -1,11 +1,11 @@
 @inherits LayoutComponentBase
 
-<div class="flex min-h-screen bg-page-bg">
-    <aside class="sticky top-0 flex h-screen w-[236px] flex-none flex-col border-r border-border bg-surface">
-        <NavMenu />
-    </aside>
+<div class="flex min-h-screen flex-col bg-page-bg">
+    <header class="flex h-[59px] flex-none items-center border-b border-border bg-surface px-8">
+        <Wordmark />
+    </header>
 
-    <main class="flex min-w-0 flex-1 flex-col">
+    <main class="flex flex-1 flex-col">
         @Body
     </main>
 </div>

@@ -1,7 +1,71 @@
-﻿@page "/"
+@page "/"
+@inject IHubFormsClient HubFormsClient
+@implements IDisposable
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Forms open for responses</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="mx-auto flex w-full max-w-[680px] flex-col gap-[22px] px-8 pt-[44px] pb-[64px]">
+    <div class="flex flex-col gap-[6px]">
+        <h1 class="text-[22px] font-semibold tracking-[-0.015em] text-text">Forms open for responses</h1>
+        <p class="text-[13.5px] leading-[1.55] text-text-soft">Pick a form to fill out. Nothing here is submitted until you finish it.</p>
+    </div>
 
-Welcome to your new app.
+    <div class="overflow-hidden rounded-lg border border-border bg-surface">
+        @if (_loading)
+        {
+            <div class="px-[22px] py-[18px] text-[13.5px] text-text-faintest">Loading forms&hellip;</div>
+        }
+        else if (_forms.Count == 0)
+        {
+            <div class="px-[22px] py-[18px] text-[13.5px] text-text-faintest">No forms are open for responses right now.</div>
+        }
+        else
+        {
+            @for (var i = 0; i < _forms.Count; i++)
+            {
+                var form = _forms[i];
+                var isLast = i == _forms.Count - 1;
+                <a href="@($"/f/{form.Id}")"
+                   class="@($"flex items-center gap-5 px-[22px] py-[18px] hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent {(isLast ? "" : "border-b border-border-row")}")">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                        <span class="text-[14.5px] font-semibold tracking-[-0.01em] text-text">@form.Title</span>
+                        @if (!string.IsNullOrWhiteSpace(form.Description))
+                        {
+                            <span class="text-[12.5px] leading-[1.5] text-text-soft text-pretty">@form.Description</span>
+                        }
+                        <div class="flex items-center gap-[10px] pt-[2px] font-mono text-[10.5px] text-text-faintest">
+                            <span>@form.PageCount @(form.PageCount == 1 ? "page" : "pages")</span>
+                        </div>
+                    </div>
+                    <Blazicon Svg="Lucide.ChevronRight" class="flex-none text-[15px] text-text-faintest-2" aria-hidden="true" />
+                </a>
+            }
+        }
+    </div>
+
+    <p class="text-center text-[11.5px] text-text-faintest">Only forms open for responses appear here. A form you were sent directly may not be listed.</p>
+</div>
+
+@code {
+    private readonly List<PublishedFormListItemDto> _forms = [];
+    private bool _loading = true;
+    private readonly CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await foreach (var batch in HubFormsClient.GetPublishedFormBatchesAsync(_cts.Token))
+        {
+            _forms.AddRange(batch);
+            _loading = false;
+            StateHasChanged();
+        }
+
+        _loading = false;
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

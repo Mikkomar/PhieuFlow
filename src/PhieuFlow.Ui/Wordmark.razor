@@ -1,0 +1,20 @@
+<div class="flex items-center gap-[10px]">
+    <div class="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-md bg-accent text-[13px] font-bold tracking-[-0.02em] text-white">P</div>
+    @if (Subtitle is null)
+    {
+        <span class="text-sm font-semibold tracking-[-0.01em] text-text">PhieuFlow</span>
+    }
+    else
+    {
+        <div class="flex flex-col gap-px">
+            <span class="text-sm font-semibold tracking-[-0.01em] text-text">PhieuFlow</span>
+            @Subtitle
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Optional line under "PhieuFlow", e.g. an app subtitle. Omit for the plain lockup.</summary>
+    [Parameter]
+    public RenderFragment? Subtitle { get; set; }
+}

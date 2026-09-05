@@ -7,4 +7,5 @@ public class PublishedFormListItemDto
     public string? Description { get; set; }
     public required int VersionNumber { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
+    public required int PageCount { get; set; }
 }

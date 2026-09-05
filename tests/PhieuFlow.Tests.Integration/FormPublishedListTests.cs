@@ -48,6 +48,7 @@ public sealed class FormPublishedListTests(HubAuthWebApplicationFactory factory)
         item.Title.Should().Be("Contact form");
         item.VersionNumber.Should().Be(1);
         item.PublishedAt.Should().NotBeNull();
+        item.PageCount.Should().Be(1);
     }
 
     [Fact]

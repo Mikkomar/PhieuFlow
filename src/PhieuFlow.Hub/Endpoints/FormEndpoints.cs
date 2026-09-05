@@ -65,6 +65,7 @@ public static class FormEndpoints
                     Description = i.Description,
                     VersionNumber = i.VersionNumber,
                     PublishedAt = i.PublishedAt,
+                    PageCount = i.PageCount,
                 }).ToList(),
                 NextStartId = result.NextStartId,
             });
