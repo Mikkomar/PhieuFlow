@@ -1,0 +1,256 @@
+@inject NavigationManager Nav
+
+@{
+    var rows = Rows;
+}
+@for (var r = 0; r < rows.Count; r++)
+{
+    var rowIndex = r;
+    var form = rows[rowIndex];
+    var expanded = _expandedId == form.Id;
+    var detailId = $"form-detail-{form.Id}";
+    <div class="border-b border-border-row">
+        <div @ref="_rowRefs[rowIndex]" role="button" tabindex="0"
+             aria-expanded="@(expanded ? "true" : "false")" aria-controls="@detailId"
+             @onclick="@(() => ToggleRow(form.Id))"
+             @onkeydown="@(e => OnRowKeyDown(e, rowIndex, form.Id))"
+             class="grid cursor-pointer grid-cols-[28px_minmax(180px,1fr)_210px_140px_104px] items-center gap-3 px-[18px] py-[13px] hover:bg-surface-subtle focus:outline-none focus-visible:bg-surface-subtle">
+            <Blazicon Svg="Lucide.ChevronRight"
+                      class="@("text-sm transition-transform duration-150 " + (expanded ? "rotate-90 text-accent" : "text-text-faintest-2"))" />
+
+            <div class="flex min-w-0 flex-col gap-0.5">
+                <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[13.5px] font-semibold tracking-[-0.005em] text-text">@form.Title</span>
+                <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] text-text-faint">@form.Description</span>
+            </div>
+
+            <FormStatusCell Status="form.Status"
+                            LiveVersionNumber="form.LatestPublishedVersionNumber"
+                            VersionNumber="form.VersionNumber" />
+
+            <div class="flex flex-col gap-px">
+                <span class="text-[12.5px] text-text-body">@form.LastModifiedAt.ToString("d MMM yyyy, HH:mm")</span>
+                <span class="text-[11px] text-text-faintest">by @form.LastModifiedBy</span>
+            </div>
+
+            <div class="relative flex items-center justify-end gap-[6px]" @onclick:stopPropagation="true">
+                <button type="button" @onclick="@(() => Nav.NavigateTo($"/forms/{form.Id}"))"
+                        class="h-7 rounded-md border border-border-control bg-white px-[11px] text-[12.5px] font-medium text-text-body hover:border-accent hover:text-accent">Edit</button>
+                <button type="button" @ref="_menuTriggerRefs[rowIndex]" @onclick="@(() => ToggleRowMenu(form.Id))"
+                        aria-haspopup="menu" aria-expanded="@(_openRowMenuId == form.Id ? "true" : "false")"
+                        class="flex h-7 w-7 items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-border-control-hover hover:text-text">
+                    <Blazicon Svg="Lucide.Ellipsis" class="text-sm" />
+                </button>
+                @if (_openRowMenuId == form.Id)
+                {
+                    <FormRowMenu CopyLinkDisabled="@(form.LatestPublishedVersionNumber is null)"
+                                 OnClose="@(() => CloseRowMenu(rowIndex))"
+                                 OnDuplicate="@(() => OnDuplicate.InvokeAsync(form))"
+                                 OnPublish="@(() => OnPublish.InvokeAsync(form))"
+                                 OnCopyLink="@(() => OnCopyLink.InvokeAsync(form.PublicUrl))"
+                                 OnDelete="@(() => OnDelete.InvokeAsync(form))" />
+                }
+            </div>
+        </div>
+
+        @if (expanded)
+        {
+            <div id="@detailId" class="grid grid-cols-[minmax(0,1fr)_268px] gap-8 border-t border-border-row bg-surface-panel py-1 pr-[18px] pb-5 pl-[62px]">
+                <div class="flex flex-col gap-[14px] pt-[14px]">
+                    <p class="m-0 max-w-[62ch] text-[13px] leading-[1.55] text-text-muted">@form.Description</p>
+                    <div class="flex flex-wrap gap-x-[30px] gap-y-4">
+                        <div class="flex flex-col gap-[3px]">
+                            <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Questions</span>
+                            <span class="text-[15px] font-semibold">@form.QuestionCount</span>
+                        </div>
+                        <div class="flex flex-col gap-[3px]">
+                            <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Pages</span>
+                            <span class="text-[15px] font-semibold">@form.PageCount</span>
+                        </div>
+                        <div class="flex flex-col gap-[3px]">
+                            <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Created</span>
+                            <span class="text-[15px] font-semibold">@form.CreatedAt.ToString("d MMM yyyy")</span>
+                        </div>
+                        <div class="flex flex-col gap-[3px]">
+                            <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Version</span>
+                            <span class="font-mono text-[13px] font-medium text-text-body">v@(form.VersionNumber)</span>
+                        </div>
+                        <div class="flex flex-col gap-[3px]">
+                            <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Live</span>
+                            <span class="font-mono text-[13px] font-medium text-text-body">
+                                @(form.LatestPublishedVersionNumber is { } pubVer
+                                    ? (form.LatestPublishedAt is { } at ? $"v{pubVer} · published {at.ToLocalTime():d MMM yyyy}" : $"v{pubVer}")
+                                    : "—")
+                            </span>
+                        </div>
+                        <div class="flex flex-col gap-[3px]">
+                            <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Form ID</span>
+                            <span class="font-mono text-[13px] font-medium text-text-body">@(form.Id.ToString()[..8])&hellip;</span>
+                        </div>
+                    </div>
+
+                    @if (form.LatestPublishedVersionNumber is not null && !string.IsNullOrEmpty(form.PublicUrl))
+                    {
+                        <div class="flex max-w-[520px] items-center gap-[10px] rounded-md border border-border bg-white px-3 py-2">
+                            <Blazicon Svg="Lucide.Link2" class="text-sm text-text-faint" />
+                            <span class="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs text-text-muted">@form.PublicUrl</span>
+                            <button type="button" @onclick="@(() => OnCopyLink.InvokeAsync(form.PublicUrl))"
+                                    class="ml-auto h-6 flex-none rounded-[5px] border border-border-control bg-white px-[9px] text-[11.5px] font-medium text-text-body hover:border-accent hover:text-accent">
+                                Copy
+                            </button>
+                        </div>
+                    }
+                </div>
+
+                <div class="flex flex-col gap-2 pt-[14px]">
+                    <button type="button" @onclick="@(() => Nav.NavigateTo($"/forms/{form.Id}"))"
+                            class="h-[34px] rounded-md border border-accent bg-accent text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">Edit form</button>
+                    @if (form.Status != FormStatus.Published)
+                    {
+                        <button type="button" @onclick="@(() => OnPublish.InvokeAsync(form))"
+                                class="h-[34px] rounded-md border border-border-control bg-white text-[13px] font-medium text-text-body hover:border-border-control-hover">
+                            Publish
+                        </button>
+                    }
+                    <button type="button" @onclick="@(() => OnDelete.InvokeAsync(form))"
+                            class="h-[34px] rounded-md border border-danger-border bg-white text-[13px] font-medium text-danger hover:border-danger-border-hover hover:bg-danger-surface">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<div class="flex items-center justify-between gap-4 bg-surface-subtle px-[18px] py-3">
+    <span class="text-[12.5px] text-text-faint">
+        Rows <span class="font-semibold text-text-body">@FirstRowNumber–@LastRowNumber</span> of @TotalCount
+        <span class="text-text-faintest-2">· ↑ ↓ to move, Enter to expand</span>
+        @if (LoadingMore)
+        {
+            <span class="text-text-faintest-2">· Loading more forms…</span>
+        }
+    </span>
+    <div class="flex items-center gap-1">
+        <button type="button" disabled="@(Page <= 1)" @onclick="@(() => OnGoToPage.InvokeAsync(Page - 1))"
+                class="h-7 rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-body enabled:hover:border-border-control-hover disabled:cursor-default disabled:text-text-faintest-2">
+            Previous
+        </button>
+        <span class="px-2 text-[12.5px] text-text-faint">Page @Page / @TotalPages</span>
+        <button type="button" disabled="@(Page >= TotalPages)" @onclick="@(() => OnGoToPage.InvokeAsync(Page + 1))"
+                class="h-7 rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-body enabled:hover:border-border-control-hover disabled:cursor-default disabled:text-text-faintest-2">
+            Next
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<FormSummary> Rows { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public int FirstRowNumber { get; set; }
+
+    [Parameter, EditorRequired]
+    public int LastRowNumber { get; set; }
+
+    [Parameter, EditorRequired]
+    public int TotalCount { get; set; }
+
+    [Parameter, EditorRequired]
+    public int Page { get; set; }
+
+    [Parameter, EditorRequired]
+    public int TotalPages { get; set; }
+
+    [Parameter]
+    public bool LoadingMore { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<int> OnGoToPage { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<FormSummary> OnPublish { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<FormSummary> OnDuplicate { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<FormSummary> OnDelete { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<string?> OnCopyLink { get; set; }
+
+    private Guid? _expandedId;
+    private Guid? _openRowMenuId;
+    private ElementReference[] _rowRefs = [];
+    private ElementReference[] _menuTriggerRefs = [];
+    private int? _focusMenuTriggerIndex;
+
+    protected override void OnParametersSet()
+    {
+        if (_rowRefs.Length != Rows.Count)
+        {
+            _rowRefs = new ElementReference[Rows.Count];
+            _menuTriggerRefs = new ElementReference[Rows.Count];
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusMenuTriggerIndex is { } menuIndex)
+        {
+            _focusMenuTriggerIndex = null;
+            if (menuIndex < _menuTriggerRefs.Length)
+            {
+                try { await _menuTriggerRefs[menuIndex].FocusAsync(); }
+                catch (Exception) { /* row may have gone */ }
+            }
+        }
+    }
+
+    private void ToggleRow(Guid id)
+    {
+        _expandedId = _expandedId == id ? null : id;
+        _openRowMenuId = null;
+    }
+
+    private async Task OnRowKeyDown(KeyboardEventArgs e, int rowIndex, Guid id)
+    {
+        switch (e.Key)
+        {
+            case "Enter":
+            case " ":
+            case "Spacebar":
+                ToggleRow(id);
+                break;
+            case "ArrowDown":
+                await FocusRow(rowIndex + 1);
+                break;
+            case "ArrowUp":
+                await FocusRow(rowIndex - 1);
+                break;
+        }
+    }
+
+    private async Task FocusRow(int index)
+    {
+        if (index < 0 || index >= Rows.Count)
+        {
+            return;
+        }
+
+        try { await _rowRefs[index].FocusAsync(); }
+        catch (Exception) { /* row not rendered */ }
+    }
+
+    private void ToggleRowMenu(Guid id)
+    {
+        _openRowMenuId = _openRowMenuId == id ? null : id;
+    }
+
+    private void CloseRowMenu(int rowIndex)
+    {
+        _openRowMenuId = null;
+        _focusMenuTriggerIndex = rowIndex;
+    }
+}

@@ -1,0 +1,96 @@
+<div role="tablist" aria-label="Filter forms" @onkeydown="OnKeyDown" class="mt-[18px] flex items-center gap-[26px]">
+    @{
+        if (_tabRefs.Length != Tabs.Count)
+        {
+            _tabRefs = new ElementReference[Tabs.Count];
+        }
+        var slot = 0;
+    }
+    @foreach (var (tab, count) in Tabs)
+    {
+        var currentSlot = slot;
+        var active = tab == ActiveTab;
+
+        @if (tab == FormListTab.UnpublishedEdits)
+        {
+            <span aria-hidden="true" class="h-[14px] w-px flex-none bg-border-soft"></span>
+        }
+
+        <button type="button" role="tab" @ref="_tabRefs[currentSlot]"
+                aria-selected="@(active ? "true" : "false")"
+                tabindex="@(active ? 0 : -1)"
+                @onclick="@(() => OnSelectTab.InvokeAsync(tab))"
+                class="@($"border-b-2 pb-[11px] text-[13px] {TabClasses(active)}")">
+            @TabLabel(tab)
+            <span class="font-mono text-[11px] @(active ? "text-[#8fada9]" : "text-text-faintest-2")">@count</span>
+        </button>
+        slot++;
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<(FormListTab Tab, int Count)> Tabs { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public FormListTab ActiveTab { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<FormListTab> OnSelectTab { get; set; }
+
+    private ElementReference[] _tabRefs = [];
+    private int? _focusTabIndex;
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        var current = Tabs.ToList().FindIndex(t => t.Tab == ActiveTab);
+        if (current < 0)
+        {
+            return;
+        }
+
+        var target = e.Key switch
+        {
+            "ArrowLeft" or "ArrowUp" => current - 1,
+            "ArrowRight" or "ArrowDown" => current + 1,
+            "Home" => 0,
+            "End" => Tabs.Count - 1,
+            _ => current,
+        };
+
+        if (target == current || target < 0 || target >= Tabs.Count)
+        {
+            return;
+        }
+
+        _focusTabIndex = target;
+        await OnSelectTab.InvokeAsync(Tabs[target].Tab);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusTabIndex is not { } index)
+        {
+            return;
+        }
+
+        _focusTabIndex = null;
+        if (index < _tabRefs.Length)
+        {
+            try { await _tabRefs[index].FocusAsync(); }
+            catch (Exception) { /* tab may not be in the DOM yet */ }
+        }
+    }
+
+    public static string TabLabel(FormListTab tab) => tab switch
+    {
+        FormListTab.Live => "Live",
+        FormListTab.NeverPublished => "Never published",
+        FormListTab.UnpublishedEdits => "Unpublished edits",
+        _ => "All",
+    };
+
+    private static string TabClasses(bool active) => active
+        ? "border-accent font-semibold text-accent"
+        : "border-transparent text-text-soft hover:text-text";
+}

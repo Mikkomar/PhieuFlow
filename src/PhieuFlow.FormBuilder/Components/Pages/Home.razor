@@ -8,7 +8,7 @@
 <PageTitle>All forms</PageTitle>
 
 @{
-    RenderFragment SortHeader(SortColumn column, string label) =>
+    RenderFragment SortHeader(FormListSortColumn column, string label) =>
         @<button type="button" @onclick="@(() => ToggleSort(column))" aria-sort="@AriaSort(column)"
                  class="@($"flex items-center gap-1 uppercase {(_sortColumn == column ? "text-text-body" : "text-text-faint hover:text-text-body")}")">
             <span>@label</span>
@@ -35,28 +35,9 @@
         </div>
     </div>
 
-    <div role="tablist" aria-label="Filter forms" @onkeydown="OnTabsKeyDown" class="mt-[18px] flex items-center gap-[26px]">
-        @for (var i = 0; i < Tabs.Length; i++)
-        {
-            var tab = Tabs[i];
-            var slot = i;
-            var active = tab == _tab;
-
-            @if (tab == FormListTab.UnpublishedEdits)
-            {
-                <span aria-hidden="true" class="h-[14px] w-px flex-none bg-border-soft"></span>
-            }
-
-            <button type="button" role="tab" @ref="_tabRefs[slot]"
-                    aria-selected="@(active ? "true" : "false")"
-                    tabindex="@(active ? 0 : -1)"
-                    @onclick="@(() => SelectTab(tab))"
-                    class="@($"border-b-2 pb-[11px] text-[13px] {TabClasses(active)}")">
-                @TabLabel(tab)
-                <span class="font-mono text-[11px] @(active ? "text-[#8fada9]" : "text-text-faintest-2")">@TabCount(tab)</span>
-            </button>
-        }
-    </div>
+    <FormsTabBar Tabs="@(FormsListSession.Tabs.Select(t => (t, _session.TabCount(t))).ToList())"
+                 ActiveTab="_tab"
+                 OnSelectTab="SelectTab" />
 </header>
 
 <div class="flex-1 px-8 pt-6 pb-10">
@@ -69,25 +50,25 @@
 
         <div class="grid grid-cols-[28px_minmax(180px,1fr)_210px_140px_104px] items-center gap-3 border-b border-border-soft bg-surface-subtle px-[18px] py-[10px] font-mono text-[10px] tracking-[0.07em] text-text-faint uppercase">
             <span></span>
-            @SortHeader(SortColumn.Name, "Form name")
-            @SortHeader(SortColumn.Status, "Status")
-            @SortHeader(SortColumn.Modified, "Last modified")
+            @SortHeader(FormListSortColumn.Name, "Form name")
+            @SortHeader(FormListSortColumn.Status, "Status")
+            @SortHeader(FormListSortColumn.Modified, "Last modified")
             <span class="text-right">Actions</span>
         </div>
 
-        @if (_loading)
+        @if (_session.Loading)
         {
             <div class="flex flex-col items-center gap-2 px-5 py-16">
                 <span class="text-sm font-semibold">Loading forms&hellip;</span>
             </div>
         }
-        else if (_loadError is not null)
+        else if (_session.LoadError is not null)
         {
             <div class="flex flex-col items-center gap-2 px-5 py-16">
-                <span class="text-sm font-semibold">@_loadError</span>
+                <span class="text-sm font-semibold">@_session.LoadError</span>
             </div>
         }
-        else if (_pagedForms.Count == 0)
+        else if (_session.PagedForms.Count == 0)
         {
             <div class="flex flex-col items-center gap-2 px-5 py-16">
                 @if (!string.IsNullOrWhiteSpace(_query))
@@ -95,7 +76,7 @@
                     <span class="text-sm font-semibold">No forms match "@_query"</span>
                     <span class="text-[13px] text-text-faint">Try a different search term, or create a new form.</span>
                 }
-                else if (_forms.Count == 0)
+                else if (_session.TabCount(FormListTab.All) == 0)
                 {
                     <span class="text-sm font-semibold">No forms yet</span>
                     <span class="text-[13px] text-text-faint">Create your first form to start collecting responses.</span>
@@ -108,152 +89,24 @@
                 else
                 {
                     <span class="text-sm font-semibold">Nothing in this view</span>
-                    <span class="text-[13px] text-text-faint">No forms match the &ldquo;@TabLabel(_tab)&rdquo; filter.</span>
+                    <span class="text-[13px] text-text-faint">No forms match the &ldquo;@FormsTabBar.TabLabel(_tab)&rdquo; filter.</span>
                 }
             </div>
         }
         else
         {
-            var pageRows = _pagedForms;
-            @for (var r = 0; r < pageRows.Count; r++)
-            {
-                var rowIndex = r;
-                var form = pageRows[rowIndex];
-                var expanded = _expandedId == form.Id;
-                var detailId = $"form-detail-{form.Id}";
-                <div class="border-b border-border-row">
-                    <div @ref="_rowRefs[rowIndex]" role="button" tabindex="0"
-                         aria-expanded="@(expanded ? "true" : "false")" aria-controls="@detailId"
-                         @onclick="@(() => ToggleRow(form.Id))"
-                         @onkeydown="@(e => OnRowKeyDown(e, rowIndex, form.Id))"
-                         class="grid cursor-pointer grid-cols-[28px_minmax(180px,1fr)_210px_140px_104px] items-center gap-3 px-[18px] py-[13px] hover:bg-surface-subtle focus:outline-none focus-visible:bg-surface-subtle">
-                        <Blazicon Svg="Lucide.ChevronRight"
-                                  class="@("text-sm transition-transform duration-150 " + (expanded ? "rotate-90 text-accent" : "text-text-faintest-2"))" />
-
-                        <div class="flex min-w-0 flex-col gap-0.5">
-                            <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[13.5px] font-semibold tracking-[-0.005em] text-text">@form.Title</span>
-                            <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] text-text-faint">@form.Description</span>
-                        </div>
-
-                        <FormStatusCell Status="form.Status"
-                                        LiveVersionNumber="form.LatestPublishedVersionNumber"
-                                        VersionNumber="form.VersionNumber" />
-
-                        <div class="flex flex-col gap-px">
-                            <span class="text-[12.5px] text-text-body">@form.LastModifiedAt.ToString("d MMM yyyy, HH:mm")</span>
-                            <span class="text-[11px] text-text-faintest">by @form.LastModifiedBy</span>
-                        </div>
-
-                        <div class="relative flex items-center justify-end gap-[6px]" @onclick:stopPropagation="true">
-                            <button type="button" @onclick="@(() => Nav.NavigateTo($"/forms/{form.Id}"))"
-                                    class="h-7 rounded-md border border-border-control bg-white px-[11px] text-[12.5px] font-medium text-text-body hover:border-accent hover:text-accent">Edit</button>
-                            <button type="button" @ref="_menuTriggerRefs[rowIndex]" @onclick="@(() => ToggleRowMenu(form.Id))"
-                                    aria-haspopup="menu" aria-expanded="@(_openRowMenuId == form.Id ? "true" : "false")"
-                                    class="flex h-7 w-7 items-center justify-center rounded-md border border-border-control bg-white text-text-soft hover:border-border-control-hover hover:text-text">
-                                <Blazicon Svg="Lucide.Ellipsis" class="text-sm" />
-                            </button>
-                            @if (_openRowMenuId == form.Id)
-                            {
-                                <FormRowMenu CopyLinkDisabled="@(form.LatestPublishedVersionNumber is null)"
-                                             OnClose="@(() => CloseRowMenu(rowIndex))"
-                                             OnDuplicate="@(() => DuplicateForm(form))"
-                                             OnPublish="@(() => PublishForm(form))"
-                                             OnCopyLink="@(() => CopyLink(form.PublicUrl))"
-                                             OnDelete="@(() => DeleteForm(form))" />
-                            }
-                        </div>
-                    </div>
-
-                    @if (expanded)
-                    {
-                        <div id="@detailId" class="grid grid-cols-[minmax(0,1fr)_268px] gap-8 border-t border-border-row bg-surface-panel py-1 pr-[18px] pb-5 pl-[62px]">
-                            <div class="flex flex-col gap-[14px] pt-[14px]">
-                                <p class="m-0 max-w-[62ch] text-[13px] leading-[1.55] text-text-muted">@form.Description</p>
-                                <div class="flex flex-wrap gap-x-[30px] gap-y-4">
-                                    <div class="flex flex-col gap-[3px]">
-                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Questions</span>
-                                        <span class="text-[15px] font-semibold">@form.QuestionCount</span>
-                                    </div>
-                                    <div class="flex flex-col gap-[3px]">
-                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Pages</span>
-                                        <span class="text-[15px] font-semibold">@form.PageCount</span>
-                                    </div>
-                                    <div class="flex flex-col gap-[3px]">
-                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Created</span>
-                                        <span class="text-[15px] font-semibold">@form.CreatedAt.ToString("d MMM yyyy")</span>
-                                    </div>
-                                    <div class="flex flex-col gap-[3px]">
-                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Version</span>
-                                        <span class="font-mono text-[13px] font-medium text-text-body">v@(form.VersionNumber)</span>
-                                    </div>
-                                    <div class="flex flex-col gap-[3px]">
-                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Live</span>
-                                        <span class="font-mono text-[13px] font-medium text-text-body">
-                                            @(form.LatestPublishedVersionNumber is { } pubVer
-                                                ? (form.LatestPublishedAt is { } at ? $"v{pubVer} · published {at.ToLocalTime():d MMM yyyy}" : $"v{pubVer}")
-                                                : "—")
-                                        </span>
-                                    </div>
-                                    <div class="flex flex-col gap-[3px]">
-                                        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Form ID</span>
-                                        <span class="font-mono text-[13px] font-medium text-text-body">@(form.Id.ToString()[..8])&hellip;</span>
-                                    </div>
-                                </div>
-
-                                @if (form.LatestPublishedVersionNumber is not null && !string.IsNullOrEmpty(form.PublicUrl))
-                                {
-                                    <div class="flex max-w-[520px] items-center gap-[10px] rounded-md border border-border bg-white px-3 py-2">
-                                        <Blazicon Svg="Lucide.Link2" class="text-sm text-text-faint" />
-                                        <span class="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs text-text-muted">@form.PublicUrl</span>
-                                        <button type="button" @onclick="@(() => CopyLink(form.PublicUrl))"
-                                                class="ml-auto h-6 flex-none rounded-[5px] border border-border-control bg-white px-[9px] text-[11.5px] font-medium text-text-body hover:border-accent hover:text-accent">
-                                            Copy
-                                        </button>
-                                    </div>
-                                }
-                            </div>
-
-                            <div class="flex flex-col gap-2 pt-[14px]">
-                                <button type="button" @onclick="@(() => Nav.NavigateTo($"/forms/{form.Id}"))"
-                                        class="h-[34px] rounded-md border border-accent bg-accent text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">Edit form</button>
-                                @if (form.Status != FormStatus.Published)
-                                {
-                                    <button type="button" @onclick="@(() => PublishForm(form))"
-                                            class="h-[34px] rounded-md border border-border-control bg-white text-[13px] font-medium text-text-body hover:border-border-control-hover">
-                                        Publish
-                                    </button>
-                                }
-                                <button type="button" @onclick="@(() => DeleteForm(form))"
-                                        class="h-[34px] rounded-md border border-danger-border bg-white text-[13px] font-medium text-danger hover:border-danger-border-hover hover:bg-danger-surface">
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
-
-            <div class="flex items-center justify-between gap-4 bg-surface-subtle px-[18px] py-3">
-                <span class="text-[12.5px] text-text-faint">
-                    Rows <span class="font-semibold text-text-body">@_firstRowNumber–@_lastRowNumber</span> of @_filteredForms.Count
-                    <span class="text-text-faintest-2">· ↑ ↓ to move, Enter to expand</span>
-                    @if (_loadingMore)
-                    {
-                        <span class="text-text-faintest-2">· Loading more forms…</span>
-                    }
-                </span>
-                <div class="flex items-center gap-1">
-                    <button type="button" disabled="@(_page <= 1)" @onclick="@(() => GoToPage(_page - 1))"
-                            class="h-7 rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-body enabled:hover:border-border-control-hover disabled:cursor-default disabled:text-text-faintest-2">
-                        Previous
-                    </button>
-                    <span class="px-2 text-[12.5px] text-text-faint">Page @_clampedPage / @_totalPages</span>
-                    <button type="button" disabled="@(_page >= _totalPages)" @onclick="@(() => GoToPage(_page + 1))"
-                            class="h-7 rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-body enabled:hover:border-border-control-hover disabled:cursor-default disabled:text-text-faintest-2">
-                        Next
-                    </button>
-                </div>
-            </div>
+            <FormsTable Rows="_session.PagedForms"
+                        FirstRowNumber="_session.FirstRowNumber"
+                        LastRowNumber="_session.LastRowNumber"
+                        TotalCount="_session.FilteredForms.Count"
+                        Page="_page"
+                        TotalPages="_session.TotalPages"
+                        LoadingMore="_session.LoadingMore"
+                        OnGoToPage="GoToPage"
+                        OnPublish="PublishForm"
+                        OnDuplicate="DuplicateForm"
+                        OnDelete="DeleteForm"
+                        OnCopyLink="CopyLink" />
         }
     </div>
 </div>
@@ -267,48 +120,19 @@
 }
 
 @code {
-    private const int PageSize = 20;
-
-    private enum FormListTab { All, Live, NeverPublished, UnpublishedEdits }
-
-    private enum SortColumn { Name, Status, Modified }
-
-    private static readonly FormListTab[] Tabs =
-        [FormListTab.All, FormListTab.Live, FormListTab.NeverPublished, FormListTab.UnpublishedEdits];
-
-    private List<FormSummary> _forms = [];
-    private bool _loading = true;
-    private bool _loadingMore;
-    private string? _loadError;
-    private string? _actionError;
-    private CancellationTokenSource? _loadCts;
+    private FormsListSession _session = null!;
 
     private string _query = string.Empty;
     private FormListTab _tab = FormListTab.All;
-    private SortColumn _sortColumn = SortColumn.Modified;
+    private FormListSortColumn _sortColumn = FormListSortColumn.Modified;
     private bool _sortDescending = true;
-    private Guid? _expandedId;
-    private Guid? _openRowMenuId;
     private int _page = 1;
-
-    private List<FormSummary> _filteredForms = [];
-    private List<FormSummary> _pagedForms = [];
-    private int _totalPages = 1;
-    private int _clampedPage = 1;
-    private int _firstRowNumber;
-    private int _lastRowNumber;
-    private readonly int[] _tabCounts = new int[Tabs.Length];
+    private string? _actionError;
 
     private bool _prePublishOpen;
     private PublishResultDto? _publishResult;
     private IReadOnlyList<PrePublishRow> _rows = [];
     private Guid? _prePublishFormId;
-
-    private readonly ElementReference[] _tabRefs = new ElementReference[4];
-    private readonly ElementReference[] _rowRefs = new ElementReference[PageSize];
-    private readonly ElementReference[] _menuTriggerRefs = new ElementReference[PageSize];
-    private int? _focusTabIndex;
-    private int? _focusMenuTriggerIndex;
 
     [Parameter, SupplyParameterFromQuery(Name = "tab")]
     public string? TabParam { get; set; }
@@ -319,6 +143,27 @@
     [Parameter, SupplyParameterFromQuery(Name = "page")]
     public int? PageParam { get; set; }
 
+    protected override void OnInitialized()
+    {
+        _session = new FormsListSession(FormsService);
+        _session.Changed += OnSessionChanged;
+    }
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    protected override async Task OnInitializedAsync()
+    {
+        HydrateFromQuery();
+        _session.SetView(_query, _tab, _sortColumn, _sortDescending, _page);
+        await _session.LoadAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        HydrateFromQuery();
+        _session.SetView(_query, _tab, _sortColumn, _sortDescending, _page);
+    }
+
     private void HydrateFromQuery()
     {
         _tab = ParseTab(TabParam);
@@ -326,147 +171,7 @@
         _page = PageParam is > 0 ? PageParam.Value : 1;
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        HydrateFromQuery();
-        await StreamFormsAsync();
-    }
-
-    protected override void OnParametersSet()
-    {
-        HydrateFromQuery();
-        RecomputeView();
-    }
-
-    private async Task StreamFormsAsync()
-    {
-        _forms = [];
-        _loadError = null;
-        _loadingMore = true;
-        _loadCts = new CancellationTokenSource();
-
-        try
-        {
-            await foreach (var batch in FormsService.GetAllStreamingAsync(_loadCts.Token))
-            {
-                _forms.AddRange(batch);
-                RecomputeView();
-                _loading = false;
-                StateHasChanged();
-            }
-        }
-        catch (HttpRequestException)
-        {
-            _loadError = "Couldn't load forms from the server.";
-        }
-        catch (OperationCanceledException)
-        {
-            // navigated away mid-stream — nothing to show, nothing to report
-        }
-        finally
-        {
-            _loading = false;
-            _loadingMore = false;
-        }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_focusTabIndex is { } tabIndex)
-        {
-            _focusTabIndex = null;
-            if (tabIndex < _tabRefs.Length)
-            {
-                try { await _tabRefs[tabIndex].FocusAsync(); }
-                catch (Exception) { /* tab may not be in the DOM yet */ }
-            }
-        }
-
-        if (_focusMenuTriggerIndex is { } menuIndex)
-        {
-            _focusMenuTriggerIndex = null;
-            if (menuIndex < _menuTriggerRefs.Length)
-            {
-                try { await _menuTriggerRefs[menuIndex].FocusAsync(); }
-                catch (Exception) { /* row may have gone */ }
-            }
-        }
-    }
-
-    private IEnumerable<FormSummary> TabFiltered(FormListTab tab) => tab switch
-    {
-        FormListTab.Live => _forms.Where(f => f.LatestPublishedVersionNumber is not null),
-        FormListTab.NeverPublished => _forms.Where(f => f.LatestPublishedVersionNumber is null),
-        FormListTab.UnpublishedEdits => _forms.Where(f =>
-            f.LatestPublishedVersionNumber is not null && f.Status != FormStatus.Published),
-        _ => _forms,
-    };
-
-    private int TabCount(FormListTab tab) => _tabCounts[Array.IndexOf(Tabs, tab)];
-
-    private void RecomputeView()
-    {
-        for (var i = 0; i < Tabs.Length; i++)
-        {
-            _tabCounts[i] = TabFiltered(Tabs[i]).Count();
-        }
-
-        var query = _query.Trim();
-        var result = TabFiltered(_tab);
-
-        if (!string.IsNullOrEmpty(query))
-        {
-            result = result.Where(f =>
-                f.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                (f.Description ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                f.Id.ToString().Contains(query, StringComparison.OrdinalIgnoreCase));
-        }
-
-        _filteredForms = Sort(result).ToList();
-        _totalPages = Math.Max(1, (int)Math.Ceiling(_filteredForms.Count / (double)PageSize));
-        _clampedPage = Math.Clamp(_page, 1, _totalPages);
-        _pagedForms = _filteredForms.Skip((_clampedPage - 1) * PageSize).Take(PageSize).ToList();
-        _firstRowNumber = _filteredForms.Count == 0 ? 0 : (_clampedPage - 1) * PageSize + 1;
-        _lastRowNumber = Math.Min(_clampedPage * PageSize, _filteredForms.Count);
-    }
-
-    private IEnumerable<FormSummary> Sort(IEnumerable<FormSummary> forms)
-    {
-        IOrderedEnumerable<FormSummary> ordered = _sortColumn switch
-        {
-            SortColumn.Name => _sortDescending
-                ? forms.OrderByDescending(f => f.Title, StringComparer.OrdinalIgnoreCase)
-                : forms.OrderBy(f => f.Title, StringComparer.OrdinalIgnoreCase),
-            SortColumn.Status => _sortDescending
-                ? forms.OrderByDescending(StatusRank)
-                : forms.OrderBy(StatusRank),
-            _ => _sortDescending
-                ? forms.OrderByDescending(f => f.LastModifiedAt)
-                : forms.OrderBy(f => f.LastModifiedAt),
-        };
-
-        return ordered.ThenByDescending(f => f.LastModifiedAt);
-    }
-
-    // Never published (0) < unpublished edits over a live version (1) < live latest (2).
-    private static int StatusRank(FormSummary f) =>
-        f.LatestPublishedVersionNumber is null ? 0
-        : f.Status != FormStatus.Published ? 1
-        : 2;
-
-    private static string TabLabel(FormListTab tab) => tab switch
-    {
-        FormListTab.Live => "Live",
-        FormListTab.NeverPublished => "Never published",
-        FormListTab.UnpublishedEdits => "Unpublished edits",
-        _ => "All",
-    };
-
-    private static string TabClasses(bool active) => active
-        ? "border-accent font-semibold text-accent"
-        : "border-transparent text-text-soft hover:text-text";
-
-    private string AriaSort(SortColumn column) => _sortColumn == column
+    private string AriaSort(FormListSortColumn column) => _sortColumn == column
         ? (_sortDescending ? "descending" : "ascending")
         : "none";
 
@@ -486,27 +191,27 @@
         _ => null,
     };
 
-    private static (SortColumn Column, bool Descending) ParseSort(string? slug) => slug switch
+    private static (FormListSortColumn Column, bool Descending) ParseSort(string? slug) => slug switch
     {
-        "name-asc" => (SortColumn.Name, false),
-        "name-desc" => (SortColumn.Name, true),
-        "status-asc" => (SortColumn.Status, false),
-        "status-desc" => (SortColumn.Status, true),
-        "modified-asc" => (SortColumn.Modified, false),
-        _ => (SortColumn.Modified, true),
+        "name-asc" => (FormListSortColumn.Name, false),
+        "name-desc" => (FormListSortColumn.Name, true),
+        "status-asc" => (FormListSortColumn.Status, false),
+        "status-desc" => (FormListSortColumn.Status, true),
+        "modified-asc" => (FormListSortColumn.Modified, false),
+        _ => (FormListSortColumn.Modified, true),
     };
 
     private string? SortSlug()
     {
-        if (_sortColumn == SortColumn.Modified && _sortDescending)
+        if (_sortColumn == FormListSortColumn.Modified && _sortDescending)
         {
             return null; // default
         }
 
         var column = _sortColumn switch
         {
-            SortColumn.Name => "name",
-            SortColumn.Status => "status",
+            FormListSortColumn.Name => "name",
+            FormListSortColumn.Status => "status",
             _ => "modified",
         };
 
@@ -529,44 +234,17 @@
     {
         _query = query;
         _page = 1;
-        RecomputeView();
+        _session.SetView(_query, _tab, _sortColumn, _sortDescending, _page);
     }
 
     private void SelectTab(FormListTab tab)
     {
         _tab = tab;
         _page = 1;
-        _openRowMenuId = null;
         SyncUrl();
     }
 
-    private void OnTabsKeyDown(KeyboardEventArgs e)
-    {
-        var current = Array.IndexOf(Tabs, _tab);
-        if (current < 0)
-        {
-            return;
-        }
-
-        var target = e.Key switch
-        {
-            "ArrowLeft" or "ArrowUp" => current - 1,
-            "ArrowRight" or "ArrowDown" => current + 1,
-            "Home" => 0,
-            "End" => Tabs.Length - 1,
-            _ => current,
-        };
-
-        if (target == current || target < 0 || target >= Tabs.Length)
-        {
-            return;
-        }
-
-        _focusTabIndex = target;
-        SelectTab(Tabs[target]);
-    }
-
-    private void ToggleSort(SortColumn column)
+    private void ToggleSort(FormListSortColumn column)
     {
         if (_sortColumn == column)
         {
@@ -575,7 +253,7 @@
         else
         {
             _sortColumn = column;
-            _sortDescending = column == SortColumn.Modified; // Modified defaults descending, text/status ascending
+            _sortDescending = column == FormListSortColumn.Modified; // Modified defaults descending, text/status ascending
         }
 
         _page = 1;
@@ -584,101 +262,23 @@
 
     private void GoToPage(int page)
     {
-        _page = Math.Clamp(page, 1, _totalPages);
+        _page = Math.Clamp(page, 1, _session.TotalPages);
         SyncUrl();
-    }
-
-    private void ToggleRow(Guid id)
-    {
-        _expandedId = _expandedId == id ? null : id;
-        _openRowMenuId = null;
-    }
-
-    private async Task OnRowKeyDown(KeyboardEventArgs e, int rowIndex, Guid id)
-    {
-        switch (e.Key)
-        {
-            case "Enter":
-            case " ":
-            case "Spacebar":
-                ToggleRow(id);
-                break;
-            case "ArrowDown":
-                await FocusRow(rowIndex + 1);
-                break;
-            case "ArrowUp":
-                await FocusRow(rowIndex - 1);
-                break;
-        }
-    }
-
-    private async Task FocusRow(int index)
-    {
-        if (index < 0 || index >= _pagedForms.Count)
-        {
-            return;
-        }
-
-        try { await _rowRefs[index].FocusAsync(); }
-        catch (Exception) { /* row not rendered */ }
-    }
-
-    private void ToggleRowMenu(Guid id)
-    {
-        _openRowMenuId = _openRowMenuId == id ? null : id;
-    }
-
-    private void CloseRowMenu(int rowIndex)
-    {
-        _openRowMenuId = null;
-        _focusMenuTriggerIndex = rowIndex;
     }
 
     private async Task PublishForm(FormSummary form)
     {
-        _openRowMenuId = null;
-
-        if (form.Status == FormStatus.Published)
+        var result = await _session.PublishAsync(form);
+        _actionError = _session.ActionError;
+        if (_actionError is not null || result is null)
         {
-            return;
-        }
-
-        PublishResultDto result;
-        try
-        {
-            result = await FormsService.PublishAsync(form.Id);
-        }
-        catch (HttpRequestException)
-        {
-            _actionError = $"Couldn't publish \"{form.Title}\".";
             return;
         }
 
         _publishResult = result;
         _prePublishFormId = form.Id;
         _prePublishOpen = true;
-
-        if (!result.Published)
-        {
-            _rows = PrePublishRow.From(FormEditMapper.ToEditModel(result.Form));
-            return;
-        }
-
-        _rows = [];
-
-        form.Status = FormStatus.Published;
-        form.VersionNumber = result.VersionNumber;
-        form.Revision = result.Revision;
-        form.LastModifiedAt = result.LastModifiedAt;
-        form.LatestPublishedVersionNumber = result.VersionNumber;
-        form.LatestPublishedAt = result.PublishedAt;
-
-        if (string.IsNullOrEmpty(form.PublicUrl))
-        {
-            form.PublicUrl = $"https://forms.phieuflow.app/f/{form.Id.ToString()[..8]}";
-        }
-
-        RecomputeView();
+        _rows = result.Published ? [] : PrePublishRow.From(FormEditMapper.ToEditModel(result.Form));
     }
 
     private void HandleJump(PrePublishRow row)
@@ -692,76 +292,28 @@
 
     private async Task DuplicateForm(FormSummary form)
     {
-        _openRowMenuId = null;
-        _actionError = null;
-
-        try
-        {
-            var newId = await FormsService.DuplicateAsync(form.Id);
-            var loaded = await FormsService.GetByIdAsync(newId);
-            if (loaded is not null)
-            {
-                _forms.Insert(0, new FormSummary
-                {
-                    Id = newId,
-                    Title = loaded.Title,
-                    Description = loaded.Description,
-                    Status = FormStatus.Draft,
-                    CreatedAt = loaded.CreatedAt,
-                    LastModifiedAt = loaded.LastModifiedAt,
-                    LastModifiedBy = loaded.LastModifiedBy ?? string.Empty,
-                    Revision = loaded.Revision,
-                    VersionNumber = loaded.VersionNumber,
-                    LatestPublishedVersionNumber = null,
-                    LatestPublishedAt = null,
-                    QuestionCount = loaded.Pages.Sum(p => p.Questions.Count),
-                    PageCount = loaded.Pages.Count,
-                });
-            }
-
-            RecomputeView();
-        }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
-        {
-            _actionError = $"Couldn't duplicate \"{form.Title}\".";
-        }
+        await _session.DuplicateAsync(form);
+        _actionError = _session.ActionError;
     }
 
     private async Task DeleteForm(FormSummary form)
     {
-        _openRowMenuId = null;
-
         var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete \"{form.Title}\"? This can't be undone.");
         if (!confirmed)
         {
             return;
         }
 
-        _actionError = null;
-        try
+        await _session.DeleteAsync(form);
+        _actionError = _session.ActionError;
+        if (_actionError is null)
         {
-            await FormsService.DeleteAsync(form.Id);
+            _page = _session.ClampedPage;
         }
-        catch (HttpRequestException)
-        {
-            _actionError = $"Couldn't delete \"{form.Title}\". The form is still here.";
-            return;
-        }
-
-        _forms.Remove(form);
-        if (_expandedId == form.Id)
-        {
-            _expandedId = null;
-        }
-
-        RecomputeView();
-        _page = _clampedPage;
     }
 
     private async Task CopyLink(string? url)
     {
-        _openRowMenuId = null;
-
         if (string.IsNullOrEmpty(url))
         {
             return;
@@ -770,5 +322,9 @@
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
     }
 
-    public void Dispose() => _loadCts?.Cancel();
+    public void Dispose()
+    {
+        _session.Changed -= OnSessionChanged;
+        _session.Dispose();
+    }
 }
