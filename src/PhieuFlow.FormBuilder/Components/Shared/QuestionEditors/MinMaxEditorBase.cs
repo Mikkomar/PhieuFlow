@@ -13,12 +13,21 @@ public abstract class MinMaxEditorBase : JumpFocusComponent
     protected ElementReference MinRef;
     protected ElementReference MaxRef;
 
-    /// <summary>The issues the Hub validator hung on this question.</summary>
-    protected abstract IReadOnlyList<ValidationIssue> Issues { get; }
+    /// <summary>The question node this editor edits — carries the issues the Hub validator hung on it.</summary>
+    protected abstract IHasIssues Node { get; }
+
+    private IReadOnlyList<ValidationIssue> Issues => Node.Issues;
 
     protected override Task FocusJumpTargetAsync()
     {
         var target = Issues.FirstOrDefault()?.Field == ValidationField.Max ? MaxRef : MinRef;
         return target.FocusAsync().AsTask();
+    }
+
+    /// <summary>Applies <paramref name="apply"/> to the question, clears its now-stale issues, and notifies.</summary>
+    protected void Edit(Action apply)
+    {
+        Node.Edit(apply);
+        OnChanged.InvokeAsync();
     }
 }

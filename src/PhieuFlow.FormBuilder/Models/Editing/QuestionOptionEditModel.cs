@@ -1,6 +1,6 @@
 namespace PhieuFlow.FormBuilder.Models.Editing;
 
-public sealed class QuestionOptionEditModel
+public sealed class QuestionOptionEditModel : IHasIssues
 {
     public required Guid Id { get; set; }
     public string Label { get; set; } = string.Empty;

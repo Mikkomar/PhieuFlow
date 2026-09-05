@@ -31,7 +31,7 @@
     [Parameter, EditorRequired]
     public NumberQuestionEditModel Question { get; set; } = null!;
 
-    protected override IReadOnlyList<ValidationIssue> Issues => Question.Issues;
+    protected override IHasIssues Node => Question;
 
     private bool Invalid => MinMaxValidation.ExceedsMax(Question.Min, Question.Max) || Question.Issues.Count > 0;
 
@@ -54,12 +54,5 @@
     {
         _maxText = value?.ToString() ?? string.Empty;
         Edit(() => Question.Max = MinMaxValidation.ParseNullableDecimal(_maxText));
-    }
-
-    private void Edit(Action apply)
-    {
-        apply();
-        Question.Issues.Clear();
-        OnChanged.InvokeAsync();
     }
 }

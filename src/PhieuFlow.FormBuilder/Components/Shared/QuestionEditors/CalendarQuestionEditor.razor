@@ -31,14 +31,7 @@
     [Parameter, EditorRequired]
     public CalendarQuestionEditModel Question { get; set; } = null!;
 
-    protected override IReadOnlyList<ValidationIssue> Issues => Question.Issues;
+    protected override IHasIssues Node => Question;
 
     private bool Invalid => MinMaxValidation.ExceedsMax(Question.MinDate, Question.MaxDate) || Question.Issues.Count > 0;
-
-    private void Edit(Action apply)
-    {
-        apply();
-        Question.Issues.Clear();
-        OnChanged.InvokeAsync();
-    }
 }

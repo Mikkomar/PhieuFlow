@@ -4,7 +4,7 @@ namespace PhieuFlow.FormBuilder.Models.Editing;
 /// Client-side edit model for one question. Mirrors the <c>Question</c> entity hierarchy but
 /// carries an <see cref="Issues"/> collection the builder renders inline.
 /// </summary>
-public abstract class QuestionEditModel
+public abstract class QuestionEditModel : IHasIssues
 {
     public required Guid Id { get; set; }
     public string Text { get; set; } = string.Empty;

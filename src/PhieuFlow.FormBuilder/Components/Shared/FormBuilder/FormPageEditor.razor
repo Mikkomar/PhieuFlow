@@ -194,8 +194,7 @@
     private void AddQuestion(QuestionEditModel question)
     {
         question.Order = Page.Questions.Count;
-        Page.Questions.Add(question);
-        Page.Issues.Clear();
+        Page.Edit(() => Page.Questions.Add(question));
         // Close the type menu without restoring focus to its trigger — focus goes to the
         // new question's text input via AutoFocusText.
         _pickerAnchor = null;
@@ -206,7 +205,7 @@
 
     private void RemoveQuestion(QuestionEditModel question)
     {
-        Page.Questions.Remove(question);
+        Page.Edit(() => Page.Questions.Remove(question));
         if (_expandedQuestionId == question.Id)
         {
             _expandedQuestionId = null;
@@ -257,7 +256,7 @@
         var moved = ordered[from];
         ordered.RemoveAt(from);
         ordered.Insert(to, moved);
-        Page.Questions = Renumbered(ordered);
+        Page.Edit(() => Page.Questions = Renumbered(ordered));
 
         Announce(moved, to + 1, ordered.Count);
 
@@ -278,7 +277,7 @@
 
         ordered.RemoveAt(from);
         ordered.Insert(to, question);
-        Page.Questions = Renumbered(ordered);
+        Page.Edit(() => Page.Questions = Renumbered(ordered));
         Announce(question, to + 1, ordered.Count);
         OnChanged.InvokeAsync();
     }

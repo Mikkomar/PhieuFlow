@@ -52,7 +52,7 @@
                 @(PreviewOpen ? "Hide preview" : "Preview")
             </button>
             <button type="button" @ref="_publishRef" @onclick="@(() => OnPublish.InvokeAsync())"
-                    disabled="@(Publishing || Form.Status == FormVersionStatus.Published || Form.HasIssues)"
+                    disabled="@(Publishing || Form.Status == FormVersionStatus.Published)"
                     title="@PublishTitle"
                     class="h-[34px] whitespace-nowrap rounded-md border border-accent bg-accent px-4 text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover disabled:cursor-default disabled:opacity-60">
                 @(Publishing ? "Publishing…" : "Publish")
@@ -147,7 +147,7 @@
 
     private string? PublishTitle => Form.Status == FormVersionStatus.Published
         ? "This version is already published"
-        : Form.HasIssues ? "Fix the problems before publishing" : null;
+        : null;
 
     private int TitleLength => Form.Title?.Length ?? 0;
 

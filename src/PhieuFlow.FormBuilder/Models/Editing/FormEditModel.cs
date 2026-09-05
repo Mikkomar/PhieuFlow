@@ -4,9 +4,10 @@ namespace PhieuFlow.FormBuilder.Models.Editing;
 
 /// <summary>
 /// The tree the builder edits. Every node carries an <see cref="Issues"/> collection the Hub
-/// validator populates on a publish attempt; <see cref="HasIssues"/> is what blocks publish.
+/// validator populates on a publish attempt, rendered as inline highlighting; the Hub's own
+/// validation on the actual publish attempt is what blocks publish, not <see cref="HasIssues"/>.
 /// </summary>
-public sealed class FormEditModel
+public sealed class FormEditModel : IHasIssues
 {
     public Guid FormId { get; set; }
     public int VersionNumber { get; set; } = 1;

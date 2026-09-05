@@ -129,8 +129,7 @@
 
     private void OnOptionInput(QuestionOptionEditModel option, ChangeEventArgs e)
     {
-        option.Label = e.Value?.ToString() ?? string.Empty;
-        option.Issues.Clear();
+        option.Edit(() => option.Label = e.Value?.ToString() ?? string.Empty);
         OnChanged.InvokeAsync();
     }
 
@@ -156,8 +155,7 @@
     {
         var ordered = Question.Options.OrderBy(o => o.Order).ToList();
         ordered.Add(new QuestionOptionEditModel { Id = Guid.NewGuid(), Order = ordered.Count });
-        Question.Options = Renumbered(ordered);
-        Question.Issues.RemoveAll(issue => issue.Field == ValidationField.Options);
+        Question.Edit(() => Question.Options = Renumbered(ordered));
         OnChanged.InvokeAsync();
     }
 
@@ -171,7 +169,7 @@
         var ordered = Question.Options.OrderBy(o => o.Order).ToList();
         ordered.Remove(option);
         _optionRefs.Remove(option.Id);
-        Question.Options = Renumbered(ordered);
+        Question.Edit(() => Question.Options = Renumbered(ordered));
         OnChanged.InvokeAsync();
     }
 
@@ -213,7 +211,7 @@
         var moved = ordered[from];
         ordered.RemoveAt(from);
         ordered.Insert(to, moved);
-        Question.Options = Renumbered(ordered);
+        Question.Edit(() => Question.Options = Renumbered(ordered));
 
         Announce(moved, to + 1, ordered.Count);
 
@@ -234,7 +232,7 @@
 
         ordered.RemoveAt(from);
         ordered.Insert(to, option);
-        Question.Options = Renumbered(ordered);
+        Question.Edit(() => Question.Options = Renumbered(ordered));
         Announce(option, to + 1, ordered.Count);
         await OnChanged.InvokeAsync();
     }

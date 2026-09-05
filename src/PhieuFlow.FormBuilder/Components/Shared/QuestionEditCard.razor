@@ -255,14 +255,13 @@
 
     private void OnTextInput(ChangeEventArgs e)
     {
-        Question.Text = e.Value?.ToString() ?? string.Empty;
-        Question.Issues.RemoveAll(i => i.Field is ValidationField.Text);
+        Question.Edit(() => Question.Text = e.Value?.ToString() ?? string.Empty);
         OnChanged.InvokeAsync();
     }
 
     private void OnRequiredChanged(ChangeEventArgs e)
     {
-        Question.IsRequired = e.Value is bool value && value;
+        Question.Edit(() => Question.IsRequired = e.Value is bool value && value);
         OnChanged.InvokeAsync();
     }
 }

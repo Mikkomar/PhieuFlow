@@ -275,20 +275,19 @@ else
 
     private void OnTitleInput(string value)
     {
-        _form.Title = value;
-        _form.Issues.RemoveAll(i => i.Field == ValidationField.Title);
+        _form.Edit(() => _form.Title = value);
         _session.NotifyEdited();
     }
 
     private void OnDescriptionInput(ChangeEventArgs e)
     {
-        _form.Description = e.Value?.ToString() ?? string.Empty;
+        _form.Edit(() => _form.Description = e.Value?.ToString() ?? string.Empty);
         _session.NotifyEdited();
     }
 
     private void OnPageTitleChanged(string value)
     {
-        ActivePage.Title = value;
+        ActivePage.Edit(() => ActivePage.Title = value);
         _session.NotifyEdited();
     }
 
@@ -303,7 +302,7 @@ else
     private void AddPage()
     {
         var page = new FormPageEditModel { Id = Guid.NewGuid(), Order = _form.Pages.Count };
-        _form.Pages.Add(page);
+        _form.Edit(() => _form.Pages.Add(page));
         _activePageId = page.Id;
         _session.NotifyEdited();
     }
@@ -326,7 +325,7 @@ else
             }
         }
 
-        _form.Pages.Remove(page);
+        _form.Edit(() => _form.Pages.Remove(page));
         if (_activePageId == page.Id)
         {
             _activePageId = _form.Pages.First().Id;

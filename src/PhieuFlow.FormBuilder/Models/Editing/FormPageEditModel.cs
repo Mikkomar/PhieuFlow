@@ -1,6 +1,6 @@
 namespace PhieuFlow.FormBuilder.Models.Editing;
 
-public sealed class FormPageEditModel
+public sealed class FormPageEditModel : IHasIssues
 {
     public required Guid Id { get; set; }
     public string? Title { get; set; }
