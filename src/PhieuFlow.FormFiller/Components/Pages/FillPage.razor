@@ -1,0 +1,125 @@
+@page "/forms/{FormId:guid}"
+@inject IHubFormsClient HubFormsClient
+
+@if (_loading)
+{
+    <div class="mx-auto max-w-[680px] px-8 pt-[44px] text-[13.5px] text-text-faintest">Loading&hellip;</div>
+}
+else if (_form is null)
+{
+    <FormUnavailable />
+}
+else
+{
+    <div class="mx-auto flex w-full max-w-[680px] flex-col gap-[22px] px-8 pt-[40px] pb-[56px]">
+        <div class="flex flex-col gap-[6px]">
+            <h1 class="text-[22px] font-semibold tracking-[-0.015em] text-text">@_form.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(_form.Description))
+            {
+                <p class="text-[13.5px] leading-[1.55] text-text-soft text-pretty">@_form.Description</p>
+            }
+        </div>
+
+        <PageStepper Labels="PageLabels" CurrentPageIndex="_currentPageIndex" />
+
+        <div class="flex flex-col gap-[26px] rounded-lg border border-border bg-surface p-[28px_30px]">
+            <div class="flex flex-col gap-[4px] border-b border-border-row pb-[4px]">
+                <span class="text-[15.5px] font-semibold tracking-[-0.01em] text-text">@ActivePageTitle</span>
+            </div>
+
+            @foreach (var question in ActivePage.Questions)
+            {
+                <QuestionInput Question="question"
+                               Value="_answers.GetValueOrDefault(question.Id)"
+                               ValueChanged="v => _answers[question.Id] = v" />
+            }
+        </div>
+
+        <div class="flex items-center justify-between">
+            @if (_currentPageIndex > 0)
+            {
+                <button type="button" @onclick="GoBack"
+                        class="flex h-[38px] items-center gap-[7px] rounded-md border border-border-control bg-white px-[16px] text-[13px] font-medium text-text-body hover:border-border-control-hover">
+                    <Blazicon Svg="Lucide.ChevronLeft" class="text-[13px]" aria-hidden="true" />
+                    Back
+                </button>
+            }
+            else
+            {
+                <span></span>
+            }
+
+            <div class="flex items-center gap-[14px]">
+                <span class="font-mono text-[10.5px] text-text-faintest">Step @(_currentPageIndex + 1) of @_form.Pages.Count</span>
+                @if (IsLastPage)
+                {
+                    <button type="button" @onclick="Submit"
+                            class="h-[38px] rounded-md border border-accent bg-accent px-[20px] text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
+                        Submit
+                    </button>
+                }
+                else
+                {
+                    <button type="button" @onclick="GoContinue"
+                            class="h-[38px] rounded-md border border-accent bg-accent px-[20px] text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
+                        Continue
+                    </button>
+                }
+            </div>
+        </div>
+
+        <p class="text-center text-[11.5px] text-text-faintest">Responses are anonymous. Nothing is submitted until you finish page @_form.Pages.Count.</p>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid FormId { get; set; }
+
+    private PublishedFormDto? _form;
+    private bool _loading = true;
+    private int _currentPageIndex;
+    private readonly Dictionary<Guid, object?> _answers = [];
+
+    private FormPageDto ActivePage => _form!.Pages[_currentPageIndex];
+
+    private string ActivePageTitle => string.IsNullOrWhiteSpace(ActivePage.Title)
+        ? $"Page {_currentPageIndex + 1}"
+        : ActivePage.Title!;
+
+    private bool IsLastPage => _form is not null && _currentPageIndex == _form.Pages.Count - 1;
+
+    private List<string> PageLabels => _form!.Pages
+        .Select((p, i) => string.IsNullOrWhiteSpace(p.Title) ? $"Page {i + 1}" : p.Title!)
+        .ToList();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _currentPageIndex = 0;
+        _answers.Clear();
+        _form = await HubFormsClient.GetPublishedFormByIdAsync(FormId);
+        _loading = false;
+    }
+
+    private void GoBack()
+    {
+        if (_currentPageIndex > 0)
+        {
+            _currentPageIndex--;
+        }
+    }
+
+    private void GoContinue()
+    {
+        if (!IsLastPage)
+        {
+            _currentPageIndex++;
+        }
+    }
+
+    // Submission (POST to the Hub / RabbitMQ per ADR 0001) is a later phase — intentionally inert.
+    private void Submit()
+    {
+    }
+}

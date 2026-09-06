@@ -23,6 +23,14 @@ internal static class FormResponseMapper
         Pages = version.Pages.Select(ToDto).ToList(),
     };
 
+    public static PublishedFormDto ToPublishedDto(FormVersion version) => new()
+    {
+        Id = version.FormId,
+        Title = version.Title,
+        Description = version.Description,
+        Pages = version.Pages.Select(ToDto).ToList(),
+    };
+
     public static FormVersionStatusDto ToDto(FormVersionStatus status) => status switch
     {
         FormVersionStatus.Draft => FormVersionStatusDto.Draft,

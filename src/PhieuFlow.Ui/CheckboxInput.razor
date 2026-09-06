@@ -1,0 +1,22 @@
+<label class="flex items-center gap-[9px] text-[13.5px] text-text-body @(Disabled ? "" : "cursor-pointer")">
+    <input type="checkbox"
+           checked="@Value"
+           disabled="@Disabled"
+           @onchange="@(e => ValueChanged.InvokeAsync((bool)e.Value!))"
+           class="h-[15px] w-[15px] accent-accent" />
+    @Label
+</label>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = null!;
+
+    [Parameter]
+    public bool Value { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> ValueChanged { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+}

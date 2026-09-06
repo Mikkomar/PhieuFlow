@@ -60,6 +60,34 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         return version;
     }
 
+    public async Task<FormVersion?> GetPublishedByIdAsync(Guid formId, CancellationToken cancellationToken = default)
+    {
+        var version = await dbContext.FormVersions
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Where(v => v.FormId == formId && v.Status == FormVersionStatus.Published)
+            .OrderByDescending(v => v.VersionNumber)
+            .Include(v => v.Pages.OrderBy(p => p.Order))
+                .ThenInclude(p => p.Questions)
+                    .ThenInclude(q => (q as ChoiceQuestion)!.Options)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (version is not null)
+        {
+            foreach (var page in version.Pages)
+            {
+                page.Questions = page.Questions.OrderBy(q => q.Order).ToList();
+
+                foreach (var question in page.Questions.OfType<ChoiceQuestion>())
+                {
+                    question.Options = question.Options.OrderBy(o => o.Order).ToList();
+                }
+            }
+        }
+
+        return version;
+    }
+
     public async Task<FormSaveResult> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;

@@ -1,3 +1,4 @@
+using System.Net;
 using System.Runtime.CompilerServices;
 using PhieuFlow.Hub.Contracts;
 
@@ -33,5 +34,17 @@ public class HubFormsClient(HttpClient httpClient) : IHubFormsClient
 
             startId = response.NextStartId;
         }
+    }
+
+    public async Task<PublishedFormDto?> GetPublishedFormByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.GetAsync($"/forms/published/{id}", cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<PublishedFormDto>(cancellationToken);
     }
 }

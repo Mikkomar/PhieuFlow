@@ -71,6 +71,14 @@ public static class FormEndpoints
             });
         }).RequireAuthorization("published-forms:read");
 
+        app.MapGet("/forms/published/{id:guid}", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
+        {
+            var version = await unitOfWork.Forms.GetPublishedByIdAsync(id, cancellationToken);
+            return version is null
+                ? Results.NotFound()
+                : Results.Ok(FormResponseMapper.ToPublishedDto(version));
+        }).RequireAuthorization("published-forms:read");
+
         app.MapPost("/forms", async (IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
             var formId = await unitOfWork.Forms.CreateAsync(cancellationToken);

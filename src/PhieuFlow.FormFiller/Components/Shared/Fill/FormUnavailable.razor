@@ -1,0 +1,19 @@
+@inject NavigationManager NavigationManager
+
+<div class="mx-auto flex w-full max-w-[520px] flex-col items-center gap-[18px] px-8 pt-[72px] pb-[96px] text-center">
+    <div class="flex h-[44px] w-[44px] flex-none items-center justify-center rounded-full border border-border bg-surface">
+        <Blazicon Svg="Lucide.Info" class="text-[18px] text-text-faint" aria-hidden="true" />
+    </div>
+
+    <div class="flex flex-col gap-[6px]">
+        <h1 class="text-[20px] font-semibold tracking-[-0.015em] text-text">This form isn't available</h1>
+        <p class="text-[13.5px] leading-[1.6] text-text-soft">The link may be mistyped, or the form may have been closed or removed by the people who sent it.</p>
+    </div>
+
+    <div class="flex w-full flex-col gap-[6px] rounded-lg border border-border bg-surface p-[16px_18px] text-left">
+        <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Link you opened</span>
+        <span class="break-all font-mono text-[12px] leading-[1.5] text-text-body">@NavigationManager.Uri</span>
+    </div>
+
+    <p class="text-[11.5px] text-text-faintest">Check the link with whoever sent it. There is nothing to retry from here.</p>
+</div>

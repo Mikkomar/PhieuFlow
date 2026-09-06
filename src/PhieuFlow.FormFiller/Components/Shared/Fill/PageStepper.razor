@@ -1,0 +1,36 @@
+<div class="flex">
+    @for (var i = 0; i < Labels.Count; i++)
+    {
+        var index = i;
+        var completed = index < CurrentPageIndex;
+        var current = index == CurrentPageIndex;
+        var leftAccent = index > 0 && index <= CurrentPageIndex;
+        var rightAccent = index < Labels.Count - 1 && index < CurrentPageIndex;
+
+        <div class="flex w-[96px] flex-none flex-col items-center">
+            <div class="flex w-full items-center">
+                <div class="h-px flex-1 @(index == 0 ? "invisible" : leftAccent ? "bg-accent" : "bg-border-control")"></div>
+                <div class="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full text-[12px] font-semibold @(completed || current ? "bg-accent text-white" : "border border-border-control bg-white text-text-faintest-2")">
+                    @if (completed)
+                    {
+                        <Blazicon Svg="Lucide.Check" class="text-[13px]" aria-hidden="true" />
+                    }
+                    else
+                    {
+                        @(index + 1)
+                    }
+                </div>
+                <div class="h-px flex-1 @(index == Labels.Count - 1 ? "invisible" : rightAccent ? "bg-accent" : "bg-border-control")"></div>
+            </div>
+            <span class="mt-[7px] text-[11.5px] @(current ? "font-semibold text-text" : completed ? "text-text-soft" : "text-text-faintest")">@Labels[index]</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> Labels { get; set; } = [];
+
+    [Parameter]
+    public int CurrentPageIndex { get; set; }
+}

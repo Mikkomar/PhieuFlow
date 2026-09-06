@@ -36,7 +36,7 @@ public sealed class SubmissionStalenessTests(AppHostFixture fixture, ITestOutput
 
         // Respondent loads the form at its current revision and leaves the field blank.
         var filler = await Context.NewPageAsync();
-        await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/f/{id}").ToString());
+        await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
 
         // Owner tightens the constraint (optional -> required) and republishes.
         await builder.OpenQuestionAsync("Optional note");
@@ -66,7 +66,7 @@ public sealed class SubmissionStalenessTests(AppHostFixture fixture, ITestOutput
         var id = await GetFormIdByTitleAsync(title);
 
         var filler = await Context.NewPageAsync();
-        await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/f/{id}").ToString());
+        await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
         await filler.GetByLabel("Note").FillAsync("all good");
         await filler.GetByRole(AriaRole.Button, new() { Name = "Submit" }).ClickAsync();
         await Assertions.Expect(filler.GetByText("received")).ToBeVisibleAsync();

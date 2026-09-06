@@ -21,6 +21,14 @@ public interface IFormRepository
     Task<FormVersion?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Fetches the full page/question tree of the form's published version (ADR 0007: the
+    /// highest-VersionNumber row with Status == Published), not the current draft. Returns
+    /// <c>null</c> uniformly when the form doesn't exist or has never been published — the
+    /// respondent-facing form-filler must not distinguish the two.
+    /// </summary>
+    Task<FormVersion?> GetPublishedByIdAsync(Guid formId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Applies the incoming draft content to the form's latest version, forking a new draft when
     /// the latest version is published. Returns <see cref="FormSaveStatus.FormNotFound"/> when no
     /// form has that id (the caller 404s — creation is <c>POST /forms</c> only), and

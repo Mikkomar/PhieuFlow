@@ -43,7 +43,7 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
 
         // Context B — the respondent fills and submits.
         var filler = await Context.NewPageAsync();
-        await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/f/{id}").ToString());
+        await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
         await filler.GetByLabel("Free text").FillAsync("Some prose");
         await filler.GetByLabel("A number").FillAsync("42");
         await filler.GetByRole(AriaRole.Radio, new() { Name = "Alpha" }).CheckAsync();
@@ -75,7 +75,7 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
 
         // Respondent loads published v1.
         var filler = await Context.NewPageAsync();
-        await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/f/{id}").ToString());
+        await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
         await filler.GetByLabel("Q").FillAsync("answer");
 
         // Builder forks v2 before the respondent submits.
@@ -103,7 +103,7 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
         var id = await GetFormIdByTitleAsync(title);
 
         var filler = await Context.NewPageAsync();
-        var response = await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/f/{id}").ToString());
+        var response = await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
 
         // A draft-only form is not fillable.
         response.Should().NotBeNull();

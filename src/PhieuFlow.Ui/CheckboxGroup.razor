@@ -1,0 +1,42 @@
+<div class="flex flex-col gap-[9px] pt-[2px]">
+    @foreach (var option in Options)
+    {
+        <label class="flex items-center gap-[9px] text-[13.5px] text-text-body @(Disabled ? "" : "cursor-pointer")">
+            <input type="checkbox"
+                   checked="@Value.Contains(option.Id)"
+                   disabled="@Disabled"
+                   @onchange="@(e => HandleChange(option.Id, (bool)e.Value!))"
+                   class="h-[15px] w-[15px] accent-accent" />
+            @option.Label
+        </label>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Choice> Options { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlySet<Guid> Value { get; set; } = new HashSet<Guid>();
+
+    [Parameter]
+    public EventCallback<IReadOnlySet<Guid>> ValueChanged { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    private Task HandleChange(Guid optionId, bool isChecked)
+    {
+        var next = new HashSet<Guid>(Value);
+        if (isChecked)
+        {
+            next.Add(optionId);
+        }
+        else
+        {
+            next.Remove(optionId);
+        }
+
+        return ValueChanged.InvokeAsync(next);
+    }
+}

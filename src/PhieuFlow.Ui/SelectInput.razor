@@ -1,0 +1,36 @@
+<div class="relative w-[280px]">
+    <select value="@Value"
+            disabled="@Disabled"
+            @onchange="HandleChange"
+            class="h-[38px] w-full appearance-none rounded-md border border-border-control bg-white pl-[12px] pr-[34px] text-[13.5px] text-text hover:border-border-control-hover focus:outline-2 focus:outline-accent focus:outline-offset-2">
+        <option value="" disabled selected="@(Value is null)" class="text-text-faintest-2">@(Placeholder ?? "Select an option")</option>
+        @foreach (var option in Options)
+        {
+            <option value="@option.Id">@option.Label</option>
+        }
+    </select>
+    <Blazicon Svg="Lucide.ChevronDown" class="pointer-events-none absolute right-[12px] top-1/2 -translate-y-1/2 text-[13px] text-text-faintest-2" aria-hidden="true" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Choice> Options { get; set; } = [];
+
+    [Parameter]
+    public Guid? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid?> ValueChanged { get; set; }
+
+    [Parameter]
+    public string? Placeholder { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    private Task HandleChange(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString();
+        return ValueChanged.InvokeAsync(string.IsNullOrEmpty(raw) ? null : Guid.Parse(raw));
+    }
+}

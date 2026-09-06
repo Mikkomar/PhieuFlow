@@ -139,6 +139,16 @@ public sealed class HubAuthorizationTests(HubAuthWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task TestGetFormPublishedById_Without_BearerToken_Should_Return401()
+    {
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/forms/published/{Guid.NewGuid()}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task TestGetFormsPublished_When_TokenHasPublishedFormsReadScope_Should_Return200()
     {
         var token = TestJwt.Create(scope: "published-forms:read");

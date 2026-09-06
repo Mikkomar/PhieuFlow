@@ -1,0 +1,77 @@
+@using PhieuFlow.Hub.Contracts
+@using PhieuFlow.Ui
+
+@if (Question is TextAreaQuestionDto)
+{
+    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)">
+        <TextAreaInput Value="@(Value as string)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
+    </FormField>
+}
+else if (Question is CheckboxQuestionDto checkboxQuestion)
+{
+    <FormField Label="@Question.Text" Required="@Question.IsRequired">
+        <CheckboxInput Label="@checkboxQuestion.Label" Value="@(Value is true)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
+    </FormField>
+}
+else if (Question is DropDownQuestionDto dropDown)
+{
+    <FormField Label="@Question.Text" Required="@Question.IsRequired">
+        <SelectInput Options="@ToChoices(dropDown.Options)" Value="@(Value as Guid?)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
+    </FormField>
+}
+else if (Question is RadioButtonQuestionDto radioButton)
+{
+    <FormField Label="@Question.Text" Required="@Question.IsRequired">
+        <RadioGroup Options="@ToChoices(radioButton.Options)" Value="@(Value as Guid?)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
+    </FormField>
+}
+else if (Question is CheckBoxGroupQuestionDto checkBoxGroup)
+{
+    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)">
+        <CheckboxGroup Options="@ToChoices(checkBoxGroup.Options)" Value="@(Value as IReadOnlySet<Guid> ?? new HashSet<Guid>())" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
+    </FormField>
+}
+else if (Question is NumberQuestionDto)
+{
+    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)">
+        <TextInput Type="number" Value="@(Value as string)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
+    </FormField>
+}
+else if (Question is CalendarQuestionDto)
+{
+    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)">
+        <TextInput Type="date" Value="@(Value as string)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
+    </FormField>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public QuestionDto Question { get; set; } = null!;
+
+    [Parameter]
+    public object? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<object?> ValueChanged { get; set; }
+
+    private static List<Choice> ToChoices(List<QuestionOptionDto> options) =>
+        options.Select(o => new Choice(o.Id, o.Label)).ToList();
+
+    // Mirrors RespondentPreview.razor's ConstraintHint, adapted to the Hub.Contracts DTO types.
+    private static string? ConstraintHint(QuestionDto question) => question switch
+    {
+        CheckBoxGroupQuestionDto { MinSelections: { } min, MaxSelections: { } max } => $"Choose between {min} and {max} options",
+        CheckBoxGroupQuestionDto { MinSelections: { } min } => $"Choose {min} or more",
+        CheckBoxGroupQuestionDto { MaxSelections: { } max } => $"Choose up to {max}",
+        NumberQuestionDto { Min: { } min, Max: { } max } => $"Enter a number between {min} and {max}",
+        NumberQuestionDto { Min: { } min } => $"{min} or more",
+        NumberQuestionDto { Max: { } max } => $"{max} or less",
+        CalendarQuestionDto { MinDate: { } min, MaxDate: { } max } => $"Pick a date between {min:yyyy-MM-dd} and {max:yyyy-MM-dd}",
+        CalendarQuestionDto { MinDate: { } min } => $"{min:yyyy-MM-dd} or later",
+        CalendarQuestionDto { MaxDate: { } max } => $"{max:yyyy-MM-dd} or earlier",
+        TextAreaQuestionDto { MinLength: { } min, MaxLength: { } max } => $"Between {min} and {max} characters",
+        TextAreaQuestionDto { MinLength: { } min } => $"At least {min} characters",
+        TextAreaQuestionDto { MaxLength: { } max } => $"Up to {max} characters",
+        _ => null,
+    };
+}

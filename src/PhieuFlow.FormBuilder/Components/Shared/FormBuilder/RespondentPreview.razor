@@ -1,6 +1,6 @@
 @using PhieuFlow.Core.Entities
 
-<div class="flex flex-col gap-[14px]">
+<div class="flex flex-col gap-[14px]" aria-hidden="true">
     <div class="flex flex-col gap-4 rounded-lg border border-border bg-surface-panel p-[20px_18px]">
         <div class="flex flex-col gap-[5px]">
             <span class="text-[16px] font-semibold tracking-[-0.01em] text-text">@(string.IsNullOrWhiteSpace(Form.Title) ? "Untitled form" : Form.Title)</span>
@@ -15,62 +15,50 @@
 
         @foreach (var question in ActivePage.Questions)
         {
-            <div class="flex flex-col gap-[7px]">
-                <span class="text-[12.5px] font-semibold text-text">
-                    @(string.IsNullOrWhiteSpace(question.Text) ? "Untitled question" : question.Text)@if (question.IsRequired)
-                    {
-                        <span class="text-danger"> *</span>
-                    }
-                </span>
+            var label = string.IsNullOrWhiteSpace(question.Text) ? "Untitled question" : question.Text;
 
-                @if (question is TextAreaQuestionEditModel)
-                {
-                    <div class="h-[62px] rounded-md border border-border-control bg-white"></div>
-                }
-                else if (question is DropDownQuestionEditModel)
-                {
-                    <div class="flex h-[32px] items-center justify-between rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-faintest-2">
-                        Select an option
-                        <Blazicon Svg="Lucide.ChevronDown" class="text-xs" aria-hidden="true" />
-                    </div>
-                }
-                else if (question is CheckboxQuestionEditModel checkboxQuestion)
-                {
-                    <label class="flex items-center gap-2 text-[12.5px] text-text-body">
-                        <span class="h-[14px] w-[14px] rounded-[3px] border border-border-control-hover bg-white"></span>
-                        @(string.IsNullOrWhiteSpace(checkboxQuestion.Label) ? "Untitled option" : checkboxQuestion.Label)
-                    </label>
-                }
-                else if (question is ChoiceQuestionEditModel choiceQuestion)
-                {
-                    <div class="flex flex-col gap-[7px]">
-                        @foreach (var option in choiceQuestion.Options)
-                        {
-                            <label class="flex items-center gap-2 text-[12.5px] text-text-body">
-                                <span class="@(question is RadioButtonQuestionEditModel ? "h-[14px] w-[14px] flex-none rounded-full border border-border-control-hover bg-white" : "h-[14px] w-[14px] flex-none rounded-[3px] border border-border-control-hover bg-white")"></span>
-                                @(string.IsNullOrWhiteSpace(option.Label) ? "Untitled option" : option.Label)
-                            </label>
-                        }
-                    </div>
-                }
-
-                else if (question is NumberQuestionEditModel)
-                {
-                    <div class="flex h-[32px] w-[140px] items-center rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-faintest-2">0</div>
-                }
-                else if (question is CalendarQuestionEditModel)
-                {
-                    <div class="flex h-[32px] w-[160px] items-center justify-between rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-faintest-2">
-                        Select a date
-                        <Blazicon Svg="Lucide.Calendar" class="text-xs" aria-hidden="true" />
-                    </div>
-                }
-
-                @if (ConstraintHint(question) is { } hint)
-                {
-                    <span class="text-[11px] text-text-faintest">@hint</span>
-                }
-            </div>
+            @if (question is TextAreaQuestionEditModel)
+            {
+                <FormField Label="@label" Required="question.IsRequired" Helper="@ConstraintHint(question)">
+                    <TextAreaInput Disabled="true" />
+                </FormField>
+            }
+            else if (question is DropDownQuestionEditModel dropDown)
+            {
+                <FormField Label="@label" Required="question.IsRequired">
+                    <SelectInput Options="ToChoices(dropDown.Options)" Disabled="true" />
+                </FormField>
+            }
+            else if (question is CheckboxQuestionEditModel checkboxQuestion)
+            {
+                <FormField Label="@label" Required="question.IsRequired">
+                    <CheckboxInput Label="@(string.IsNullOrWhiteSpace(checkboxQuestion.Label) ? "Untitled option" : checkboxQuestion.Label)" Disabled="true" />
+                </FormField>
+            }
+            else if (question is RadioButtonQuestionEditModel radioButton)
+            {
+                <FormField Label="@label" Required="question.IsRequired">
+                    <RadioGroup Options="ToChoices(radioButton.Options)" Disabled="true" />
+                </FormField>
+            }
+            else if (question is CheckBoxGroupQuestionEditModel checkBoxGroup)
+            {
+                <FormField Label="@label" Required="question.IsRequired" Helper="@ConstraintHint(question)">
+                    <CheckboxGroup Options="ToChoices(checkBoxGroup.Options)" Disabled="true" />
+                </FormField>
+            }
+            else if (question is NumberQuestionEditModel)
+            {
+                <FormField Label="@label" Required="question.IsRequired" Helper="@ConstraintHint(question)">
+                    <TextInput Type="number" Disabled="true" />
+                </FormField>
+            }
+            else if (question is CalendarQuestionEditModel)
+            {
+                <FormField Label="@label" Required="question.IsRequired" Helper="@ConstraintHint(question)">
+                    <TextInput Type="date" Disabled="true" />
+                </FormField>
+            }
         }
 
         <div class="flex items-center justify-between gap-[10px] pt-1">
@@ -99,6 +87,10 @@
     private string PageLabel(FormPageEditModel page) => string.IsNullOrWhiteSpace(page.Title)
         ? $"Page {ActivePageIndex + 1}"
         : page.Title!;
+
+    private static List<Choice> ToChoices(List<QuestionOptionEditModel> options) => options
+        .Select(o => new Choice(o.Id, string.IsNullOrWhiteSpace(o.Label) ? "Untitled option" : o.Label))
+        .ToList();
 
     // One constraint line per question, covering both bounds, min only, and max only.
     // Returns null when neither bound is set or the type carries no hint.
