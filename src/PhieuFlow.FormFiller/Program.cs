@@ -1,5 +1,6 @@
 using PhieuFlow.FormFiller.Clients;
 using PhieuFlow.FormFiller.Components;
+using PhieuFlow.FormFiller.Submissions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,10 @@ builder.Services.AddHttpClient<IHubFormsClient, HubFormsClient>(client =>
     client.BaseAddress = new Uri("https+http://hub");
 })
 .AddHttpMessageHandler<ClientCredentialsTokenHandler>();
+
+// Submission transport (ADR 0001) is async RabbitMQ, not yet built — this stub records the
+// response and reports success so the fill flow works end to end on the client side.
+builder.Services.AddScoped<ISubmissionPublisher, LoggingSubmissionPublisher>();
 
 var app = builder.Build();
 

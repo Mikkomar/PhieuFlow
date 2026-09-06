@@ -34,6 +34,7 @@ public sealed class FormPublishedByIdTests(HubAuthWebApplicationFactory factory)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var dto = await response.Content.ReadFromJsonAsync<PublishedFormDto>();
         dto!.Id.Should().Be(id);
+        dto.VersionNumber.Should().Be(1);
         dto.Title.Should().Be("Contact form");
         dto.Description.Should().Be("Reach out to us");
         dto.Pages.Should().ContainSingle().Which.Questions.Should().ContainSingle()

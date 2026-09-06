@@ -7,6 +7,7 @@ public class HubDbContext(DbContextOptions<HubDbContext> options) : DbContext(op
 {
     public DbSet<Form> Forms => Set<Form>();
     public DbSet<FormVersion> FormVersions => Set<FormVersion>();
+    public DbSet<FormSubmission> FormSubmissions => Set<FormSubmission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

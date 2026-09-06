@@ -1,5 +1,7 @@
 @page "/forms/{FormId:guid}"
 @inject IHubFormsClient HubFormsClient
+@inject ISubmissionPublisher SubmissionPublisher
+@inject ILogger<FillPage> Logger
 
 @if (_loading)
 {
@@ -8,6 +10,19 @@
 else if (_form is null)
 {
     <FormUnavailable />
+}
+else if (_submitted)
+{
+    <div class="mx-auto flex w-full max-w-[520px] flex-col items-center gap-[18px] px-8 pt-[72px] pb-[96px] text-center">
+        <div class="flex h-[44px] w-[44px] flex-none items-center justify-center rounded-full border border-border bg-surface">
+            <Blazicon Svg="Lucide.Check" class="text-[18px] text-text-faint" aria-hidden="true" />
+        </div>
+
+        <div class="flex flex-col gap-[6px]">
+            <h1 class="text-[20px] font-semibold tracking-[-0.015em] text-text">Your response was received</h1>
+            <p class="text-[13.5px] leading-[1.6] text-text-soft">Thanks for filling out @_form.Title. You can close this tab.</p>
+        </div>
+    </div>
 }
 else
 {
@@ -53,8 +68,8 @@ else
                 <span class="font-mono text-[10.5px] text-text-faintest">Step @(_currentPageIndex + 1) of @_form.Pages.Count</span>
                 @if (IsLastPage)
                 {
-                    <button type="button" @onclick="Submit"
-                            class="h-[38px] rounded-md border border-accent bg-accent px-[20px] text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover">
+                    <button type="button" @onclick="Submit" disabled="@_submitting"
+                            class="h-[38px] rounded-md border border-accent bg-accent px-[20px] text-[13px] font-semibold text-white hover:border-accent-hover hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60">
                         Submit
                     </button>
                 }
@@ -79,6 +94,8 @@ else
     private PublishedFormDto? _form;
     private bool _loading = true;
     private int _currentPageIndex;
+    private bool _submitting;
+    private bool _submitted;
     private readonly Dictionary<Guid, object?> _answers = [];
 
     private FormPageDto ActivePage => _form!.Pages[_currentPageIndex];
@@ -97,6 +114,8 @@ else
     {
         _loading = true;
         _currentPageIndex = 0;
+        _submitting = false;
+        _submitted = false;
         _answers.Clear();
         _form = await HubFormsClient.GetPublishedFormByIdAsync(FormId);
         _loading = false;
@@ -118,8 +137,100 @@ else
         }
     }
 
-    // Submission (POST to the Hub / RabbitMQ per ADR 0001) is a later phase — intentionally inert.
-    private void Submit()
+    // async Task (never async void) so Blazor awaits it and re-renders on completion.
+    private async Task Submit()
     {
+        if (_form is null || _submitting || _submitted)
+        {
+            return;
+        }
+
+        _submitting = true;
+        try
+        {
+            await SubmissionPublisher.PublishAsync(new FormSubmissionRequest
+            {
+                FormId = _form.Id,
+                FormVersionNumber = _form.VersionNumber,
+                Answers = BuildAnswers(),
+            });
+            _submitted = true;
+        }
+        catch (Exception ex)
+        {
+            // The stub never throws; the guard keeps a place for the real publisher's
+            // retry / error surface.
+            Logger.LogError(ex, "Submission publish failed for form {FormId}.", FormId);
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private List<SubmissionAnswerDto> BuildAnswers()
+    {
+        var answers = new List<SubmissionAnswerDto>();
+        var order = 0;
+
+        foreach (var question in _form!.Pages.SelectMany(p => p.Questions))
+        {
+            var value = _answers.GetValueOrDefault(question.Id);
+
+            switch (question)
+            {
+                // Must precede the ChoiceQuestionDto cases — it also derives from it.
+                // One row per chosen option; no rows when nothing is picked.
+                case CheckBoxGroupQuestionDto:
+                    foreach (var optionId in value as IReadOnlySet<Guid> ?? new HashSet<Guid>())
+                    {
+                        answers.Add(new OptionAnswerDto
+                        {
+                            QuestionId = question.Id,
+                            QuestionText = question.Text,
+                            Order = order++,
+                            OptionId = optionId,
+                        });
+                    }
+                    break;
+
+                case ChoiceQuestionDto when value is Guid selectedId:
+                    answers.Add(new OptionAnswerDto
+                    {
+                        QuestionId = question.Id,
+                        QuestionText = question.Text,
+                        Order = order++,
+                        OptionId = selectedId,
+                    });
+                    break;
+
+                case ChoiceQuestionDto:
+                    break; // nothing selected
+
+                case CheckboxQuestionDto:
+                    answers.Add(new BooleanAnswerDto
+                    {
+                        QuestionId = question.Id,
+                        QuestionText = question.Text,
+                        Order = order++,
+                        Checked = value is true,
+                    });
+                    break;
+
+                case TextAreaQuestionDto:
+                case NumberQuestionDto:
+                case CalendarQuestionDto:
+                    answers.Add(new ValueAnswerDto
+                    {
+                        QuestionId = question.Id,
+                        QuestionText = question.Text,
+                        Order = order++,
+                        Value = value as string,
+                    });
+                    break;
+            }
+        }
+
+        return answers;
     }
 }

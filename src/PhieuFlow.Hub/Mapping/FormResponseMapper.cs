@@ -26,6 +26,7 @@ internal static class FormResponseMapper
     public static PublishedFormDto ToPublishedDto(FormVersion version) => new()
     {
         Id = version.FormId,
+        VersionNumber = version.VersionNumber,
         Title = version.Title,
         Description = version.Description,
         Pages = version.Pages.Select(ToDto).ToList(),

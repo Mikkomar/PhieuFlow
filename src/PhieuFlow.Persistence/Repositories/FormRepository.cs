@@ -206,7 +206,10 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         }
 
         // Versions -> pages -> questions -> options all cascade (see FormConfiguration /
-        // FormVersionConfiguration). Submissions live outside this context (ADR 0002).
+        // FormVersionConfiguration). FormSubmission -> Form / FormVersion are Restrict
+        // (FormSubmissionConfiguration), so this Remove throws DbUpdateException on
+        // SaveChanges if the form (or one of its versions) has any submission — a
+        // deliberate guard against destroying response data.
         dbContext.Forms.Remove(form);
         return true;
     }
