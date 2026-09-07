@@ -1,0 +1,72 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using PhieuFlow.Persistence;
+
+namespace PhieuFlow.Tests.Integration.Infrastructure;
+
+/// <summary>
+/// Hosts the real Hub in-process against the migrated SQL Server database
+/// <see cref="SqlServerFixture"/> stood up. Two swaps:
+///
+/// <list type="bullet">
+/// <item>Authentication is replaced with <see cref="TestAuthHandler"/> — every request is
+/// authenticated with all scopes, so the endpoints and their persistence are what is under
+/// test, not token validation.</item>
+/// <item><see cref="HubDbContext"/> is re-registered onto a single shared
+/// <see cref="SqlConnection"/> instance (EF opens/closes it per operation). One physical
+/// connection means a per-test <see cref="System.Transactions.TransactionScope"/> stays a
+/// lightweight transaction and rolls back without MSDTC — which is absent on Linux/CI.</item>
+/// </list>
+/// </summary>
+public sealed class IntegrationWebApplicationFactory(string connectionString) : WebApplicationFactory<Program>
+{
+    private readonly SqlConnection _connection = new(connectionString);
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        // AddSqlServerDbContext reads this at registration time; the provider is re-pinned
+        // to the shared connection below, so the value only has to be present and valid.
+        builder.UseSetting("ConnectionStrings:HubDatabase", connectionString);
+
+        builder.ConfigureTestServices(services =>
+        {
+            RemoveHubDbContext(services);
+            services.AddDbContext<HubDbContext>(options => options.UseSqlServer(_connection));
+
+            // Last AddAuthentication wins for the default scheme, so every RequireAuthorization
+            // policy authenticates against TestAuthHandler. The Hub's JwtBearer registration
+            // stays wired but is never exercised.
+            services.AddAuthentication(TestAuthHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
+        });
+    }
+
+    private static void RemoveHubDbContext(IServiceCollection services)
+    {
+        var doomed = services.Where(d =>
+                d.ServiceType == typeof(HubDbContext)
+                || d.ServiceType == typeof(DbContextOptions)
+                || (d.ServiceType.IsGenericType
+                    && d.ServiceType.GetGenericArguments().Contains(typeof(HubDbContext))))
+            .ToList();
+
+        foreach (var descriptor in doomed)
+        {
+            services.Remove(descriptor);
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (disposing)
+        {
+            _connection.Dispose();
+        }
+    }
+}

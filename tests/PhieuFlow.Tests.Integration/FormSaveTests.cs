@@ -15,11 +15,9 @@ namespace PhieuFlow.Tests.Integration;
 /// a PUT whose <c>VersionNumber</c>/<c>Revision</c> no longer matches the persisted latest row
 /// 409s and writes nothing, so a second editor can't silently overwrite the first.
 /// </summary>
-public sealed class FormSaveTests(HubAuthWebApplicationFactory factory)
-    : IClassFixture<HubAuthWebApplicationFactory>
+public sealed class FormSaveTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
-    private HttpClient WriteClient =>
-        factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read forms:write"));
+    private HttpClient WriteClient => CreateClient();
 
     [Fact]
     public async Task TestCreate_Should_MintTheIdServerSide()

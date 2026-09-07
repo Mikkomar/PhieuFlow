@@ -8,18 +8,13 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// <c>DELETE /forms/{id}</c> removes the form and its whole version tree (cascade), needs
-/// <c>forms:write</c>, and 404s for an unknown id so the client can distinguish "gone" from
-/// "never existed".
+/// <c>DELETE /forms/{id}</c> removes the form and its whole version tree (cascade) and
+/// 404s for an unknown id so the client can distinguish "gone" from "never existed". The
+/// <c>forms:write</c> scope gate is covered in <see cref="HubAuthorizationTests"/>.
 /// </summary>
-public sealed class FormDeleteTests(HubAuthWebApplicationFactory factory)
-    : IClassFixture<HubAuthWebApplicationFactory>
+public sealed class FormDeleteTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
-    private HttpClient WriteClient =>
-        factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read forms:write"));
-
-    private HttpClient ReadOnlyClient =>
-        factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read"));
+    private HttpClient WriteClient => CreateClient();
 
     [Fact]
     public async Task TestDelete_Should_RemoveTheFormFromLookupAndListing()
@@ -45,17 +40,6 @@ public sealed class FormDeleteTests(HubAuthWebApplicationFactory factory)
         var response = await client.DeleteAsync($"/forms/{Guid.NewGuid()}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task TestDelete_When_TokenLacksWriteScope_Should_Return403()
-    {
-        var id = await CreateFormAsync(WriteClient, "Guarded");
-
-        using var readOnly = ReadOnlyClient;
-        var response = await readOnly.DeleteAsync($"/forms/{id}");
-
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     private static async Task<Guid> CreateFormAsync(HttpClient client, string title)

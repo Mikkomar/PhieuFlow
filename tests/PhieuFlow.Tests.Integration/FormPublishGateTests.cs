@@ -16,11 +16,9 @@ namespace PhieuFlow.Tests.Integration;
 /// The publish gate. <c>POST /forms/{id}/publish</c> validates the persisted latest version
 /// and either publishes (200) or returns the annotated tree (422) without publishing.
 /// </summary>
-public sealed class FormPublishGateTests(HubAuthWebApplicationFactory factory)
-    : IClassFixture<HubAuthWebApplicationFactory>
+public sealed class FormPublishGateTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
-    private HttpClient WriteClient =>
-        factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read forms:write"));
+    private HttpClient WriteClient => CreateClient();
 
     [Fact]
     public async Task TestPublish_When_FormHasBlankQuestion_Should_Return422WithAnnotatedTreeAndLeaveStatusDraft()
@@ -79,7 +77,7 @@ public sealed class FormPublishGateTests(HubAuthWebApplicationFactory factory)
             Pages = [new FormPageDto { Id = Guid.NewGuid(), Title = "Page 1", Questions = [Question("All good")] }],
         });
 
-        using var scope = factory.Services.CreateScope();
+        using var scope = Services.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<IFormRepository>();
 
         var result = await repo.PublishAsync(id, expectedVersionNumber: 1, expectedRevision: 1, CancellationToken.None);

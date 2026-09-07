@@ -80,10 +80,17 @@ fixed `Keycloak:Authority` with a trusted certificate and its own secret.
 
 ## Testing
 
-Fast integration tests for the hub's authorization live in
-[`tests/PhieuFlow.Tests.Integration`](tests/PhieuFlow.Tests.Integration) — they host the
-hub in-process with an offline-validated JWT and an in-memory SQLite database, so they
-need no Docker (`dotnet test tests/PhieuFlow.Tests.Integration`).
+Integration tests live in
+[`tests/PhieuFlow.Tests.Integration`](tests/PhieuFlow.Tests.Integration) in two tiers
+(`dotnet test tests/PhieuFlow.Tests.Integration` runs both):
+
+- **`integration-sql`** — the form-management endpoints and their persistence, run against
+  a real SQL Server database that Aspire stands up and `MigrationService` migrates (the
+  same chain production applies). The hub is hosted in-process; authentication is stubbed
+  so these tests exercise the endpoints, not token validation. **Needs Docker.**
+- **`integration-auth`** — the auth pipeline (`HubAuthorizationTests`): the hub in-process
+  with an offline-validated JWT and in-memory SQLite. **No Docker.** Run just this tier
+  with `--filter "FullyQualifiedName~HubAuthorizationTests"`.
 
 End-to-end tests live in [`tests/PhieuFlow.Tests.E2E`](tests/PhieuFlow.Tests.E2E) and
 drive a real browser against the full Aspire topology with Playwright (ADR 0006).

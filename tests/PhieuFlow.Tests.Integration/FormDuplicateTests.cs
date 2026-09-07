@@ -10,17 +10,12 @@ namespace PhieuFlow.Tests.Integration;
 /// <summary>
 /// <c>POST /forms/{id}/duplicate</c> deep-copies a form's latest version into a new draft in
 /// one transaction — the create and the copy either both land or neither does, so a failure
-/// can't leave a blank orphan form behind. Needs <c>forms:write</c>, and 404s for an unknown
-/// source id.
+/// can't leave a blank orphan form behind. 404s for an unknown source id; the
+/// <c>forms:write</c> scope gate is covered in <see cref="HubAuthorizationTests"/>.
 /// </summary>
-public sealed class FormDuplicateTests(HubAuthWebApplicationFactory factory)
-    : IClassFixture<HubAuthWebApplicationFactory>
+public sealed class FormDuplicateTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
-    private HttpClient WriteClient =>
-        factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read forms:write"));
-
-    private HttpClient ReadOnlyClient =>
-        factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read"));
+    private HttpClient WriteClient => CreateClient();
 
     [Fact]
     public async Task TestDuplicate_Should_CreateANewFormWithCopiedContentAndResetVersionState()
@@ -59,17 +54,6 @@ public sealed class FormDuplicateTests(HubAuthWebApplicationFactory factory)
         var response = await client.PostAsync($"/forms/{Guid.NewGuid()}/duplicate", content: null);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task TestDuplicate_When_TokenLacksWriteScope_Should_Return403()
-    {
-        var sourceId = await CreateFormAsync(WriteClient, "Guarded");
-
-        using var readOnly = ReadOnlyClient;
-        var response = await readOnly.PostAsync($"/forms/{sourceId}/duplicate", content: null);
-
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     private static async Task<Guid> CreateFormAsync(HttpClient client, string title)

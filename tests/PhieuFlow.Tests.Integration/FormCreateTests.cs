@@ -11,11 +11,9 @@ namespace PhieuFlow.Tests.Integration;
 /// <c>POST /forms</c> mints a blank draft so the builder can open it by id (and a reload
 /// re-loads it). The id comes from the Hub, not the client.
 /// </summary>
-public sealed class FormCreateTests(HubAuthWebApplicationFactory factory)
-    : IClassFixture<HubAuthWebApplicationFactory>
+public sealed class FormCreateTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
-    private HttpClient WriteClient =>
-        factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read forms:write"));
+    private HttpClient WriteClient => CreateClient();
 
     [Fact]
     public async Task TestCreate_Should_PersistABlankDraftRetrievableById()

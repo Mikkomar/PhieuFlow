@@ -14,14 +14,11 @@ namespace PhieuFlow.Tests.Integration;
 /// state model, a nonexistent form and a never-published form must be indistinguishable (both
 /// 404) so a bad link can't reveal which one it is.
 /// </summary>
-public sealed class FormPublishedByIdTests(HubAuthWebApplicationFactory factory)
-    : IClassFixture<HubAuthWebApplicationFactory>
+public sealed class FormPublishedByIdTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
-    private HttpClient WriteClient =>
-        factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read forms:write"));
+    private HttpClient WriteClient => CreateClient();
 
-    private HttpClient PublishedReadClient =>
-        factory.CreateClientWithToken(TestJwt.Create(scope: "published-forms:read"));
+    private HttpClient PublishedReadClient => CreateClient();
 
     [Fact]
     public async Task TestGetFormPublishedById_When_FormIsPublished_Should_ReturnFullTree()
@@ -78,17 +75,6 @@ public sealed class FormPublishedByIdTests(HubAuthWebApplicationFactory factory)
         var dto = await reader.GetFromJsonAsync<PublishedFormDto>($"/forms/published/{id}");
 
         dto!.Title.Should().Be("Original title");
-    }
-
-    [Fact]
-    public async Task TestGetFormPublishedById_When_TokenHasOnlyFormsReadScope_Should_Return403()
-    {
-        var id = await CreateAndPublishAsync(WriteClient, "Scoped form", description: null);
-
-        using var reader = factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read"));
-        var response = await reader.GetAsync($"/forms/published/{id}");
-
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     private static async Task<Guid> CreateDraftAsync(HttpClient client, string title, string? description = null)

@@ -9,11 +9,13 @@ namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
 /// ADR 0005: the Hub rejects unauthenticated callers (401) and callers whose token
-/// lacks the required scope (403), and serves callers whose token carries it. Runs the
-/// real Hub in-process with an offline-validated test token — no Keycloak, no container.
+/// lacks the required scope (403), and serves callers whose token carries it. The
+/// integration-auth tier — runs the real Hub in-process with an offline-validated test
+/// token and in-memory SQLite, no Keycloak, no container. Authorization runs before the
+/// endpoint delegate, so the write-scope gates below 403 without any row having to exist.
 /// </summary>
+[Collection(AuthCollection.Name)]
 public sealed class HubAuthorizationTests(HubAuthWebApplicationFactory factory)
-    : IClassFixture<HubAuthWebApplicationFactory>
 {
     [Fact]
     public async Task TestGetForms_Without_BearerToken_Should_Return401()
@@ -108,6 +110,36 @@ public sealed class HubAuthorizationTests(HubAuthWebApplicationFactory factory)
         using var client = factory.CreateClientWithToken(token);
 
         var response = await client.PutAsJsonAsync($"/forms/{Guid.NewGuid()}", NewFormDto());
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task TestDeleteForm_When_TokenHasReadScopeOnly_Should_Return403()
+    {
+        using var client = factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read"));
+
+        var response = await client.DeleteAsync($"/forms/{Guid.NewGuid()}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task TestDuplicateForm_When_TokenHasReadScopeOnly_Should_Return403()
+    {
+        using var client = factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read"));
+
+        var response = await client.PostAsync($"/forms/{Guid.NewGuid()}/duplicate", content: null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task TestGetFormPublishedById_When_TokenHasOnlyFormsReadScope_Should_Return403()
+    {
+        using var client = factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read"));
+
+        var response = await client.GetAsync($"/forms/published/{Guid.NewGuid()}");
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }

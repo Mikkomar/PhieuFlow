@@ -15,14 +15,11 @@ namespace PhieuFlow.Tests.Integration;
 /// forms with a published version, and always the published version's own content — never
 /// a newer draft's.
 /// </summary>
-public sealed class FormPublishedListTests(HubAuthWebApplicationFactory factory)
-    : IClassFixture<HubAuthWebApplicationFactory>
+public sealed class FormPublishedListTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
-    private HttpClient WriteClient =>
-        factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read forms:write"));
+    private HttpClient WriteClient => CreateClient();
 
-    private HttpClient PublishedReadClient =>
-        factory.CreateClientWithToken(TestJwt.Create(scope: "published-forms:read"));
+    private HttpClient PublishedReadClient => CreateClient();
 
     [Fact]
     public async Task TestGetFormsPublished_When_FormHasNeverBeenPublished_Should_ExcludeIt()
@@ -77,11 +74,9 @@ public sealed class FormPublishedListTests(HubAuthWebApplicationFactory factory)
         var firstId = await CreateAndPublishAsync(writer, "Batch A");
         var secondId = await CreateAndPublishAsync(writer, "Batch B");
 
-        // The fixture's database is shared across tests in this class, so other tests' forms
-        // may sit anywhere in Guid order relative to these two. Page all the way through with
-        // take=1 (forcing at least one continuation) and assert both of *this* test's forms
-        // turn up somewhere in the full traversal — that's what proves the cursor works,
-        // independent of exactly how many other rows exist.
+        // Page all the way through with take=1 (forcing at least one continuation) and assert
+        // both of this test's forms turn up somewhere in the full traversal — that's what
+        // proves the cursor works, independent of how many rows exist.
         using var reader = PublishedReadClient;
         var collected = new List<Guid>();
         Guid? startId = null;
