@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
 
 namespace PhieuFlow.FormBuilder.Components.Shared.QuestionEditors;
 
@@ -14,6 +15,9 @@ public abstract class JumpFocusComponent : ComponentBase
 
     [Parameter]
     public EventCallback OnJumpApplied { get; set; }
+
+    [Inject]
+    protected ILogger<JumpFocusComponent> Logger { get; set; } = default!;
 
     private bool _handled;
 
@@ -37,9 +41,10 @@ public abstract class JumpFocusComponent : ComponentBase
         {
             await FocusJumpTargetAsync();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // element not in the DOM yet
+            Logger.LogDebug(ex, "Focusing a pre-publish jump target failed; the element is not in the DOM yet.");
         }
 
         await OnJumpApplied.InvokeAsync();

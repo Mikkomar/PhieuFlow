@@ -1,3 +1,5 @@
+@inject ILogger<PrePublishDialog> Logger
+
 <div class="fixed inset-0 z-40 flex items-center justify-center bg-[rgba(16,24,24,0.28)] p-4"
      @onclick="@(() => OnClose.InvokeAsync())" @onkeydown="OnKeyDown">
     <div class="w-[520px] max-w-full overflow-hidden rounded-lg border border-border bg-surface shadow-[0_8px_24px_rgba(16,24,24,0.12)]"
@@ -95,9 +97,10 @@
             {
                 await _closeRef.FocusAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // not in the DOM yet
+                Logger.LogDebug(ex, "Focusing the pre-publish dialog close button failed; it is not in the DOM yet.");
             }
         }
     }

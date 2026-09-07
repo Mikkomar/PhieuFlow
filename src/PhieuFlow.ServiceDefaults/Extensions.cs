@@ -7,6 +7,8 @@ using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Serilog;
+using Serilog.Events;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -20,6 +22,8 @@ public static class Extensions
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
+        builder.ConfigureSerilog();
+
         builder.ConfigureOpenTelemetry();
 
         builder.AddDefaultHealthChecks();
@@ -40,6 +44,31 @@ public static class Extensions
         // {
         //     options.AllowedSchemes = ["https"];
         // });
+
+        return builder;
+    }
+
+    // Unified log formatting across every service: one Serilog console sink, one output
+    // template, visible per-resource in the Aspire dashboard console. No files, no extra sinks.
+    public static TBuilder ConfigureSerilog<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        // Drop the stock Console/Debug/EventSource providers. Otherwise, with writeToProviders
+        // below, the default Console provider re-prints every line next to Serilog's own console
+        // sink. ConfigureOpenTelemetry() runs straight after this and re-adds only the OTLP
+        // logging provider, which writeToProviders then keeps fed for the dashboard's structured
+        // logs view.
+        builder.Logging.ClearProviders();
+
+        builder.Services.AddSerilog((services, loggerConfiguration) => loggerConfiguration
+            .ReadFrom.Configuration(builder.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext()
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+            .WriteTo.Console(outputTemplate:
+                "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"),
+            writeToProviders: true);
 
         return builder;
     }

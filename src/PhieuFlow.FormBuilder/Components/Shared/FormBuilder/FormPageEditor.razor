@@ -1,3 +1,5 @@
+@inject ILogger<FormPageEditor> Logger
+
 <div aria-live="polite" class="sr-only">@_liveAnnouncement</div>
 
 <div class="rounded-lg border border-border bg-surface shadow-[0_1px_2px_rgba(16,24,24,0.04)]">
@@ -184,9 +186,10 @@
             {
                 await trigger.FocusAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // trigger may no longer be rendered
+                Logger.LogDebug(ex, "Focusing the add-question trigger after closing the picker failed; it is no longer rendered.");
             }
         }
     }

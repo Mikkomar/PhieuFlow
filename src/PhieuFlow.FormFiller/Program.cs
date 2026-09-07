@@ -1,3 +1,4 @@
+using Serilog;
 using PhieuFlow.FormFiller.Clients;
 using PhieuFlow.FormFiller.Components;
 using PhieuFlow.FormFiller.Submissions;
@@ -41,6 +42,8 @@ builder.Services.AddHttpClient<IHubFormsClient, HubFormsClient>(client =>
 builder.Services.AddScoped<ISubmissionPublisher, RabbitMqSubmissionPublisher>();
 
 var app = builder.Build();
+
+app.UseSerilogRequestLogging();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

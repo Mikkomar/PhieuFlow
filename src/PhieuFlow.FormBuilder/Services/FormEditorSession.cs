@@ -20,6 +20,7 @@ public sealed class FormEditorSession : IAsyncDisposable
 
     private readonly IFormsService _forms;
     private readonly AutosaveController _autosave;
+    private readonly ILogger<FormEditorSession>? _logger;
 
     private FormEditModel? _form;
 
@@ -27,9 +28,13 @@ public sealed class FormEditorSession : IAsyncDisposable
     // edits) on a spurious re-parametrization.
     private Guid? _loadedFormId;
 
-    public FormEditorSession(IFormsService forms, ILogger<AutosaveController>? autosaveLogger = null)
+    public FormEditorSession(
+        IFormsService forms,
+        ILogger<AutosaveController>? autosaveLogger = null,
+        ILogger<FormEditorSession>? logger = null)
     {
         _forms = forms;
+        _logger = logger;
         _autosave = new AutosaveController(SaveCoreAsync, CanSave, TimeSpan.FromMilliseconds(800), autosaveLogger);
         _autosave.StateChanged += () => Changed?.Invoke();
     }
@@ -74,8 +79,9 @@ public sealed class FormEditorSession : IAsyncDisposable
             {
                 return OpenOutcome.RedirectToNew(await _forms.CreateNewAsync());
             }
-            catch (HttpRequestException)
+            catch (HttpRequestException ex)
             {
+                _logger?.LogError(ex, "Creating a new form on the Hub failed.");
                 return Fail(FormLoadState.Error, "Couldn't start a new form.");
             }
         }
@@ -93,8 +99,9 @@ public sealed class FormEditorSession : IAsyncDisposable
         {
             loaded = await _forms.GetByIdAsync(formId.Value);
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger?.LogError(ex, "Loading form {FormId} from the Hub failed.", formId.Value);
             return Fail(FormLoadState.Error, "Couldn't load this form from the server.");
         }
 
@@ -194,13 +201,15 @@ public sealed class FormEditorSession : IAsyncDisposable
             var rows = PrePublishRow.From(FormEditMapper.ToEditModel(result.Form));
             return new PublishOutcome(PublishOutcomeKind.NeedsFixes, result, rows);
         }
-        catch (FormRevisionConflictException)
+        catch (FormRevisionConflictException ex)
         {
+            _logger?.LogInformation(ex, "Publish of form {FormId} hit an optimistic-concurrency conflict.", form.FormId);
             _autosave.MarkConflict();
             return new PublishOutcome(PublishOutcomeKind.Conflict);
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger?.LogError(ex, "Publishing form {FormId} failed.", form.FormId);
             PublishError = "Couldn't publish this form.";
             return new PublishOutcome(PublishOutcomeKind.RequestFailed);
         }
@@ -217,9 +226,10 @@ public sealed class FormEditorSession : IAsyncDisposable
         {
             await _autosave.FlushAsync();
         }
-        catch
+        catch (Exception ex)
         {
-            // best-effort flush on teardown
+            // best-effort flush on teardown — a final unsaved edit can be lost here
+            _logger?.LogDebug(ex, "Best-effort autosave flush on session teardown failed.");
         }
 
         _autosave.Dispose();

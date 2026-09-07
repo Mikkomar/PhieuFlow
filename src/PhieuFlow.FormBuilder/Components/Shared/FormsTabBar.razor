@@ -1,3 +1,5 @@
+@inject ILogger<FormsTabBar> Logger
+
 <div role="tablist" aria-label="Filter forms" @onkeydown="OnKeyDown" class="mt-[18px] flex items-center gap-[26px]">
     @{
         if (_tabRefs.Length != Tabs.Count)
@@ -78,7 +80,7 @@
         if (index < _tabRefs.Length)
         {
             try { await _tabRefs[index].FocusAsync(); }
-            catch (Exception) { /* tab may not be in the DOM yet */ }
+            catch (Exception ex) { Logger.LogDebug(ex, "Focusing filter tab {TabIndex} failed; it is not in the DOM yet.", index); }
         }
     }
 

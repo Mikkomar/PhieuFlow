@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Serilog;
 using PhieuFlow.Hub.Authorization;
 using PhieuFlow.Hub.Endpoints;
 using PhieuFlow.Hub.Validation;
@@ -59,6 +60,8 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddSingleton<IAuthorizationHandler, ScopeHandler>();
 
 var app = builder.Build();
+
+app.UseSerilogRequestLogging();
 
 app.UseAuthentication();
 app.UseAuthorization();

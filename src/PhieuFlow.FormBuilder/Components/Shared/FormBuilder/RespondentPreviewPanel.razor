@@ -1,6 +1,7 @@
 @* Respondent preview in two guises: a sticky side panel at >=1100px, and — since the side panel
    is unreachable below that — the same content in a non-modal bottom drawer. The drawer stays in
    the DOM at every width so the slide plays on open and close. *@
+@inject ILogger<RespondentPreviewPanel> Logger
 
 @if (Open)
 {
@@ -62,9 +63,10 @@
             {
                 await _drawerRef.FocusAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // drawer not in the DOM at this width
+                Logger.LogDebug(ex, "Focusing the respondent preview drawer failed; it is display:none at this width.");
             }
         }
 

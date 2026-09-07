@@ -117,7 +117,16 @@ else
         _submitting = false;
         _submitted = false;
         _answers.Clear();
-        _form = await HubFormsClient.GetPublishedFormByIdAsync(FormId);
+        try
+        {
+            _form = await HubFormsClient.GetPublishedFormByIdAsync(FormId);
+        }
+        catch (HttpRequestException ex)
+        {
+            // Hub down / 5xx / network drop — leave _form null so FormUnavailable renders.
+            Logger.LogError(ex, "Loading published form {FormId} for filling failed.", FormId);
+            _form = null;
+        }
         _loading = false;
     }
 
@@ -158,8 +167,8 @@ else
         }
         catch (Exception ex)
         {
-            // The stub never throws; the guard keeps a place for the real publisher's
-            // retry / error surface.
+            // RabbitMqSubmissionPublisher rethrows on a broker/channel/serialization failure;
+            // the submission is not recorded and the respondent stays on the last page.
             Logger.LogError(ex, "Submission publish failed for form {FormId}.", FormId);
         }
         finally

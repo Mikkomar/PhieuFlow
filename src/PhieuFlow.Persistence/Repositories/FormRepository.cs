@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PhieuFlow.Core.Entities;
 using PhieuFlow.Persistence.Projections;
 
 namespace PhieuFlow.Persistence.Repositories;
 
-public class FormRepository(HubDbContext dbContext) : IFormRepository
+public class FormRepository(HubDbContext dbContext, ILogger<FormRepository> logger) : IFormRepository
 {
     public Task<Guid> CreateAsync(CancellationToken cancellationToken = default)
     {
@@ -118,38 +119,48 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             return FormSaveResult.Conflict;
         }
 
-        if (currentVersion.Status == FormVersionStatus.Draft)
+        try
         {
-            currentVersion.Title = incomingContent.Title;
-            currentVersion.Description = incomingContent.Description;
-            currentVersion.LastModifiedAt = now;
-            currentVersion.LastModifiedBy = incomingContent.LastModifiedBy;
-            currentVersion.Revision += 1;
+            if (currentVersion.Status == FormVersionStatus.Draft)
+            {
+                currentVersion.Title = incomingContent.Title;
+                currentVersion.Description = incomingContent.Description;
+                currentVersion.LastModifiedAt = now;
+                currentVersion.LastModifiedBy = incomingContent.LastModifiedBy;
+                currentVersion.Revision += 1;
 
-            ReconcilePages(currentVersion, incomingContent.Pages);
-            return FormSaveResult.Saved(ToVersionState(currentVersion));
+                ReconcilePages(currentVersion, incomingContent.Pages);
+                return FormSaveResult.Saved(ToVersionState(currentVersion));
+            }
+
+            // Published: currentVersion is immutable from here on. Fork a new draft.
+            var forkedVersionId = Guid.NewGuid();
+
+            var forked = new FormVersion
+            {
+                Id = forkedVersionId,
+                FormId = formId,
+                VersionNumber = currentVersion.VersionNumber + 1,
+                Status = FormVersionStatus.Draft,
+                Title = incomingContent.Title,
+                Description = incomingContent.Description,
+                Revision = 1,
+                CreatedAt = now,
+                LastModifiedAt = now,
+                LastModifiedBy = incomingContent.LastModifiedBy,
+                Pages = incomingContent.Pages.Select(p => ClonePageWithFreshIds(p, forkedVersionId)).ToList(),
+            };
+            dbContext.FormVersions.Add(forked);
+
+            return FormSaveResult.Saved(ToVersionState(forked));
         }
-
-        // Published: currentVersion is immutable from here on. Fork a new draft.
-        var forkedVersionId = Guid.NewGuid();
-
-        var forked = new FormVersion
+        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
         {
-            Id = forkedVersionId,
-            FormId = formId,
-            VersionNumber = currentVersion.VersionNumber + 1,
-            Status = FormVersionStatus.Draft,
-            Title = incomingContent.Title,
-            Description = incomingContent.Description,
-            Revision = 1,
-            CreatedAt = now,
-            LastModifiedAt = now,
-            LastModifiedBy = incomingContent.LastModifiedBy,
-            Pages = incomingContent.Pages.Select(p => ClonePageWithFreshIds(p, forkedVersionId)).ToList(),
-        };
-        dbContext.FormVersions.Add(forked);
-
-        return FormSaveResult.Saved(ToVersionState(forked));
+            // A question changed type, or carried an unknown type — a client bug or a
+            // hand-crafted request. Reaches the endpoint as a bare 500 without this.
+            logger.LogError(ex, "Reconciling the save for form {FormId} failed.", formId);
+            throw;
+        }
     }
 
     private static FormVersionState ToVersionState(FormVersion version) => new()
@@ -236,6 +247,18 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
         var newVersionId = Guid.NewGuid();
 
         dbContext.Forms.Add(new Form { Id = newFormId, CreatedAt = now });
+
+        List<FormPage> clonedPages;
+        try
+        {
+            clonedPages = source.Pages.Select(p => ClonePageWithFreshIds(p, newVersionId)).ToList();
+        }
+        catch (NotSupportedException ex)
+        {
+            logger.LogError(ex, "Duplicating form {SourceId} failed on an unknown question type.", sourceId);
+            throw;
+        }
+
         dbContext.FormVersions.Add(new FormVersion
         {
             Id = newVersionId,
@@ -247,7 +270,7 @@ public class FormRepository(HubDbContext dbContext) : IFormRepository
             Revision = 1,
             CreatedAt = now,
             LastModifiedAt = now,
-            Pages = source.Pages.Select(p => ClonePageWithFreshIds(p, newVersionId)).ToList(),
+            Pages = clonedPages,
         });
 
         return newFormId;

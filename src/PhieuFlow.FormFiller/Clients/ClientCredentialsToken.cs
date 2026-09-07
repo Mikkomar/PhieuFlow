@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace PhieuFlow.FormFiller.Clients;
@@ -37,7 +38,8 @@ public sealed class KeycloakClientOptions
 public sealed class ClientCredentialsTokenProvider(
     IHttpClientFactory httpClientFactory,
     IOptions<KeycloakClientOptions> options,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ILogger<ClientCredentialsTokenProvider> logger)
 {
     private const int RefreshSkewSeconds = 30;
 
@@ -77,15 +79,25 @@ public sealed class ClientCredentialsTokenProvider(
                 ["scope"] = o.Scope,
             });
 
-            using var response = await client.PostAsync(o.TokenEndpoint, body, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            try
+            {
+                using var response = await client.PostAsync(o.TokenEndpoint, body, cancellationToken);
+                response.EnsureSuccessStatusCode();
 
-            var payload = await response.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken)
-                ?? throw new InvalidOperationException("Keycloak returned an empty token response.");
+                var payload = await response.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken)
+                    ?? throw new InvalidOperationException("Keycloak returned an empty token response.");
 
-            _token = payload.AccessToken;
-            _expiresAt = timeProvider.GetUtcNow().AddSeconds(Math.Max(0, payload.ExpiresIn - RefreshSkewSeconds));
-            return _token;
+                _token = payload.AccessToken;
+                _expiresAt = timeProvider.GetUtcNow().AddSeconds(Math.Max(0, payload.ExpiresIn - RefreshSkewSeconds));
+                return _token;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
+            {
+                // Keycloak unreachable, wrong client secret, realm/scope misconfig — otherwise
+                // this fault fans out unlogged to every concurrent Hub call waiting on the gate.
+                logger.LogError(ex, "Acquiring a client-credentials token from {TokenEndpoint} failed.", o.TokenEndpoint);
+                throw;
+            }
         }
         finally
         {
@@ -103,7 +115,9 @@ public sealed class ClientCredentialsTokenProvider(
 /// the cached token and retries once, covering a rotated secret or a Hub that came up
 /// after this process cached a token signed by a now-replaced key.
 /// </summary>
-public sealed class ClientCredentialsTokenHandler(ClientCredentialsTokenProvider provider)
+public sealed class ClientCredentialsTokenHandler(
+    ClientCredentialsTokenProvider provider,
+    ILogger<ClientCredentialsTokenHandler> logger)
     : DelegatingHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(
@@ -123,13 +137,27 @@ public sealed class ClientCredentialsTokenHandler(ClientCredentialsTokenProvider
             return response;
         }
 
+        logger.LogWarning(
+            "Hub returned 401 for {Method} {Uri}; refreshing the token and retrying once.",
+            request.Method,
+            request.RequestUri);
+
         response.Dispose();
         provider.Invalidate();
 
         using var retry = CloneWithBody(request, body);
         retry.Headers.Authorization =
             new AuthenticationHeaderValue("Bearer", await provider.GetAsync(cancellationToken));
-        return await base.SendAsync(retry, cancellationToken);
+        var retryResponse = await base.SendAsync(retry, cancellationToken);
+        if (retryResponse.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            logger.LogError(
+                "Hub still returned 401 for {Method} {Uri} after a token refresh.",
+                request.Method,
+                request.RequestUri);
+        }
+
+        return retryResponse;
     }
 
     private static HttpRequestMessage CloneWithBody(HttpRequestMessage request, byte[]? body)

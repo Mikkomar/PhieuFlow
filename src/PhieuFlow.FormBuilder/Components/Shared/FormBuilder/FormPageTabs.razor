@@ -1,3 +1,5 @@
+@inject ILogger<FormPageTabs> Logger
+
 <div role="tablist" aria-label="Form pages" @onkeydown="OnPageTabsKeyDown"
      class="flex flex-wrap items-center gap-[6px]">
     @{
@@ -111,9 +113,10 @@
             {
                 await _pageTabRefs[index].FocusAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // tab element may not be in the DOM yet
+                Logger.LogDebug(ex, "Focusing page tab {TabIndex} failed; it is not in the DOM yet.", index);
             }
         }
     }

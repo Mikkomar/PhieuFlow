@@ -232,17 +232,29 @@ public sealed class AutosaveController : IDisposable
         {
             // Superseded by a newer edit or flush, which owns the state from here.
         }
-        catch (FormRevisionConflictException)
+        catch (FormRevisionConflictException ex)
         {
             // Another session advanced the form; the server refused this save. Terminal until a
             // reload — NotifyEdited/FlushAsync stop attempting from here.
+            _logger?.LogInformation(ex, "Autosave hit an optimistic-concurrency conflict; the form is now read-only until reload.");
             if (generation == _generation)
             {
                 SetState(SaveState.Conflict);
             }
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger?.LogWarning(ex, "Autosave round-trip to the Hub failed.");
+            if (generation == _generation)
+            {
+                SetState(SaveState.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            // SaveAsync runs on a fire-and-forget task (DebounceThenSaveAsync); an empty save
+            // body, a JSON fault or a mapper failure would otherwise be an unobserved exception.
+            _logger?.LogError(ex, "Autosave failed with an unexpected error.");
             if (generation == _generation)
             {
                 SetState(SaveState.Error);

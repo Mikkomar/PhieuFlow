@@ -7,6 +7,8 @@
 @inject IJSRuntime JS
 @inject IFormsService FormsService
 @inject ILogger<AutosaveController> AutosaveLogger
+@inject ILogger<FormEditorSession> SessionLogger
+@inject ILogger<FormBuilder> Logger
 @implements IAsyncDisposable
 
 @if (_session.LoadState == FormLoadState.Error)
@@ -143,7 +145,7 @@ else
 
     protected override void OnInitialized()
     {
-        _session = new FormEditorSession(FormsService, AutosaveLogger);
+        _session = new FormEditorSession(FormsService, AutosaveLogger, SessionLogger);
         _session.Changed += OnSessionChanged;
         _session.ForkReconciled += OnForkReconciled;
         _locationChangingRegistration = Nav.RegisterLocationChangingHandler(OnLocationChanging);
@@ -206,9 +208,10 @@ else
         {
             await _session.DisposeAsync();
         }
-        catch
+        catch (Exception ex)
         {
             // best-effort flush on teardown
+            Logger.LogDebug(ex, "Disposing the form editor session failed.");
         }
     }
 
@@ -283,9 +286,10 @@ else
         {
             await focus(_header);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // header no longer rendered
+            Logger.LogDebug(ex, "Focusing the builder header failed; it is no longer rendered.");
         }
     }
 

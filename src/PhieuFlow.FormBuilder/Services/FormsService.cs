@@ -7,7 +7,7 @@ using PhieuFlow.Hub.Contracts.Publishing;
 
 namespace PhieuFlow.FormBuilder.Services;
 
-public class FormsService(IHubFormsClient hubFormsClient) : IFormsService
+public class FormsService(IHubFormsClient hubFormsClient, ILogger<FormsService> logger) : IFormsService
 {
     public Task<Guid> CreateNewAsync(CancellationToken cancellationToken = default) =>
         hubFormsClient.CreateFormAsync(cancellationToken);
@@ -56,8 +56,11 @@ public class FormsService(IHubFormsClient hubFormsClient) : IFormsService
         {
             forked = await GetByIdAsync(local.FormId, cancellationToken);
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            // Re-fetching the forked form failed: the in-memory tree keeps the pre-fork node ids
+            // and the next autosave collides on insert.
+            logger.LogError(ex, "Reconciling the fork of form {FormId} failed; stale node ids remain.", local.FormId);
             return EmptyRemap;
         }
 

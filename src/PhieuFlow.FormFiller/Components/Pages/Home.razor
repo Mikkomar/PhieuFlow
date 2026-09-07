@@ -1,5 +1,6 @@
 @page "/"
 @inject IHubFormsClient HubFormsClient
+@inject ILogger<Home> Logger
 @implements IDisposable
 
 <PageTitle>Forms open for responses</PageTitle>
@@ -14,6 +15,10 @@
         @if (_loading)
         {
             <div class="px-[22px] py-[18px] text-[13.5px] text-text-faintest">Loading forms&hellip;</div>
+        }
+        else if (_loadFailed)
+        {
+            <div class="px-[22px] py-[18px] text-[13.5px] text-text-faintest">Couldn't load forms from the server. Reload to try again.</div>
         }
         else if (_forms.Count == 0)
         {
@@ -49,15 +54,28 @@
 @code {
     private readonly List<PublishedFormListItemDto> _forms = [];
     private bool _loading = true;
+    private bool _loadFailed;
     private readonly CancellationTokenSource _cts = new();
 
     protected override async Task OnInitializedAsync()
     {
-        await foreach (var batch in HubFormsClient.GetPublishedFormBatchesAsync(_cts.Token))
+        try
         {
-            _forms.AddRange(batch);
-            _loading = false;
-            StateHasChanged();
+            await foreach (var batch in HubFormsClient.GetPublishedFormBatchesAsync(_cts.Token))
+            {
+                _forms.AddRange(batch);
+                _loading = false;
+                StateHasChanged();
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogError(ex, "Loading the published forms list from the Hub failed.");
+            _loadFailed = true;
+        }
+        catch (OperationCanceledException)
+        {
+            // navigated away mid-stream — nothing to report
         }
 
         _loading = false;

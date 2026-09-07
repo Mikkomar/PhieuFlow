@@ -23,18 +23,6 @@ public sealed class RabbitMqSubmissionPublisher(
 
     public async Task PublishAsync(FormSubmissionRequest request, CancellationToken cancellationToken = default)
     {
-        await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
-
-        // Idempotent: the consumer declares the same queue, whichever side races first.
-        await channel.QueueDeclareAsync(
-            queue: SubmissionQueue.Name,
-            durable: true,
-            exclusive: false,
-            autoDelete: false,
-            arguments: QuorumQueueArguments,
-            cancellationToken: cancellationToken);
-
-        var body = JsonSerializer.SerializeToUtf8Bytes(request);
         var properties = new BasicProperties
         {
             Persistent = true,
@@ -42,13 +30,41 @@ public sealed class RabbitMqSubmissionPublisher(
             MessageId = Guid.NewGuid().ToString(),
         };
 
-        await channel.BasicPublishAsync(
-            exchange: string.Empty,
-            routingKey: SubmissionQueue.Name,
-            mandatory: false,
-            basicProperties: properties,
-            body: body,
-            cancellationToken: cancellationToken);
+        try
+        {
+            await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
+
+            // Idempotent: the consumer declares the same queue, whichever side races first.
+            await channel.QueueDeclareAsync(
+                queue: SubmissionQueue.Name,
+                durable: true,
+                exclusive: false,
+                autoDelete: false,
+                arguments: QuorumQueueArguments,
+                cancellationToken: cancellationToken);
+
+            var body = JsonSerializer.SerializeToUtf8Bytes(request);
+
+            await channel.BasicPublishAsync(
+                exchange: string.Empty,
+                routingKey: SubmissionQueue.Name,
+                mandatory: false,
+                basicProperties: properties,
+                body: body,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Broker down, channel/connection fault, queue-argument mismatch, or a
+            // serialization failure — the submission is lost unless the caller retries.
+            logger.LogError(
+                ex,
+                "Publishing submission for form {FormId} v{VersionNumber} to {Queue} failed.",
+                request.FormId,
+                request.FormVersionNumber,
+                SubmissionQueue.Name);
+            throw;
+        }
 
         logger.LogInformation(
             "Submission for form {FormId} v{VersionNumber} ({AnswerCount} answer(s)) published to {Queue} as {MessageId}.",

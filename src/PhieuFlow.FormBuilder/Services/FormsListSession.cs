@@ -11,7 +11,9 @@ namespace PhieuFlow.FormBuilder.Services;
 /// URL-derived state changes), the derived view (filtered/paged/counts), and the row actions
 /// (publish/duplicate/delete) that mutate the underlying list and recompute the view.
 /// </summary>
-public sealed class FormsListSession(IFormsService formsService) : IDisposable
+public sealed class FormsListSession(
+    IFormsService formsService,
+    ILogger<FormsListSession>? logger = null) : IDisposable
 {
     public const int PageSize = 20;
 
@@ -81,8 +83,9 @@ public sealed class FormsListSession(IFormsService formsService) : IDisposable
                 Changed?.Invoke();
             }
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            logger?.LogError(ex, "Loading the forms list from the Hub failed.");
             LoadError = "Couldn't load forms from the server.";
         }
         catch (OperationCanceledException)
@@ -110,8 +113,9 @@ public sealed class FormsListSession(IFormsService formsService) : IDisposable
         {
             result = await formsService.PublishAsync(form.Id);
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            logger?.LogError(ex, "Publishing form {FormId} from the list failed.", form.Id);
             ActionError = $"Couldn't publish \"{form.Title}\".";
             Changed?.Invoke();
             return null;
@@ -169,6 +173,7 @@ public sealed class FormsListSession(IFormsService formsService) : IDisposable
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
         {
+            logger?.LogError(ex, "Duplicating form {FormId} from the list failed.", form.Id);
             ActionError = $"Couldn't duplicate \"{form.Title}\".";
         }
 
@@ -182,8 +187,9 @@ public sealed class FormsListSession(IFormsService formsService) : IDisposable
         {
             await formsService.DeleteAsync(form.Id);
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            logger?.LogError(ex, "Deleting form {FormId} from the list failed.", form.Id);
             ActionError = $"Couldn't delete \"{form.Title}\". The form is still here.";
             Changed?.Invoke();
             return;

@@ -1,3 +1,4 @@
+using Serilog;
 using PhieuFlow.FormBuilder.Clients;
 using PhieuFlow.FormBuilder.Components;
 using PhieuFlow.FormBuilder.Services;
@@ -37,6 +38,8 @@ builder.Services.AddHttpClient<IHubFormsClient, HubFormsClient>(client =>
 builder.Services.AddScoped<IFormsService, FormsService>();
 
 var app = builder.Build();
+
+app.UseSerilogRequestLogging();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

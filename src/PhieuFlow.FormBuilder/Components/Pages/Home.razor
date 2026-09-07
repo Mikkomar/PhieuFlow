@@ -3,6 +3,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @inject IFormsService FormsService
+@inject ILogger<FormsListSession> SessionLogger
 @implements IDisposable
 
 <PageTitle>All forms</PageTitle>
@@ -145,7 +146,7 @@
 
     protected override void OnInitialized()
     {
-        _session = new FormsListSession(FormsService);
+        _session = new FormsListSession(FormsService, SessionLogger);
         _session.Changed += OnSessionChanged;
     }
 
