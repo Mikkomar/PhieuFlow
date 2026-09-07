@@ -59,7 +59,10 @@ public sealed class SqlServerFixture : IAsyncLifetime
             ?? throw new InvalidOperationException("Aspire returned no connection string for HubDatabase.");
 
         Hub = new IntegrationWebApplicationFactory(ConnectionString);
-        _ = Hub.Services; // Build the host now so a bad configuration fails the fixture, not the first test.
+        // Building the host now surfaces a bad configuration as a fixture failure, not a
+        // first-test failure; PreserveExecutionContext lets the per-test TransactionScope
+        // flow into the in-process pipeline (belt-and-braces with the options config).
+        Hub.Server.PreserveExecutionContext = true;
     }
 
     public async Task DisposeAsync()

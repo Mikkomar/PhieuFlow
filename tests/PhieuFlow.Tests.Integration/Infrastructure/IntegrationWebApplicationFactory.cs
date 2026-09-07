@@ -21,6 +21,10 @@ namespace PhieuFlow.Tests.Integration.Infrastructure;
 /// <see cref="SqlConnection"/> instance (EF opens/closes it per operation). One physical
 /// connection means a per-test <see cref="System.Transactions.TransactionScope"/> stays a
 /// lightweight transaction and rolls back without MSDTC — which is absent on Linux/CI.</item>
+/// <item><c>TestServer.PreserveExecutionContext</c> is turned on so the test's ambient
+/// <see cref="System.Transactions.Transaction.Current"/> flows into the in-process request
+/// pipeline — without it TestHost suppresses the execution context and the shared
+/// connection never enlists, so the server's writes commit and leak across tests.</item>
 /// </list>
 /// </summary>
 public sealed class IntegrationWebApplicationFactory(string connectionString) : WebApplicationFactory<Program>
@@ -35,6 +39,8 @@ public sealed class IntegrationWebApplicationFactory(string connectionString) : 
 
         builder.ConfigureTestServices(services =>
         {
+            services.Configure<TestServerOptions>(o => o.PreserveExecutionContext = true);
+
             RemoveHubDbContext(services);
             services.AddDbContext<HubDbContext>(options => options.UseSqlServer(_connection));
 

@@ -56,6 +56,53 @@ public sealed class FormDuplicateTests(SqlServerFixture fixture) : IntegrationTe
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [Fact]
+    public async Task TestDuplicate_When_SourceHasNoTitle_Should_NameTheCopyCopyOfUntitledForm()
+    {
+        using var client = WriteClient;
+        // POST /forms mints a blank draft — Title is empty and never set.
+        var created = await (await client.PostAsync("/forms", null)).Content.ReadFromJsonAsync<FormCreatedDto>();
+
+        var response = await client.PostAsync($"/forms/{created!.Id}/duplicate", content: null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var copyId = (await response.Content.ReadFromJsonAsync<FormCreatedDto>())!.Id;
+        var copy = await client.GetFromJsonAsync<FormDto>($"/forms/{copyId}");
+        copy!.Title.Should().Be("Copy of untitled form");
+    }
+
+    [Fact]
+    public async Task TestDuplicate_When_SourceHasEveryQuestionType_Should_DeepCopyEachWithFreshIds()
+    {
+        using var client = WriteClient;
+        var created = await (await client.PostAsync("/forms", null)).Content.ReadFromJsonAsync<FormCreatedDto>();
+        var sourceId = created!.Id;
+        (await client.PutAsJsonAsync($"/forms/{sourceId}", TestForms.AllQuestionTypes(sourceId, "Master")))
+            .EnsureSuccessStatusCode();
+
+        var response = await client.PostAsync($"/forms/{sourceId}/duplicate", content: null);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var copyId = (await response.Content.ReadFromJsonAsync<FormCreatedDto>())!.Id;
+
+        var source = await client.GetFromJsonAsync<FormDto>($"/forms/{sourceId}");
+        var copy = await client.GetFromJsonAsync<FormDto>($"/forms/{copyId}");
+
+        copy!.Title.Should().Be("Copy of Master");
+        var sourceQuestions = source!.Pages.Single().Questions;
+        var copyQuestions = copy.Pages.Should().ContainSingle().Subject.Questions;
+
+        copyQuestions.Select(q => q.GetType()).Should().Equal(sourceQuestions.Select(q => q.GetType()));
+        copyQuestions.Select(q => q.Id).Should().NotIntersectWith(sourceQuestions.Select(q => q.Id));
+        copyQuestions.Select(q => q.Text).Should().Equal(sourceQuestions.Select(q => q.Text));
+
+        var sourceOptionIds = sourceQuestions.OfType<ChoiceQuestionDto>().SelectMany(c => c.Options).Select(o => o.Id);
+        var copyChoices = copyQuestions.OfType<ChoiceQuestionDto>().ToList();
+        copyChoices.SelectMany(c => c.Options).Select(o => o.Id).Should().NotIntersectWith(sourceOptionIds);
+        copyChoices.Should().HaveCount(3);
+        copyChoices.SelectMany(c => c.Options.Select(o => o.Label))
+            .Should().Contain(["Finland", "Permanent", "Laptop"]);
+    }
+
     private static async Task<Guid> CreateFormAsync(HttpClient client, string title)
     {
         var created = await (await client.PostAsync("/forms", null)).Content.ReadFromJsonAsync<FormCreatedDto>();

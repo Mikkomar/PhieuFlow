@@ -57,6 +57,36 @@ public sealed class FormPublishGateTests(SqlServerFixture fixture) : Integration
     }
 
     [Fact]
+    public async Task TestPublish_When_CalledTwiceOnTheSameVersion_Should_StayPublishedWithUnchangedPublishedAt()
+    {
+        using var client = WriteClient;
+        var id = await SaveFormAsync(client, "Publish twice", Question("All good"));
+
+        var first = await (await client.PostAsync($"/forms/{id}/publish", content: null))
+            .Content.ReadFromJsonAsync<PublishResultDto>();
+        first!.PublishedAt.Should().NotBeNull();
+
+        var response = await client.PostAsync($"/forms/{id}/publish", content: null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var second = await response.Content.ReadFromJsonAsync<PublishResultDto>();
+        second!.Published.Should().BeTrue();
+        // PublishAsync's "already Published" branch must not re-stamp PublishedAt.
+        second.PublishedAt.Should().Be(first.PublishedAt);
+        second.IsFirstPublish.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TestPublish_When_FormDoesNotExist_Should_Return404()
+    {
+        using var client = WriteClient;
+
+        var response = await client.PostAsync($"/forms/{Guid.NewGuid()}/publish", content: null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task TestPublish_When_AnotherSaveLandsBetweenValidateAndFlip_Should_RejectWithoutPublishing()
     {
         using var client = WriteClient;
