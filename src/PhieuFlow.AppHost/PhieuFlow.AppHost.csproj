@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.5.2" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" Version="13.5.2" />
     <!-- Aspire.Hosting.Keycloak has no stable release yet; pin the preview from the
          same 13.5.2 build line as the SDK / Aspire.Hosting.SqlServer, and bump it in
          lockstep with them (no Directory.Packages.props to enforce it). -->

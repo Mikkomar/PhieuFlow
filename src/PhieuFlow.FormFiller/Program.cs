@@ -6,6 +6,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
+// Submission transport (ADR 0001): the Aspire "rabbitmq" resource supplies the connection
+// string; RabbitMqSubmissionPublisher declares the durable queue and publishes to it.
+builder.AddRabbitMQClient(connectionName: "rabbitmq");
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -34,9 +38,7 @@ builder.Services.AddHttpClient<IHubFormsClient, HubFormsClient>(client =>
 })
 .AddHttpMessageHandler<ClientCredentialsTokenHandler>();
 
-// Submission transport (ADR 0001) is async RabbitMQ, not yet built — this stub records the
-// response and reports success so the fill flow works end to end on the client side.
-builder.Services.AddScoped<ISubmissionPublisher, LoggingSubmissionPublisher>();
+builder.Services.AddScoped<ISubmissionPublisher, RabbitMqSubmissionPublisher>();
 
 var app = builder.Build();
 

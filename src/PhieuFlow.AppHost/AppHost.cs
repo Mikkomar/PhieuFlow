@@ -13,6 +13,14 @@ const string formFillerClientSecret = "form-filler-dev-secret";
 var keycloak = builder.AddKeycloak("keycloak")
     .WithRealmImport(Path.Combine(builder.AppHostDirectory, "realms"));
 
+// The one deliberate async boundary (ADR 0001): the form-filler publishes completed
+// responses onto the durable `form-submissions` queue and the Hub consumer drains it.
+// The data volume keeps persistent messages across a broker restart; the management
+// plugin exposes the queue/DLX state for inspection during development.
+var rabbitmq = builder.AddRabbitMQ("rabbitmq")
+    .WithDataVolume()
+    .WithManagementPlugin();
+
 // The hub, the form-builder and the E2E tests all reach Keycloak through this one
 // endpoint, so the token issuer, the OIDC metadata address and the issuer the hub
 // validates against are guaranteed to be the same string — whatever host/port Aspire
@@ -58,12 +66,16 @@ builder.AddProject<Projects.PhieuFlow_FormBuilder>("formbuilder")
     .WithEnvironment("Keycloak__ClientSecret", formBuilderClientSecret)
     .WithHttpHealthCheck("/health");
 
+// The Hub gains `.WithReference(rabbitmq)` once its submission consumer half is built
+// (ADR 0001); for now only the publisher side is wired.
 builder.AddProject<Projects.PhieuFlow_FormFiller>("formfiller")
     .WithExternalHttpEndpoints()
     .WithReference(hub)
     .WithReference(keycloak)
+    .WithReference(rabbitmq)
     .WaitFor(hub)
     .WaitFor(keycloak)
+    .WaitFor(rabbitmq)
     .WithEnvironment("Keycloak__Authority", keycloakRealmAuthority)
     .WithEnvironment("Keycloak__ClientId", formFillerClientId)
     .WithEnvironment("Keycloak__ClientSecret", formFillerClientSecret)

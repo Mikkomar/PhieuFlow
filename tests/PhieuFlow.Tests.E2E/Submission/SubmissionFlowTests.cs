@@ -14,15 +14,17 @@ namespace PhieuFlow.Tests.E2E.Submission;
 /// browser context, filled and submitted in another, and the hub is asserted to have
 /// persisted the submission across the async RabbitMQ boundary (ADR 0001).
 ///
-/// Every test here is skipped until the form-filler service and the submission consumer
-/// exist. The bodies are written against the intended contract so un-skipping is the only
-/// change needed; endpoint shapes with no DTO yet are read as <see cref="JsonElement"/>.
+/// The form-filler now publishes to the <c>form-submissions</c> queue (ADR 0008); every
+/// test here stays skipped until the Hub consumer that drains it and the
+/// <c>GET /forms/{id}/submissions</c> endpoint exist. The bodies are written against the
+/// intended contract so un-skipping is the only change needed; endpoint shapes with no DTO
+/// yet are read as <see cref="JsonElement"/>.
 /// </summary>
 public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelper output)
     : E2ETestBase(fixture, output)
 {
     private const string Blocker =
-        "form-filler service + async RabbitMQ submission boundary not implemented — ADR 0001/0006";
+        "Hub submission consumer + GET /forms/{id}/submissions not implemented — ADR 0001/0006/0008";
 
     [Fact(Skip = Blocker)]
     [Trait("Category", "Future")]

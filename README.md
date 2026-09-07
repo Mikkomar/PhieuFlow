@@ -106,7 +106,7 @@ dotnet test tests/PhieuFlow.Tests.E2E --filter "Category!=Future"
 dotnet test tests/PhieuFlow.Tests.E2E
 ```
 
-Specs for features that do not exist yet (form-filler + async submission, ADR 0001/0006;
+Specs for features that do not exist yet (the Hub submission consumer, ADR 0001/0006/0008;
 staleness handling, ADR 0002) are written in full but marked `[Fact(Skip = "…")]` with
 `[Trait("Category", "Future")]`. Un-skip a spec when its feature lands. See the
 [test project README](tests/PhieuFlow.Tests.E2E/README.md).
