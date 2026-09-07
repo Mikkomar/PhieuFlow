@@ -17,4 +17,5 @@ public class FormListItem
     public DateTimeOffset? LatestPublishedAt { get; set; }
     public required int PageCount { get; set; }
     public required int QuestionCount { get; set; }
+    public required bool HasSubmissions { get; set; }
 }

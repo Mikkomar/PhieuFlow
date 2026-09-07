@@ -25,14 +25,15 @@ Coverage-gap classes added for the provider-dependent logic that unit tests can'
 
 | Class | Covers |
 | --- | --- |
-| `FormListTests` | `GET /forms` / `GetBatchAsync` — the Guid cursor (SQL Server `uniqueidentifier` order), `take` range, `PageCount`/`QuestionCount` aggregates, the latest-published pointer. |
+| `FormListTests` | `GET /forms` / `GetBatchAsync` — the Guid cursor (SQL Server `uniqueidentifier` order), `take` range, `PageCount`/`QuestionCount` aggregates, the latest-published pointer, the `HasSubmissions` flag. |
 | `FormQuestionTypesTests` | every `QuestionDto` subtype persisted and read back (`QuestionMapper` both ways, TPH discriminator — `Checkbox`/`CheckBoxGroup` are otherwise never persisted — `decimal(18,4)`, `DateOnly`). |
 | `FormReconcileTests` | `ReconcilePages`/`ReconcileQuestions`/`ReconcileOptions`/`UpdateQuestionFields` under the real EF change tracker; the question-type-change guard. |
-| `FormDeleteTests` (`…HasASubmission…`) | the `FormSubmission` `Restrict` FK — a delete that would destroy response data. |
+| `FormDeleteTests` (`…HasASubmission…`) | the `FormSubmission` `Restrict` FK — a delete that would destroy response data is refused with 409. |
 
-Two tests deliberately assert an **HTTP 500** (`FormReconcileTests.TestSaveAsync_When_AQuestionChangesType…`,
-`FormDeleteTests.TestDelete_When_FormHasASubmission…`) — both are unhandled-exception paths
-the Hub should translate to a 4xx; the `// TODO` on each says so.
+One test deliberately asserts an **HTTP 500** (`FormReconcileTests.TestSaveAsync_When_AQuestionChangesType…`) —
+an unhandled-exception path the Hub should translate to a 4xx; the `// TODO` on it says so.
+(`FormDeleteTests.TestDelete_When_FormHasASubmission…` used to be the second; it now asserts
+the 409 the endpoint returns after pre-checking for submissions.)
 
 The async submission boundary (RabbitMQ) is left to the E2E suite.
 

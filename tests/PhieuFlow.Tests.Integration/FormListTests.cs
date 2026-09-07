@@ -119,6 +119,22 @@ public sealed class FormListTests(SqlServerFixture fixture) : IntegrationTestBas
         item.LatestPublishedAt.Should().NotBeNull();
     }
 
+    [Fact]
+    public async Task TestGetForms_When_FormHasASubmission_Should_ReportHasSubmissions()
+    {
+        using var client = CreateClient();
+        var withReplies = await CreateBlankAsync(client);
+        var untouched = await CreateBlankAsync(client);
+        await SubmissionSeed.AddAsync(Services, withReplies);
+
+        var batch = await client.GetFromJsonAsync<FormBatchResponse>("/forms?take=100");
+
+        batch!.Items.Should().ContainSingle(i => i.Id == withReplies)
+            .Subject.HasSubmissions.Should().BeTrue();
+        batch.Items.Should().ContainSingle(i => i.Id == untouched)
+            .Subject.HasSubmissions.Should().BeFalse("no submission was seeded for it");
+    }
+
     private static async Task<FormListItemDto> SingleItemAsync(HttpClient client, Guid id)
     {
         var batch = await client.GetFromJsonAsync<FormBatchResponse>("/forms?take=100");

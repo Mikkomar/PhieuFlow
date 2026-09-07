@@ -166,6 +166,7 @@ public sealed class FormsListSession(
                     LatestPublishedAt = null,
                     QuestionCount = loaded.Pages.Sum(p => p.Questions.Count),
                     PageCount = loaded.Pages.Count,
+                    HasSubmissions = false, // a fresh duplicate has no replies
                 });
             }
 

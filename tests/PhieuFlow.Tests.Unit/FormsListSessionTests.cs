@@ -114,6 +114,20 @@ public class FormsListSessionTests
     }
 
     [Fact]
+    public async Task TestDeleteAsync_When_HubRejectsWithConflict_Should_SetActionErrorAndKeepForm()
+    {
+        var form = FormWith("Has responses");
+        var forms = new FakeFormsService { Batches = [[form]], DeleteError = new HttpRequestException() };
+        var session = new FormsListSession(forms);
+        await session.LoadAsync();
+
+        await session.DeleteAsync(form);
+
+        session.ActionError.Should().NotBeNullOrWhiteSpace();
+        session.FilteredForms.Should().Contain(f => f.Title == "Has responses");
+    }
+
+    [Fact]
     public async Task TestDeleteAsync_When_FormRemoved_Should_UpdateClampedPage()
     {
         var toDelete = FormWith("Only form");

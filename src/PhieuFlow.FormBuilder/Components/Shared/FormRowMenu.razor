@@ -12,13 +12,15 @@
     <button type="button" role="menuitem" @ref="_itemRefs[2]" disabled="@CopyLinkDisabled" @onclick="Invoke(OnCopyLink)"
             class="@(CopyLinkDisabled ? ItemClassesDisabled : ItemClasses)">Copy public link</button>
     <span class="my-1 h-px bg-border-row"></span>
-    <button type="button" role="menuitem" @ref="_itemRefs[3]" @onclick="Invoke(OnDelete)"
-            class="flex w-full items-center rounded-md px-[9px] py-[7px] text-left text-[12.5px] text-danger hover:bg-danger-surface">Delete form&hellip;</button>
+    <button type="button" role="menuitem" @ref="_itemRefs[3]" disabled="@DeleteDisabled" @onclick="Invoke(OnDelete)"
+            title="@(DeleteDisabled ? "This form has responses and can't be deleted" : null)"
+            class="@(DeleteDisabled ? ItemClassesDisabled : DeleteItemClasses)">Delete form&hellip;</button>
 </div>
 
 @code {
     private const string ItemClasses = "flex w-full items-center rounded-md px-[9px] py-[7px] text-left text-[12.5px] text-text-body hover:bg-surface-subtle";
     private const string ItemClassesDisabled = "flex w-full items-center rounded-md px-[9px] py-[7px] text-left text-[12.5px] text-text-faintest-2 cursor-default";
+    private const string DeleteItemClasses = "flex w-full items-center rounded-md px-[9px] py-[7px] text-left text-[12.5px] text-danger hover:bg-danger-surface";
 
     [Parameter, EditorRequired] public EventCallback OnClose { get; set; }
     [Parameter, EditorRequired] public EventCallback OnDuplicate { get; set; }
@@ -26,6 +28,7 @@
     [Parameter, EditorRequired] public EventCallback OnCopyLink { get; set; }
     [Parameter, EditorRequired] public EventCallback OnDelete { get; set; }
     [Parameter] public bool CopyLinkDisabled { get; set; }
+    [Parameter] public bool DeleteDisabled { get; set; }
 
     private readonly ElementReference[] _itemRefs = new ElementReference[4];
     private int _focusIndex;
@@ -66,14 +69,14 @@
         }
     }
 
-    // Skip the disabled Copy-link item (index 2) when cycling.
+    // Skip whichever items are disabled (Copy-link at 2, Delete at 3) when cycling.
     private int NextIndex(int from, bool forward)
     {
         var i = from;
         for (var step = 0; step < _itemRefs.Length; step++)
         {
             i = forward ? (i + 1) % _itemRefs.Length : (i - 1 + _itemRefs.Length) % _itemRefs.Length;
-            if (!(i == 2 && CopyLinkDisabled))
+            if (!IsDisabled(i))
             {
                 return i;
             }
@@ -81,4 +84,11 @@
 
         return from;
     }
+
+    private bool IsDisabled(int index) => index switch
+    {
+        2 => CopyLinkDisabled,
+        3 => DeleteDisabled,
+        _ => false,
+    };
 }

@@ -20,7 +20,13 @@
                       class="@("text-sm transition-transform duration-150 " + (expanded ? "rotate-90 text-accent" : "text-text-faintest-2"))" />
 
             <div class="flex min-w-0 flex-col gap-0.5">
-                <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[13.5px] font-semibold tracking-[-0.005em] text-text">@form.Title</span>
+                <span class="flex min-w-0 items-center gap-1.5">
+                    <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[13.5px] font-semibold tracking-[-0.005em] text-text">@form.Title</span>
+                    @if (form.HasSubmissions)
+                    {
+                        <span class="flex-none rounded-full border border-border px-1.5 py-px font-mono text-[9.5px] tracking-[0.06em] text-text-faint uppercase">Has responses</span>
+                    }
+                </span>
                 <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] text-text-faint">@form.Description</span>
             </div>
 
@@ -44,6 +50,7 @@
                 @if (_openRowMenuId == form.Id)
                 {
                     <FormRowMenu CopyLinkDisabled="@(form.LatestPublishedVersionNumber is null)"
+                                 DeleteDisabled="@form.HasSubmissions"
                                  OnClose="@(() => CloseRowMenu(rowIndex))"
                                  OnDuplicate="@(() => OnDuplicate.InvokeAsync(form))"
                                  OnPublish="@(() => OnPublish.InvokeAsync(form))"
@@ -87,6 +94,10 @@
                             <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Form ID</span>
                             <span class="font-mono text-[13px] font-medium text-text-body">@(form.Id.ToString()[..8])&hellip;</span>
                         </div>
+                        <div class="flex flex-col gap-[3px]">
+                            <span class="font-mono text-[9.5px] tracking-[0.07em] text-text-faintest uppercase">Responses</span>
+                            <span class="text-[15px] font-semibold">@(form.HasSubmissions ? "Yes" : "—")</span>
+                        </div>
                     </div>
 
                     @if (form.LatestPublishedVersionNumber is not null && !string.IsNullOrEmpty(form.PublicUrl))
@@ -112,8 +123,9 @@
                             Publish
                         </button>
                     }
-                    <button type="button" @onclick="@(() => OnDelete.InvokeAsync(form))"
-                            class="h-[34px] rounded-md border border-danger-border bg-white text-[13px] font-medium text-danger hover:border-danger-border-hover hover:bg-danger-surface">
+                    <button type="button" disabled="@form.HasSubmissions" @onclick="@(() => OnDelete.InvokeAsync(form))"
+                            title="@(form.HasSubmissions ? "This form has responses and can't be deleted" : null)"
+                            class="h-[34px] rounded-md border border-danger-border bg-white text-[13px] font-medium text-danger enabled:hover:border-danger-border-hover enabled:hover:bg-danger-surface disabled:cursor-default disabled:border-border-control disabled:text-text-faintest-2 disabled:opacity-60">
                         Delete
                     </button>
                 </div>

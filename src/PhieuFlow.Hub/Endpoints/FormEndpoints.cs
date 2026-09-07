@@ -39,6 +39,7 @@ public static class FormEndpoints
                     LatestPublishedAt = i.LatestPublishedAt,
                     PageCount = i.PageCount,
                     QuestionCount = i.QuestionCount,
+                    HasSubmissions = i.HasSubmissions,
                 }).ToList(),
                 NextStartId = result.NextStartId,
             });
@@ -209,9 +210,18 @@ public static class FormEndpoints
 
         app.MapDelete("/forms/{id:guid}", async (Guid id, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {
-            if (!await unitOfWork.Forms.DeleteAsync(id, cancellationToken))
+            var result = await unitOfWork.Forms.DeleteAsync(id, cancellationToken);
+            if (result.Status == FormDeleteStatus.FormNotFound)
             {
                 return Results.NotFound();
+            }
+
+            if (result.Status == FormDeleteStatus.HasSubmissions)
+            {
+                // The form has responses whose FKs are Restrict; deleting it would destroy
+                // that data. Nothing was written. The builder disables the action for the
+                // same reason, so this is the stale-list / direct-call fallback.
+                return Results.Conflict();
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);

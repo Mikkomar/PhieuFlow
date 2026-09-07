@@ -21,5 +21,6 @@ public class FormSummary
     public DateTimeOffset? LatestPublishedAt { get; set; }
     public required int QuestionCount { get; set; }
     public required int PageCount { get; set; }
+    public bool HasSubmissions { get; set; }
     public string? PublicUrl { get; set; }
 }

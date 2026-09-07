@@ -208,21 +208,27 @@ public class FormRepository(HubDbContext dbContext, ILogger<FormRepository> logg
         return FormPublishResult.Published(ToVersionState(currentVersion));
     }
 
-    public async Task<bool> DeleteAsync(Guid formId, CancellationToken cancellationToken = default)
+    public async Task<FormDeleteResult> DeleteAsync(Guid formId, CancellationToken cancellationToken = default)
     {
         var form = await dbContext.Forms.FirstOrDefaultAsync(f => f.Id == formId, cancellationToken);
         if (form is null)
         {
-            return false;
+            return FormDeleteResult.NotFound;
+        }
+
+        // FormSubmission -> Form / FormVersion FKs are DeleteBehavior.Restrict
+        // (FormSubmissionConfiguration): a submission is a historical record that must outlive
+        // the form. Refuse the delete cleanly here rather than letting SaveChanges hit the FK
+        // and surface as a bare 500. Backed by IX_FormSubmissions_FormId.
+        if (await dbContext.FormSubmissions.AnyAsync(s => s.FormId == formId, cancellationToken))
+        {
+            return FormDeleteResult.Blocked;
         }
 
         // Versions -> pages -> questions -> options all cascade (see FormConfiguration /
-        // FormVersionConfiguration). FormSubmission -> Form / FormVersion are Restrict
-        // (FormSubmissionConfiguration), so this Remove throws DbUpdateException on
-        // SaveChanges if the form (or one of its versions) has any submission — a
-        // deliberate guard against destroying response data.
+        // FormVersionConfiguration).
         dbContext.Forms.Remove(form);
-        return true;
+        return FormDeleteResult.Deleted;
     }
 
     public async Task<Guid?> DuplicateAsync(Guid sourceId, CancellationToken cancellationToken = default)
@@ -467,6 +473,7 @@ public class FormRepository(HubDbContext dbContext, ILogger<FormRepository> logg
                     .OrderByDescending(v => v.VersionNumber)
                     .Select(v => new { v.VersionNumber, v.PublishedAt })
                     .FirstOrDefault(),
+                HasSubmissions = dbContext.FormSubmissions.Any(s => s.FormId == f.Id),
             });
 
         if (startId is not null)
@@ -492,6 +499,7 @@ public class FormRepository(HubDbContext dbContext, ILogger<FormRepository> logg
                 LatestPublishedAt = x.LatestPublished != null ? x.LatestPublished.PublishedAt : null,
                 PageCount = x.CurrentVersion.Pages.Count,
                 QuestionCount = x.CurrentVersion.Pages.Sum(p => p.Questions.Count),
+                HasSubmissions = x.HasSubmissions,
             })
             .ToListAsync(cancellationToken);
 

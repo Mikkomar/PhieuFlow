@@ -32,6 +32,7 @@ public class FormsService(IHubFormsClient hubFormsClient, ILogger<FormsService> 
                 LatestPublishedAt = dto.LatestPublishedAt,
                 QuestionCount = dto.QuestionCount,
                 PageCount = dto.PageCount,
+                HasSubmissions = dto.HasSubmissions,
             }).ToList();
         }
     }

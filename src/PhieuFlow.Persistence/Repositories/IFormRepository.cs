@@ -49,10 +49,13 @@ public interface IFormRepository
     Task<int?> GetLatestPublishedVersionNumberAsync(Guid formId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Removes the form and its whole version tree (cascade). Returns <c>false</c> when no
-    /// form has that id, so the caller can 404 rather than reporting a phantom success.
+    /// Removes the form and its whole version tree (cascade). Returns
+    /// <see cref="FormDeleteStatus.FormNotFound"/> when no form has that id (the caller 404s),
+    /// and <see cref="FormDeleteStatus.HasSubmissions"/> when the form has at least one
+    /// submission — a historical record whose FKs are <c>Restrict</c> — so the caller 409s and
+    /// nothing is written.
     /// </summary>
-    Task<bool> DeleteAsync(Guid formId, CancellationToken cancellationToken = default);
+    Task<FormDeleteResult> DeleteAsync(Guid formId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Deep-copies <paramref name="sourceId"/>'s latest version into a brand-new form (v1, draft,
