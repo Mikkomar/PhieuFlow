@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using PhieuFlow.FormBuilder.Models.Editing;
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Forms;
+using PhieuFlow.Hub.Contracts.Validation;
 using Xunit;
 
 namespace PhieuFlow.Tests.Unit;

@@ -1,7 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using AwesomeAssertions;
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Forms;
+using PhieuFlow.Hub.Contracts.Publishing;
 using PhieuFlow.Tests.Integration.Infrastructure;
 using Xunit;
 

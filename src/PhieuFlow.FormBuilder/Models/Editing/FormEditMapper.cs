@@ -1,5 +1,6 @@
 using PhieuFlow.Core.Entities;
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Forms;
+using PhieuFlow.Hub.Contracts.Validation;
 
 namespace PhieuFlow.FormBuilder.Models.Editing;
 

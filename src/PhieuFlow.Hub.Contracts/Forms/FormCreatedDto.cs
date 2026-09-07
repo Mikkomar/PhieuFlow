@@ -1,4 +1,4 @@
-namespace PhieuFlow.Hub.Contracts;
+namespace PhieuFlow.Hub.Contracts.Forms;
 
 /// <summary>Response of <c>POST /forms</c>: the id of the freshly-minted blank draft.</summary>
 public class FormCreatedDto

@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AwesomeAssertions;
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Forms;
 using PhieuFlow.Tests.E2E.Infrastructure;
 using Xunit;
 

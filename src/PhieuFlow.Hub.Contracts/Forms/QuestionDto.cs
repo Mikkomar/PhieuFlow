@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
+using PhieuFlow.Hub.Contracts.Validation;
 
-namespace PhieuFlow.Hub.Contracts;
+namespace PhieuFlow.Hub.Contracts.Forms;
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(TextAreaQuestionDto), "TextArea")]

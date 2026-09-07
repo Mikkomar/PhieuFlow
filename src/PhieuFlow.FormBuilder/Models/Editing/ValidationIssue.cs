@@ -1,4 +1,4 @@
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Validation;
 
 namespace PhieuFlow.FormBuilder.Models.Editing;
 

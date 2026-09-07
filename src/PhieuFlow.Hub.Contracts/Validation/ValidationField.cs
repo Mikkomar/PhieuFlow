@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace PhieuFlow.Hub.Contracts;
+namespace PhieuFlow.Hub.Contracts.Validation;
 
 /// <summary>
 /// Names the control a <see cref="ValidationIssueDto"/> points at, so the builder can

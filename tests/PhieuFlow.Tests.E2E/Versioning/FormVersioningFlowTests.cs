@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using AwesomeAssertions;
 using Microsoft.Playwright;
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Forms;
 using PhieuFlow.Tests.E2E.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;

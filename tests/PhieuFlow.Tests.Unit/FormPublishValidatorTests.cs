@@ -1,5 +1,5 @@
 using AwesomeAssertions;
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Validation;
 using PhieuFlow.Hub.Validation;
 using Xunit;
 using static PhieuFlow.Tests.Unit.TreeBuilder;

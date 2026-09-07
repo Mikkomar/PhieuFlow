@@ -5,7 +5,8 @@ using PhieuFlow.FormBuilder.Enums;
 using PhieuFlow.FormBuilder.Models;
 using PhieuFlow.FormBuilder.Models.Editing;
 using PhieuFlow.FormBuilder.Services;
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Forms;
+using PhieuFlow.Hub.Contracts.Publishing;
 using Xunit;
 
 namespace PhieuFlow.Tests.Unit;

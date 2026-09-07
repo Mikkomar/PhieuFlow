@@ -1,4 +1,4 @@
-namespace PhieuFlow.Hub.Contracts;
+namespace PhieuFlow.Hub.Contracts.Publishing;
 
 public class PublishedFormListItemDto
 {

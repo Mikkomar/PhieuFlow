@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace PhieuFlow.Hub.Contracts;
+namespace PhieuFlow.Hub.Contracts.Submissions;
 
 /// <summary>
 /// A completed form response on its way to the Hub. The transport is async RabbitMQ

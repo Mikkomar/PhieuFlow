@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using PhieuFlow.FormBuilder.Models.Editing;
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Validation;
 
 namespace PhieuFlow.FormBuilder.Components.Shared.QuestionEditors;
 

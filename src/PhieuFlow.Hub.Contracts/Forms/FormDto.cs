@@ -1,4 +1,6 @@
-namespace PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Validation;
+
+namespace PhieuFlow.Hub.Contracts.Forms;
 
 public class FormDto
 {

@@ -35,7 +35,7 @@ public sealed class FormPublishGateFlowTests(AppHostFixture fixture, ITestOutput
         await builder.PublishCloseButton.ClickAsync();
 
         var form = await GetFormAsync(await GetFormIdByTitleAsync(title));
-        form.Status.Should().Be(Hub.Contracts.FormVersionStatusDto.Draft);
+        form.Status.Should().Be(Hub.Contracts.Forms.FormVersionStatusDto.Draft);
     }
 
     [Fact]
@@ -108,9 +108,9 @@ public sealed class FormPublishGateFlowTests(AppHostFixture fixture, ITestOutput
         // A reload must show the forked draft with both the new question and its options.
         var form = await GetFormAsync(id);
         form.VersionNumber.Should().Be(2);
-        form.Status.Should().Be(Hub.Contracts.FormVersionStatusDto.Draft);
+        form.Status.Should().Be(Hub.Contracts.Forms.FormVersionStatusDto.Draft);
         form.Pages[0].Questions.Should().HaveCount(2);
-        form.Pages[0].Questions.OfType<Hub.Contracts.DropDownQuestionDto>()
+        form.Pages[0].Questions.OfType<Hub.Contracts.Forms.DropDownQuestionDto>()
             .Single().Options.Should().HaveCount(2);
     }
 
@@ -146,10 +146,10 @@ public sealed class FormPublishGateFlowTests(AppHostFixture fixture, ITestOutput
 
         var form = await GetFormAsync(id);
         form.VersionNumber.Should().Be(2);
-        form.Status.Should().Be(Hub.Contracts.FormVersionStatusDto.Draft);
+        form.Status.Should().Be(Hub.Contracts.Forms.FormVersionStatusDto.Draft);
         form.Description.Should().Be("last change survives");
         form.Pages[0].Questions.Should().HaveCount(2);
-        var number = form.Pages[0].Questions.OfType<Hub.Contracts.NumberQuestionDto>().Single();
+        var number = form.Pages[0].Questions.OfType<Hub.Contracts.Forms.NumberQuestionDto>().Single();
         number.Min.Should().Be(40m);
         number.Max.Should().Be(10m);
     }
@@ -177,6 +177,6 @@ public sealed class FormPublishGateFlowTests(AppHostFixture fixture, ITestOutput
         await ClickPublishAsync();
 
         var form = await GetFormAsync(await GetFormIdByTitleAsync(title));
-        form.Status.Should().Be(Hub.Contracts.FormVersionStatusDto.Published);
+        form.Status.Should().Be(Hub.Contracts.Forms.FormVersionStatusDto.Published);
     }
 }

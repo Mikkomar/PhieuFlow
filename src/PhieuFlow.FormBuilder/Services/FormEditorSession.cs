@@ -3,7 +3,7 @@ using PhieuFlow.Core.Entities;
 using PhieuFlow.FormBuilder.Clients;
 using PhieuFlow.FormBuilder.Enums;
 using PhieuFlow.FormBuilder.Models.Editing;
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Forms;
 
 namespace PhieuFlow.FormBuilder.Services;
 

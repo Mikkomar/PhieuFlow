@@ -1,4 +1,7 @@
-namespace PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Forms;
+using PhieuFlow.Hub.Contracts.Validation;
+
+namespace PhieuFlow.Hub.Contracts.Publishing;
 
 /// <summary>
 /// The outcome of a publish attempt. On failure (<see cref="Published"/> is <c>false</c>,

@@ -1,4 +1,4 @@
-namespace PhieuFlow.Hub.Contracts;
+namespace PhieuFlow.Hub.Contracts.Forms;
 
 public class FormBatchResponse
 {

@@ -1,4 +1,5 @@
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Forms;
+using PhieuFlow.Hub.Contracts.Publishing;
 
 namespace PhieuFlow.FormBuilder.Clients;
 

@@ -1,5 +1,5 @@
 using PhieuFlow.Core.Entities;
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Forms;
 
 namespace PhieuFlow.Hub.Mapping;
 

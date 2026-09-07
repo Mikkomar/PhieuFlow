@@ -1,4 +1,4 @@
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Submissions;
 
 namespace PhieuFlow.FormFiller.Submissions;
 

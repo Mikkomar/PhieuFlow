@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
-using PhieuFlow.Hub.Contracts;
+using PhieuFlow.Hub.Contracts.Forms;
 using Xunit;
 using Xunit.Abstractions;
 

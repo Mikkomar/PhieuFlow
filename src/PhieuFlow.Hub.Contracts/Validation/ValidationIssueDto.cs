@@ -1,4 +1,4 @@
-namespace PhieuFlow.Hub.Contracts;
+namespace PhieuFlow.Hub.Contracts.Validation;
 
 /// <summary>
 /// One publish-blocking problem, attached to the tree node it concerns. The node's position
