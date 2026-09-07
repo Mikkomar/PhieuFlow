@@ -36,7 +36,9 @@ var migrations = builder.AddProject<Projects.PhieuFlow_MigrationService>("migrat
 var hubBuilder = builder.AddProject<Projects.PhieuFlow_Hub>("hub")
     .WithReference(hubDb)
     .WithReference(keycloak)
+    .WithReference(rabbitmq)
     .WaitFor(keycloak)
+    .WaitFor(rabbitmq)
     .WithEnvironment("Keycloak__Authority", keycloakRealmAuthority)
     .WithEnvironment("Keycloak__Audience", hubAudience)
     .WithEnvironment("Keycloak__RequireHttpsMetadata", "false")
@@ -66,8 +68,8 @@ builder.AddProject<Projects.PhieuFlow_FormBuilder>("formbuilder")
     .WithEnvironment("Keycloak__ClientSecret", formBuilderClientSecret)
     .WithHttpHealthCheck("/health");
 
-// The Hub gains `.WithReference(rabbitmq)` once its submission consumer half is built
-// (ADR 0001); for now only the publisher side is wired.
+// Both halves of the ADR 0001 async boundary are wired: the form-filler publishes to
+// `form-submissions` and the Hub's SubmissionConsumerService drains it (ADR 0009).
 builder.AddProject<Projects.PhieuFlow_FormFiller>("formfiller")
     .WithExternalHttpEndpoints()
     .WithReference(hub)

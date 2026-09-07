@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Serilog;
 using PhieuFlow.Hub.Authorization;
 using PhieuFlow.Hub.Endpoints;
+using PhieuFlow.Hub.Submissions;
 using PhieuFlow.Hub.Validation;
 using PhieuFlow.Persistence;
 using PhieuFlow.Persistence.Repositories;
@@ -17,6 +18,15 @@ builder.AddSqlServerDbContext<HubDbContext>("HubDatabase");
 builder.Services.AddScoped<IFormRepository, FormRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IFormPublishValidator, FormPublishValidator>();
+
+// Submission transport (ADR 0001/0009): the Aspire "rabbitmq" resource supplies the
+// connection; SubmissionConsumerService drains the form-submissions queue and persists
+// each response through SubmissionMessageHandler.
+builder.AddRabbitMQClient(connectionName: "rabbitmq");
+builder.Services.Configure<SubmissionConsumerOptions>(
+    builder.Configuration.GetSection(SubmissionConsumerOptions.SectionName));
+builder.Services.AddScoped<SubmissionMessageHandler>();
+builder.Services.AddHostedService<SubmissionConsumerService>();
 
 // Service-to-service auth (ADR 0005): validate OAuth2 client-credentials tokens with
 // standard JWT bearer middleware against the IdP's OIDC metadata. Everything Keycloak-

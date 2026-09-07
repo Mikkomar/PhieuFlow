@@ -7,7 +7,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using PhieuFlow.Hub.Submissions;
 using PhieuFlow.Persistence;
+using RabbitMQ.Client;
 
 namespace PhieuFlow.Tests.Integration.Infrastructure;
 
@@ -38,6 +40,10 @@ public sealed class HubAuthWebApplicationFactory : WebApplicationFactory<Program
             RemoveHubDbContext(services);
             services.AddDbContext<HubDbContext>(options => options.UseSqlite(_connection));
 
+            // No broker in this tier — drop the RabbitMQ consumer so host startup does not
+            // dial one. This tier only exercises the auth boundary.
+            RemoveSubmissionConsumer(services);
+
             RebindJwtBearerOffline(services);
         });
     }
@@ -67,6 +73,20 @@ public sealed class HubAuthWebApplicationFactory : WebApplicationFactory<Program
                 || d.ServiceType == typeof(DbContextOptions)
                 || (d.ServiceType.IsGenericType
                     && d.ServiceType.GetGenericArguments().Contains(typeof(HubDbContext))))
+            .ToList();
+
+        foreach (var descriptor in doomed)
+        {
+            services.Remove(descriptor);
+        }
+    }
+
+    private static void RemoveSubmissionConsumer(IServiceCollection services)
+    {
+        var doomed = services.Where(d =>
+                d.ImplementationType == typeof(SubmissionConsumerService)
+                || d.ServiceType == typeof(IConnection)
+                || d.ServiceType == typeof(IConnectionFactory))
             .ToList();
 
         foreach (var descriptor in doomed)

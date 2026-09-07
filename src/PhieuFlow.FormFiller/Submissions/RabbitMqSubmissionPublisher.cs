@@ -14,13 +14,6 @@ public sealed class RabbitMqSubmissionPublisher(
     IConnection connection,
     ILogger<RabbitMqSubmissionPublisher> logger) : ISubmissionPublisher
 {
-    // A quorum queue must be declared durable; the delivery-limit / nack patterns
-    // (ADR 0001) are defined on this queue type.
-    private static readonly Dictionary<string, object?> QuorumQueueArguments = new()
-    {
-        ["x-queue-type"] = "quorum",
-    };
-
     public async Task PublishAsync(FormSubmissionRequest request, CancellationToken cancellationToken = default)
     {
         var properties = new BasicProperties
@@ -34,13 +27,15 @@ public sealed class RabbitMqSubmissionPublisher(
         {
             await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
 
-            // Idempotent: the consumer declares the same queue, whichever side races first.
+            // Idempotent: the consumer declares the same queue with the same arguments,
+            // whichever side races first. The consumer also declares the dead-letter
+            // exchange/queue that MainQueueArguments points at.
             await channel.QueueDeclareAsync(
                 queue: SubmissionQueue.Name,
                 durable: true,
                 exclusive: false,
                 autoDelete: false,
-                arguments: QuorumQueueArguments,
+                arguments: SubmissionQueue.MainQueueArguments(),
                 cancellationToken: cancellationToken);
 
             var body = JsonSerializer.SerializeToUtf8Bytes(request);

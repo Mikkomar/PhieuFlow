@@ -6,10 +6,11 @@ using PhieuFlow.Persistence;
 namespace PhieuFlow.Tests.Integration.Infrastructure;
 
 /// <summary>
-/// Writes a <see cref="FormSubmission"/> row straight through <see cref="HubDbContext"/> — the
-/// only way to get one today, since the async ingestion path (RabbitMQ consumer) is not built
-/// yet. Used by the tests that exercise the "form has responses" guard on delete and its
-/// projection onto the forms list.
+/// Writes a <see cref="FormSubmission"/> row straight through <see cref="HubDbContext"/>. The
+/// real ingestion path is now the RabbitMQ consumer (<c>SubmissionMessageHandler</c>, ADR
+/// 0009); this stays as a fast direct-write shortcut for the tests that only need a form to
+/// have responses — the "form has responses" guard on delete and its projection onto the
+/// forms list — and do not care how the row got there.
 /// </summary>
 internal static class SubmissionSeed
 {

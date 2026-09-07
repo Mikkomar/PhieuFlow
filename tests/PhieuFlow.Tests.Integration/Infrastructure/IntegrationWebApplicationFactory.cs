@@ -5,7 +5,10 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using PhieuFlow.Hub.Submissions;
 using PhieuFlow.Persistence;
+using RabbitMQ.Client;
 
 namespace PhieuFlow.Tests.Integration.Infrastructure;
 
@@ -44,12 +47,31 @@ public sealed class IntegrationWebApplicationFactory(string connectionString) : 
             RemoveHubDbContext(services);
             services.AddDbContext<HubDbContext>(options => options.UseSqlServer(_connection));
 
+            // This tier's AppHost has no broker. Drop the RabbitMQ consumer and its
+            // connection so host startup does not try to dial one; SubmissionConsumeTests
+            // drives SubmissionMessageHandler directly, which needs neither.
+            RemoveSubmissionConsumer(services);
+
             // Last AddAuthentication wins for the default scheme, so every RequireAuthorization
             // policy authenticates against TestAuthHandler. The Hub's JwtBearer registration
             // stays wired but is never exercised.
             services.AddAuthentication(TestAuthHandler.SchemeName)
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
         });
+    }
+
+    private static void RemoveSubmissionConsumer(IServiceCollection services)
+    {
+        var doomed = services.Where(d =>
+                d.ImplementationType == typeof(SubmissionConsumerService)
+                || d.ServiceType == typeof(IConnection)
+                || d.ServiceType == typeof(IConnectionFactory))
+            .ToList();
+
+        foreach (var descriptor in doomed)
+        {
+            services.Remove(descriptor);
+        }
     }
 
     private static void RemoveHubDbContext(IServiceCollection services)
