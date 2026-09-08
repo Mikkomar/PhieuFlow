@@ -7,6 +7,7 @@ using PhieuFlow.Hub.Endpoints;
 using PhieuFlow.Hub.Submissions;
 using PhieuFlow.Hub.Contracts.Validation;
 using PhieuFlow.Persistence;
+using PhieuFlow.Persistence.Reconciliation;
 using PhieuFlow.Persistence.Repositories;
 using PhieuFlow.Persistence.UnitOfWork;
 
@@ -19,6 +20,11 @@ builder.AddSqlServerDbContext<HubDbContext>("HubDatabase");
 builder.Services.AddScoped<IFormRepository, FormRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IFormPublishValidator, FormPublishValidator>();
+
+// Versioning policy (ADR 0007): fork-on-publish-edit + tree reconciliation, kept as plain
+// DbContext-free logic that FormRepository orchestrates.
+builder.Services.AddScoped<IFormTreeCloner, FormTreeCloner>();
+builder.Services.AddScoped<IFormVersionReconciler, FormVersionReconciler>();
 
 // Submission transport (ADR 0001/0009): the Aspire "rabbitmq" resource supplies the
 // connection; SubmissionConsumerService drains the form-submissions queue and persists

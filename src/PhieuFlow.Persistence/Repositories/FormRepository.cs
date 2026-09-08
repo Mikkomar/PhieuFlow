@@ -2,10 +2,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PhieuFlow.Core.Entities;
 using PhieuFlow.Persistence.Projections;
+using PhieuFlow.Persistence.Reconciliation;
 
 namespace PhieuFlow.Persistence.Repositories;
 
-public class FormRepository(HubDbContext dbContext, ILogger<FormRepository> logger) : IFormRepository
+public class FormRepository(
+    HubDbContext dbContext,
+    IFormVersionReconciler reconciler,
+    IFormTreeCloner treeCloner,
+    ILogger<FormRepository> logger) : IFormRepository
 {
     public Task<Guid> CreateAsync(CancellationToken cancellationToken = default)
     {
@@ -150,38 +155,15 @@ public class FormRepository(HubDbContext dbContext, ILogger<FormRepository> logg
 
         try
         {
-            if (currentVersion.Status == FormVersionStatus.Draft)
+            // Versioning policy (fork-on-publish-edit, tree reconciliation) lives in the
+            // reconciler (ADR 0007); this method only loads, guards concurrency, and persists.
+            var outcome = reconciler.Reconcile(currentVersion, incomingContent, now);
+            if (outcome.IsFork)
             {
-                currentVersion.Title = incomingContent.Title;
-                currentVersion.Description = incomingContent.Description;
-                currentVersion.LastModifiedAt = now;
-                currentVersion.LastModifiedBy = incomingContent.LastModifiedBy;
-                currentVersion.Revision += 1;
-
-                ReconcilePages(currentVersion, incomingContent.Pages);
-                return FormSaveResult.Saved(ToVersionState(currentVersion));
+                dbContext.FormVersions.Add(outcome.Version);
             }
 
-            // Published: currentVersion is immutable from here on. Fork a new draft.
-            var forkedVersionId = Guid.NewGuid();
-
-            var forked = new FormVersion
-            {
-                Id = forkedVersionId,
-                FormId = formId,
-                VersionNumber = currentVersion.VersionNumber + 1,
-                Status = FormVersionStatus.Draft,
-                Title = incomingContent.Title,
-                Description = incomingContent.Description,
-                Revision = 1,
-                CreatedAt = now,
-                LastModifiedAt = now,
-                LastModifiedBy = incomingContent.LastModifiedBy,
-                Pages = incomingContent.Pages.Select(p => ClonePageWithFreshIds(p, forkedVersionId)).ToList(),
-            };
-            dbContext.FormVersions.Add(forked);
-
-            return FormSaveResult.Saved(ToVersionState(forked));
+            return FormSaveResult.Saved(ToVersionState(outcome.Version));
         }
         catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
         {
@@ -286,7 +268,7 @@ public class FormRepository(HubDbContext dbContext, ILogger<FormRepository> logg
         List<FormPage> clonedPages;
         try
         {
-            clonedPages = source.Pages.Select(p => ClonePageWithFreshIds(p, newVersionId)).ToList();
+            clonedPages = source.Pages.Select(p => treeCloner.ClonePageWithFreshIds(p, newVersionId)).ToList();
         }
         catch (NotSupportedException ex)
         {
@@ -309,183 +291,6 @@ public class FormRepository(HubDbContext dbContext, ILogger<FormRepository> logg
         });
 
         return newFormId;
-    }
-
-    private static FormPage ClonePageWithFreshIds(FormPage source, Guid newVersionId)
-    {
-        var newPageId = Guid.NewGuid();
-        return new FormPage
-        {
-            Id = newPageId,
-            FormVersionId = newVersionId,
-            Title = source.Title,
-            Order = source.Order,
-            Questions = source.Questions.Select(q => CloneQuestionWithFreshIds(q, newPageId)).ToList(),
-        };
-    }
-
-    private static Question CloneQuestionWithFreshIds(Question source, Guid newPageId)
-    {
-        var newQuestionId = Guid.NewGuid();
-        return source switch
-        {
-            TextAreaQuestion q => new TextAreaQuestion
-            {
-                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
-                MinLength = q.MinLength, MaxLength = q.MaxLength,
-            },
-            CheckboxQuestion q => new CheckboxQuestion
-            {
-                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
-                Label = q.Label,
-            },
-            DropDownQuestion q => new DropDownQuestion
-            {
-                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
-                Options = CloneOptionsWithFreshIds(q.Options),
-            },
-            RadioButtonQuestion q => new RadioButtonQuestion
-            {
-                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
-                Options = CloneOptionsWithFreshIds(q.Options),
-            },
-            CheckBoxGroupQuestion q => new CheckBoxGroupQuestion
-            {
-                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
-                Options = CloneOptionsWithFreshIds(q.Options),
-                MinSelections = q.MinSelections, MaxSelections = q.MaxSelections,
-            },
-            NumberQuestion q => new NumberQuestion
-            {
-                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
-                Min = q.Min, Max = q.Max,
-            },
-            CalendarQuestion q => new CalendarQuestion
-            {
-                Id = newQuestionId, FormPageId = newPageId, Text = q.Text, IsRequired = q.IsRequired, Order = q.Order,
-                MinDate = q.MinDate, MaxDate = q.MaxDate,
-            },
-            _ => throw new NotSupportedException($"Unknown question type '{source.GetType().Name}'."),
-        };
-    }
-
-    private static List<QuestionOption> CloneOptionsWithFreshIds(IEnumerable<QuestionOption> options) => options
-        .Select(o => new QuestionOption { Id = Guid.NewGuid(), Label = o.Label, Order = o.Order })
-        .ToList();
-
-    private static void ReconcilePages(FormVersion existingVersion, ICollection<FormPage> incomingPages)
-    {
-        var existingById = existingVersion.Pages.ToDictionary(p => p.Id);
-        var incomingIds = incomingPages.Select(p => p.Id).ToHashSet();
-
-        foreach (var stale in existingVersion.Pages.Where(p => !incomingIds.Contains(p.Id)).ToList())
-        {
-            existingVersion.Pages.Remove(stale);
-        }
-
-        foreach (var incomingPage in incomingPages)
-        {
-            if (existingById.TryGetValue(incomingPage.Id, out var trackedPage))
-            {
-                trackedPage.Title = incomingPage.Title;
-                trackedPage.Order = incomingPage.Order;
-                ReconcileQuestions(trackedPage, incomingPage.Questions);
-            }
-            else
-            {
-                incomingPage.FormVersionId = existingVersion.Id;
-                existingVersion.Pages.Add(incomingPage);
-            }
-        }
-    }
-
-    private static void ReconcileQuestions(FormPage existingPage, ICollection<Question> incomingQuestions)
-    {
-        var existingById = existingPage.Questions.ToDictionary(q => q.Id);
-        var incomingIds = incomingQuestions.Select(q => q.Id).ToHashSet();
-
-        foreach (var stale in existingPage.Questions.Where(q => !incomingIds.Contains(q.Id)).ToList())
-        {
-            existingPage.Questions.Remove(stale);
-        }
-
-        foreach (var incoming in incomingQuestions)
-        {
-            if (existingById.TryGetValue(incoming.Id, out var tracked))
-            {
-                if (tracked.GetType() != incoming.GetType())
-                {
-                    throw new InvalidOperationException(
-                        $"Question {incoming.Id} changed type from '{tracked.GetType().Name}' to '{incoming.GetType().Name}'. " +
-                        "Questions never change type after creation, so this indicates a client bug or a hand-crafted request.");
-                }
-
-                UpdateQuestionFields(tracked, incoming);
-            }
-            else
-            {
-                incoming.FormPageId = existingPage.Id;
-                existingPage.Questions.Add(incoming);
-            }
-        }
-    }
-
-    private static void UpdateQuestionFields(Question tracked, Question incoming)
-    {
-        tracked.Text = incoming.Text;
-        tracked.IsRequired = incoming.IsRequired;
-        tracked.Order = incoming.Order;
-
-        switch (tracked)
-        {
-            case TextAreaQuestion t when incoming is TextAreaQuestion i:
-                t.MinLength = i.MinLength;
-                t.MaxLength = i.MaxLength;
-                break;
-            case CheckboxQuestion t when incoming is CheckboxQuestion i:
-                t.Label = i.Label;
-                break;
-            case NumberQuestion t when incoming is NumberQuestion i:
-                t.Min = i.Min;
-                t.Max = i.Max;
-                break;
-            case CalendarQuestion t when incoming is CalendarQuestion i:
-                t.MinDate = i.MinDate;
-                t.MaxDate = i.MaxDate;
-                break;
-            case CheckBoxGroupQuestion t when incoming is CheckBoxGroupQuestion i:
-                t.MinSelections = i.MinSelections;
-                t.MaxSelections = i.MaxSelections;
-                ReconcileOptions(t, i.Options);
-                break;
-            case ChoiceQuestion t when incoming is ChoiceQuestion i:
-                ReconcileOptions(t, i.Options);
-                break;
-        }
-    }
-
-    private static void ReconcileOptions(ChoiceQuestion tracked, ICollection<QuestionOption> incomingOptions)
-    {
-        var existingById = tracked.Options.ToDictionary(o => o.Id);
-        var incomingIds = incomingOptions.Select(o => o.Id).ToHashSet();
-
-        foreach (var stale in tracked.Options.Where(o => !incomingIds.Contains(o.Id)).ToList())
-        {
-            tracked.Options.Remove(stale);
-        }
-
-        foreach (var incoming in incomingOptions)
-        {
-            if (existingById.TryGetValue(incoming.Id, out var trackedOption))
-            {
-                trackedOption.Label = incoming.Label;
-                trackedOption.Order = incoming.Order;
-            }
-            else
-            {
-                tracked.Options.Add(incoming);
-            }
-        }
     }
 
     public async Task<FormBatchResult> GetBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default)

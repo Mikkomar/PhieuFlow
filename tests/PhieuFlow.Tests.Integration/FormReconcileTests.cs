@@ -9,10 +9,11 @@ namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
 /// Successive <c>PUT /forms/{id}</c> calls that mutate an existing draft, exercising
-/// <c>FormRepository.ReconcilePages</c> / <c>ReconcileQuestions</c> / <c>ReconcileOptions</c>
-/// / <c>UpdateQuestionFields</c> against the real EF change tracker — add / remove / reorder
-/// / typed-field edits diffed against the tracked graph and flushed as INSERT / cascade
-/// DELETE / partial UPDATE. None of these three reconcilers is covered today.
+/// <c>FormVersionReconciler</c> (ReconcilePages / ReconcileQuestions / ReconcileOptions /
+/// UpdateQuestionFields) against the real EF change tracker — add / remove / reorder /
+/// typed-field edits diffed against the tracked graph and flushed as INSERT / cascade
+/// DELETE / partial UPDATE. The reconciler's branching is unit-tested directly in
+/// <c>FormVersionReconcilerTests</c>; this suite covers the EF-integration half.
 /// </summary>
 public sealed class FormReconcileTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {

@@ -6,8 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <!-- Same Test<Operation>_When_<condition>_Should_<outcome> convention as the other test
-         projects; silence the xUnit analyzer's method-naming rule. -->
     <NoWarn>$(NoWarn);xUnit1000</NoWarn>
   </PropertyGroup>
 
@@ -26,10 +24,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The Hub owns the publish gate and (in Hub.Contracts) the shared submission-answers
-         validator; the FormBuilder owns the edit-model tree and mapper. -->
     <ProjectReference Include="..\..\src\PhieuFlow.Hub\PhieuFlow.Hub.csproj" />
     <ProjectReference Include="..\..\src\PhieuFlow.FormBuilder\PhieuFlow.FormBuilder.csproj" />
+    <ProjectReference Include="..\..\src\PhieuFlow.Persistence\PhieuFlow.Persistence.csproj" />
   </ItemGroup>
 
 </Project>
