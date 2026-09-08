@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace PhieuFlow.FormFiller.Clients;
+namespace PhieuFlow.ServiceAuth;
 
 /// <summary>
 /// Keycloak client-credentials settings (ADR 0005). Bound from the <c>Keycloak</c>
@@ -21,11 +21,11 @@ public sealed class KeycloakClientOptions
     public string ClientSecret { get; set; } = "";
 
     /// <summary>
-    /// Scopes to request. <c>published-forms:read</c> is the only default client scope the
-    /// form-filler Keycloak client has — it must never be able to read draft/current form
-    /// content, only published forms.
+    /// Scopes to request. When configuration does not set one, each service supplies its
+    /// own default via <c>AddKeycloakClientCredentials</c> — <c>forms:write</c> for the
+    /// form-builder, <c>published-forms:read</c> for the form-filler.
     /// </summary>
-    public string Scope { get; set; } = "published-forms:read";
+    public string Scope { get; set; } = "";
 
     public string TokenEndpoint => $"{Authority.TrimEnd('/')}/protocol/openid-connect/token";
 }

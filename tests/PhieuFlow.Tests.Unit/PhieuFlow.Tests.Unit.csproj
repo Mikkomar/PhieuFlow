@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\src\PhieuFlow.Hub\PhieuFlow.Hub.csproj" />
     <ProjectReference Include="..\..\src\PhieuFlow.FormBuilder\PhieuFlow.FormBuilder.csproj" />
     <ProjectReference Include="..\..\src\PhieuFlow.Persistence\PhieuFlow.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\PhieuFlow.ServiceAuth\PhieuFlow.ServiceAuth.csproj" />
   </ItemGroup>
 
 </Project>

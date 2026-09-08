@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PhieuFlow.Hub.Contracts\PhieuFlow.Hub.Contracts.csproj" />
+    <ProjectReference Include="..\PhieuFlow.ServiceAuth\PhieuFlow.ServiceAuth.csproj" />
     <ProjectReference Include="..\PhieuFlow.ServiceDefaults\PhieuFlow.ServiceDefaults.csproj" />
     <ProjectReference Include="..\PhieuFlow.Ui\PhieuFlow.Ui.csproj" />
   </ItemGroup>
