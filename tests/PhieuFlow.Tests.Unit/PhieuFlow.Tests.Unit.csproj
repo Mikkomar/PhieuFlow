@@ -26,9 +26,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The Hub owns the publish gate; the FormBuilder owns the edit-model tree and mapper. -->
+    <!-- The Hub owns the publish gate; the FormBuilder owns the edit-model tree and mapper;
+         the FormFiller owns the client-side submission validator. -->
     <ProjectReference Include="..\..\src\PhieuFlow.Hub\PhieuFlow.Hub.csproj" />
     <ProjectReference Include="..\..\src\PhieuFlow.FormBuilder\PhieuFlow.FormBuilder.csproj" />
+    <ProjectReference Include="..\..\src\PhieuFlow.FormFiller\PhieuFlow.FormFiller.csproj" />
   </ItemGroup>
 
 </Project>

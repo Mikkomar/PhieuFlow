@@ -3,43 +3,43 @@
 
 @if (Question is TextAreaQuestionDto)
 {
-    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)">
+    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)" Error="@Error">
         <TextAreaInput Value="@(Value as string)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
     </FormField>
 }
 else if (Question is CheckboxQuestionDto checkboxQuestion)
 {
-    <FormField Label="@Question.Text" Required="@Question.IsRequired">
+    <FormField Label="@Question.Text" Required="@Question.IsRequired" Error="@Error">
         <CheckboxInput Label="@checkboxQuestion.Label" Value="@(Value is true)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
     </FormField>
 }
 else if (Question is DropDownQuestionDto dropDown)
 {
-    <FormField Label="@Question.Text" Required="@Question.IsRequired">
+    <FormField Label="@Question.Text" Required="@Question.IsRequired" Error="@Error">
         <SelectInput Options="@ToChoices(dropDown.Options)" Value="@(Value as Guid?)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
     </FormField>
 }
 else if (Question is RadioButtonQuestionDto radioButton)
 {
-    <FormField Label="@Question.Text" Required="@Question.IsRequired">
+    <FormField Label="@Question.Text" Required="@Question.IsRequired" Error="@Error">
         <RadioGroup Options="@ToChoices(radioButton.Options)" Value="@(Value as Guid?)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
     </FormField>
 }
 else if (Question is CheckBoxGroupQuestionDto checkBoxGroup)
 {
-    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)">
+    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)" Error="@Error">
         <CheckboxGroup Options="@ToChoices(checkBoxGroup.Options)" Value="@(Value as IReadOnlySet<Guid> ?? new HashSet<Guid>())" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
     </FormField>
 }
 else if (Question is NumberQuestionDto)
 {
-    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)">
+    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)" Error="@Error">
         <TextInput Type="number" Value="@(Value as string)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
     </FormField>
 }
 else if (Question is CalendarQuestionDto)
 {
-    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)">
+    <FormField Label="@Question.Text" Required="@Question.IsRequired" Helper="@ConstraintHint(Question)" Error="@Error">
         <TextInput Type="date" Value="@(Value as string)" ValueChanged="@(v => ValueChanged.InvokeAsync(v))" />
     </FormField>
 }
@@ -53,6 +53,10 @@ else if (Question is CalendarQuestionDto)
 
     [Parameter]
     public EventCallback<object?> ValueChanged { get; set; }
+
+    /// <summary>Validation message from <see cref="SubmissionValidator"/>, shown under the input.</summary>
+    [Parameter]
+    public string? Error { get; set; }
 
     private static List<Choice> ToChoices(List<QuestionOptionDto> options) =>
         options.Select(o => new Choice(o.Id, o.Label)).ToList();

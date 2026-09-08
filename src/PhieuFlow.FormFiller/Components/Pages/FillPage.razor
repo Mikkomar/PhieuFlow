@@ -1,6 +1,7 @@
 @page "/forms/{FormId:guid}"
 @inject IHubFormsClient HubFormsClient
 @inject ISubmissionPublisher SubmissionPublisher
+@inject SubmissionValidator SubmissionValidator
 @inject ILogger<FillPage> Logger
 
 @if (_loading)
@@ -46,9 +47,17 @@ else
             {
                 <QuestionInput Question="question"
                                Value="_answers.GetValueOrDefault(question.Id)"
-                               ValueChanged="v => _answers[question.Id] = v" />
+                               Error="@_errors.GetValueOrDefault(question.Id)"
+                               ValueChanged="v => OnAnswerChanged(question.Id, v)" />
             }
         </div>
+
+        @if (_errors.Count > 0)
+        {
+            <p class="text-[12px] text-danger" role="alert">
+                Check the highlighted question@(_errors.Count == 1 ? "" : "s") before continuing.
+            </p>
+        }
 
         <div class="flex items-center justify-between">
             @if (_currentPageIndex > 0)
@@ -98,6 +107,10 @@ else
     private bool _submitted;
     private readonly Dictionary<Guid, object?> _answers = [];
 
+    // Populated by SubmissionValidator on a failed Submit / Continue; keyed by question id.
+    // Nothing is published while this is non-empty.
+    private Dictionary<Guid, string> _errors = [];
+
     private FormPageDto ActivePage => _form!.Pages[_currentPageIndex];
 
     private string ActivePageTitle => string.IsNullOrWhiteSpace(ActivePage.Title)
@@ -117,6 +130,7 @@ else
         _submitting = false;
         _submitted = false;
         _answers.Clear();
+        _errors = [];
         try
         {
             _form = await HubFormsClient.GetPublishedFormByIdAsync(FormId);
@@ -140,10 +154,48 @@ else
 
     private void GoContinue()
     {
-        if (!IsLastPage)
+        if (IsLastPage)
         {
-            _currentPageIndex++;
+            return;
         }
+
+        // Gate page navigation on the current page's answers only; later pages are not
+        // yet in view, so their questions must not block "Continue".
+        var pageQuestionIds = ActivePage.Questions.Select(q => q.Id).ToHashSet();
+        var pageErrors = SubmissionValidator.Validate(_form!, _answers)
+            .Where(pair => pageQuestionIds.Contains(pair.Key))
+            .ToDictionary(pair => pair.Key, pair => pair.Value);
+
+        if (pageErrors.Count > 0)
+        {
+            _errors = pageErrors;
+            return;
+        }
+
+        _errors = [];
+        _currentPageIndex++;
+    }
+
+    private void OnAnswerChanged(Guid questionId, object? value)
+    {
+        _answers[questionId] = value;
+
+        // Drop this question's error the moment the respondent edits it, mirroring the
+        // builder's IHasIssues.Edit behaviour; it is re-checked on the next Continue / Submit.
+        _errors.Remove(questionId);
+    }
+
+    private int FirstInvalidPageIndex()
+    {
+        for (var i = 0; i < _form!.Pages.Count; i++)
+        {
+            if (_form.Pages[i].Questions.Any(q => _errors.ContainsKey(q.Id)))
+            {
+                return i;
+            }
+        }
+
+        return _currentPageIndex;
     }
 
     // async Task (never async void) so Blazor awaits it and re-renders on completion.
@@ -154,6 +206,17 @@ else
             return;
         }
 
+        // Nothing is published until every answer clears its question's constraints; the
+        // async RabbitMQ hop (ADR 0009) leaves the client as the only place to enforce them.
+        var errors = SubmissionValidator.Validate(_form, _answers);
+        if (errors.Count > 0)
+        {
+            _errors = new Dictionary<Guid, string>(errors);
+            _currentPageIndex = FirstInvalidPageIndex();
+            return;
+        }
+
+        _errors = [];
         _submitting = true;
         try
         {

@@ -9,7 +9,11 @@
 
     @ChildContent
 
-    @if (!string.IsNullOrWhiteSpace(Helper))
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <span class="text-[11.5px] text-danger" role="alert">@Error</span>
+    }
+    else if (!string.IsNullOrWhiteSpace(Helper))
     {
         <span class="text-[11.5px] text-text-faintest">@Helper</span>
     }
@@ -24,6 +28,10 @@
 
     [Parameter]
     public string? Helper { get; set; }
+
+    /// <summary>A validation message shown in place of <see cref="Helper"/> when set.</summary>
+    [Parameter]
+    public string? Error { get; set; }
 
     [Parameter, EditorRequired]
     public RenderFragment ChildContent { get; set; } = null!;
