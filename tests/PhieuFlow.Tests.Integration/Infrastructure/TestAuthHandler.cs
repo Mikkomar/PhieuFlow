@@ -21,7 +21,7 @@ public sealed class TestAuthHandler(
     public const string SchemeName = "IntegrationTest";
 
     // Space-delimited, matching the real token shape ScopeHandler parses.
-    private const string AllScopes = "forms:read forms:write published-forms:read submissions:write";
+    private const string AllScopes = "forms:read forms:write published-forms:read submissions:write submissions:read";
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {

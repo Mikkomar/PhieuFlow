@@ -46,6 +46,14 @@
             </div>
             <StatusPill Published="@(Form.Status == FormVersionStatus.Published)" />
             <div class="h-[22px] w-px bg-border-soft"></div>
+            @if (Form.LiveVersionNumber is not null)
+            {
+                <button type="button" @onclick="@(() => Nav.NavigateTo($"/forms/{Form.FormId}/responses"))"
+                        class="flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover">
+                    <Blazicon Svg="Lucide.ChartColumn" class="text-sm" aria-hidden="true" />
+                    Responses
+                </button>
+            }
             <button type="button" @onclick="@(() => OnTogglePreview.InvokeAsync())" disabled="@Disabled"
                     class="flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover disabled:opacity-60">
                 <Blazicon Svg="Lucide.Eye" class="text-sm" aria-hidden="true" />

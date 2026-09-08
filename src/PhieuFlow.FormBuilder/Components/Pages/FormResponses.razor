@@ -1,0 +1,202 @@
+@page "/forms/{FormId:guid}/responses"
+@using PhieuFlow.FormBuilder.Services
+@inject IFormsService FormsService
+@inject NavigationManager Nav
+@inject ILogger<FormResponsesSession> SessionLogger
+@implements IDisposable
+
+<PageTitle>@(_title is null ? "Responses" : $"Responses · {_title}")</PageTitle>
+
+<header class="border-b border-border bg-surface px-8 pt-5 pb-4">
+    <div class="flex items-start justify-between gap-6">
+        <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.07em] text-text-faintest uppercase">
+                <a href="responses" class="hover:text-text-faint">PhieuFlow / Responses</a>
+                <span>/</span>
+                <span class="text-text-faint">@(_title ?? "…")</span>
+            </div>
+            <h1 class="m-0 text-[21px] font-semibold tracking-[-0.02em]">Responses</h1>
+        </div>
+        <div class="flex items-center gap-[10px]">
+            <button type="button" @onclick="@(() => Nav.NavigateTo($"/forms/{FormId}"))"
+                    class="flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-md border border-border-control bg-white px-[13px] text-[13px] font-medium text-text-body hover:border-border-control-hover">
+                Edit form
+            </button>
+        </div>
+    </div>
+    <div class="mt-2 text-[12.5px] text-text-faint">
+        @if (_session.Loading)
+        {
+            <span>Loading responses&hellip;</span>
+        }
+        else if (_session.LoadError is null)
+        {
+            <span><span class="font-semibold text-text-body">@_session.TotalCount</span> response@(_session.TotalCount == 1 ? "" : "s")@(_session.LoadingMore ? " · loading more…" : "")</span>
+        }
+    </div>
+</header>
+
+<div class="flex-1 px-8 pt-6 pb-10">
+    @if (_session.LoadError is not null)
+    {
+        <div class="rounded-md border border-danger-border bg-danger-surface px-3 py-2 text-[12.5px] text-danger">@_session.LoadError</div>
+    }
+    else if (_session.Loading)
+    {
+        <div class="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface px-5 py-16">
+            <span class="text-sm font-semibold">Loading responses&hellip;</span>
+        </div>
+    }
+    else if (_session.TotalCount == 0)
+    {
+        <div class="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface px-5 py-16">
+            <span class="text-sm font-semibold">No responses yet</span>
+            <span class="text-[13px] text-text-faint">Answers submitted through the public link will show up here.</span>
+        </div>
+    }
+    else
+    {
+        <div class="overflow-x-auto rounded-lg border border-border bg-surface shadow-[0_1px_2px_rgba(16,24,24,0.04)]">
+            <table class="w-full border-collapse text-left">
+                <thead>
+                    <tr class="border-b border-border-soft bg-surface-subtle font-mono text-[10px] tracking-[0.07em] text-text-faint uppercase">
+                        <th class="whitespace-nowrap px-[18px] py-[10px] font-normal">Submitted</th>
+                        <th class="whitespace-nowrap px-3 py-[10px] font-normal">Version</th>
+                        @foreach (var col in _session.Columns)
+                        {
+                            <th class="min-w-[160px] max-w-[320px] px-3 py-[10px] font-normal normal-case tracking-normal">@col.QuestionText</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var response in _session.PagedResponses)
+                    {
+                        var answers = response.Answers.ToDictionary(a => a.QuestionId);
+                        <tr @onclick="@(() => _selected = response)" role="button" tabindex="0"
+                            @onkeydown="@(e => OnRowKeyDown(e, response))"
+                            class="cursor-pointer border-b border-border-row last:border-b-0 hover:bg-surface-subtle focus:outline-none focus-visible:bg-surface-subtle">
+                            <td class="whitespace-nowrap px-[18px] py-[11px] text-[12.5px] text-text-body">@response.SubmittedAt.ToLocalTime().ToString("d MMM yyyy, HH:mm")</td>
+                            <td class="whitespace-nowrap px-3 py-[11px] font-mono text-[12px] text-text-faint">v@(response.FormVersionNumber)</td>
+                            @foreach (var col in _session.Columns)
+                            {
+                                <td class="max-w-[320px] truncate px-3 py-[11px] text-[12.5px] text-text-body">
+                                    @(answers.TryGetValue(col.QuestionId, out var a) ? Display(a.Value) : "—")
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div class="flex items-center justify-between gap-4 border-t border-border-soft bg-surface-subtle px-[18px] py-3">
+                <span class="text-[12.5px] text-text-faint">
+                    Rows <span class="font-semibold text-text-body">@_session.FirstRowNumber–@_session.LastRowNumber</span> of @_session.TotalCount
+                    @if (_session.LoadingMore)
+                    {
+                        <span class="text-text-faintest-2">· loading more…</span>
+                    }
+                </span>
+                <div class="flex items-center gap-1">
+                    <button type="button" disabled="@(_session.ClampedPage <= 1)" @onclick="@(() => _session.SetPage(_session.ClampedPage - 1))"
+                            class="h-7 rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-body enabled:hover:border-border-control-hover disabled:cursor-default disabled:text-text-faintest-2">
+                        Previous
+                    </button>
+                    <span class="px-2 text-[12.5px] text-text-faint">Page @_session.ClampedPage / @_session.TotalPages</span>
+                    <button type="button" disabled="@(_session.ClampedPage >= _session.TotalPages)" @onclick="@(() => _session.SetPage(_session.ClampedPage + 1))"
+                            class="h-7 rounded-md border border-border-control bg-white px-[10px] text-[12.5px] text-text-body enabled:hover:border-border-control-hover disabled:cursor-default disabled:text-text-faintest-2">
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (_selected is { } selected)
+{
+    <div class="fixed inset-0 z-40 bg-black/20" @onclick="@(() => _selected = null)"></div>
+    <aside class="fixed inset-y-0 right-0 z-50 flex w-[420px] max-w-[92vw] flex-col border-l border-border bg-surface shadow-[0_8px_40px_rgba(16,24,24,0.16)]">
+        <div class="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+            <div class="flex flex-col gap-0.5">
+                <span class="font-mono text-[10px] tracking-[0.07em] text-text-faintest uppercase">Response</span>
+                <span class="text-[14px] font-semibold">@selected.SubmittedAt.ToLocalTime().ToString("d MMM yyyy, HH:mm")</span>
+                <span class="font-mono text-[11px] text-text-faint">form v@(selected.FormVersionNumber)</span>
+            </div>
+            <button type="button" aria-label="Close" @onclick="@(() => _selected = null)"
+                    class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-text-faint hover:bg-surface-subtle hover:text-text">
+                <Blazicon Svg="Lucide.X" class="text-sm" />
+            </button>
+        </div>
+        <div class="flex flex-1 flex-col gap-4 overflow-y-auto px-5 py-4">
+            @foreach (var answer in selected.Answers.OrderBy(a => a.Order))
+            {
+                <div class="flex flex-col gap-1">
+                    <span class="text-[11.5px] font-medium text-text-faint">@answer.QuestionText</span>
+                    <span class="whitespace-pre-wrap text-[13px] text-text-body">@Display(answer.Value)</span>
+                </div>
+            }
+            @if (selected.Answers.Count == 0)
+            {
+                <span class="text-[13px] text-text-faint">This submission has no answers.</span>
+            }
+        </div>
+    </aside>
+}
+
+@code {
+    [Parameter]
+    public Guid FormId { get; set; }
+
+    private FormResponsesSession _session = null!;
+    private string? _title;
+    private FormResponse? _selected;
+    private Guid _loadedFormId;
+
+    protected override void OnInitialized()
+    {
+        _session = new FormResponsesSession(FormsService, SessionLogger);
+        _session.Changed += OnSessionChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFormId == FormId)
+        {
+            return;
+        }
+
+        _loadedFormId = FormId;
+        _selected = null;
+        _title = null;
+
+        try
+        {
+            var form = await FormsService.GetByIdAsync(FormId);
+            _title = string.IsNullOrWhiteSpace(form?.Title) ? "Untitled form" : form!.Title;
+        }
+        catch (HttpRequestException)
+        {
+            _title = null;
+        }
+
+        await _session.LoadAsync(FormId);
+    }
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnRowKeyDown(KeyboardEventArgs e, FormResponse response)
+    {
+        if (e.Key is "Enter" or " " or "Spacebar")
+        {
+            _selected = response;
+        }
+    }
+
+    private static string Display(string? value) => string.IsNullOrEmpty(value) ? "—" : value;
+
+    public void Dispose()
+    {
+        _session.Changed -= OnSessionChanged;
+        _session.Dispose();
+    }
+}

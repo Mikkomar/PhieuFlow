@@ -32,6 +32,15 @@
       }
     },
     {
+      "name": "submissions:read",
+      "description": "Read persisted form responses via the Hub REST API (form-builder Responses view).",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
       "name": "published-forms:read",
       "description": "Read published forms via the Hub REST API (respondent-facing, read-only).",
       "protocol": "openid-connect",
@@ -78,6 +87,7 @@
       "directAccessGrantsEnabled": false,
       "defaultClientScopes": [
         "forms:read",
+        "submissions:read",
         "phieuflow-hub-audience"
       ],
       "optionalClientScopes": [

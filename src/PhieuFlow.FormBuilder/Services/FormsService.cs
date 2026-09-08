@@ -37,6 +37,27 @@ public class FormsService(IHubFormsClient hubFormsClient, ILogger<FormsService> 
         }
     }
 
+    public async IAsyncEnumerable<List<FormResponse>> GetSubmissionsStreamingAsync(
+        Guid formId, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var batch in hubFormsClient.GetFormSubmissionBatchesAsync(formId, cancellationToken))
+        {
+            yield return batch.Select(dto => new FormResponse
+            {
+                Id = dto.Id,
+                SubmittedAt = dto.SubmittedAt,
+                FormVersionNumber = dto.FormVersionNumber,
+                Answers = dto.Answers.Select(a => new FormResponseAnswer
+                {
+                    QuestionId = a.QuestionId,
+                    QuestionText = a.QuestionText,
+                    Order = a.Order,
+                    Value = a.Value,
+                }).ToList(),
+            }).ToList();
+        }
+    }
+
     public async Task<FormEditModel?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default)
     {
         var dto = await hubFormsClient.GetFormByIdAsync(formId, cancellationToken);

@@ -8,6 +8,16 @@ public interface IFormRepository
     Task<FormBatchResult> GetBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Batches one form's submissions, keyset-paged by submission id (ascending) exactly like
+    /// <see cref="GetBatchAsync"/>. Each answer is flattened to a display string: the raw text
+    /// for a value question, <c>"Yes"</c>/<c>"No"</c> for a checkbox, and the option label(s)
+    /// for a choice question — resolved against the immutable published version the response
+    /// references (ADR 0007), with a checkbox group's per-selection rows collapsed into one
+    /// comma-joined entry. Returns <c>null</c> when no form has that id (the caller 404s).
+    /// </summary>
+    Task<SubmissionBatchResult?> GetSubmissionsBatchAsync(Guid formId, Guid? startId, int take, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Batches only forms that have a published version (ADR 0007: the highest-VersionNumber
     /// row with Status == Published, regardless of whether a newer draft has since superseded
     /// it), projecting the published version's own Title/Description — never the current

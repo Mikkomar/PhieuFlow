@@ -186,6 +186,10 @@ public class FormsListSessionTests
             }
         }
 
+        public IAsyncEnumerable<List<FormResponse>> GetSubmissionsStreamingAsync(
+            Guid formId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<FormEditModel?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default) =>
             Task.FromResult(OnGetById?.Invoke(formId));
 

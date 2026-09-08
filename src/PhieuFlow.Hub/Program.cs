@@ -68,6 +68,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("forms:read", p => p.Requirements.Add(new ScopeRequirement("forms:read")));
     options.AddPolicy("forms:write", p => p.Requirements.Add(new ScopeRequirement("forms:write")));
     options.AddPolicy("published-forms:read", p => p.Requirements.Add(new ScopeRequirement("published-forms:read")));
+    options.AddPolicy("submissions:read", p => p.Requirements.Add(new ScopeRequirement("submissions:read")));
 });
 builder.Services.AddSingleton<IAuthorizationHandler, ScopeHandler>();
 

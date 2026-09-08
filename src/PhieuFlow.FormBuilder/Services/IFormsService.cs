@@ -16,6 +16,9 @@ public interface IFormsService
     /// <summary>Streams the forms list one server-fetched batch at a time, so callers can render as data arrives.</summary>
     IAsyncEnumerable<List<FormSummary>> GetAllStreamingAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Streams one form's submissions a batch at a time, mapped to <see cref="FormResponse"/>.</summary>
+    IAsyncEnumerable<List<FormResponse>> GetSubmissionsStreamingAsync(Guid formId, CancellationToken cancellationToken = default);
+
     Task<FormEditModel?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default);
 
     Task<FormVersionStateDto> SaveAsync(FormEditModel form, CancellationToken cancellationToken = default);

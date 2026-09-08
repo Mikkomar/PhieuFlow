@@ -454,6 +454,10 @@ public class FormEditorSessionTests
             yield break;
         }
 
+        public IAsyncEnumerable<List<FormResponse>> GetSubmissionsStreamingAsync(
+            Guid formId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<FormEditModel?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default)
         {
             GetByIdCalls++;

@@ -546,6 +546,103 @@ public class FormRepository(HubDbContext dbContext, ILogger<FormRepository> logg
         };
     }
 
+    public async Task<SubmissionBatchResult?> GetSubmissionsBatchAsync(
+        Guid formId, Guid? startId, int take, CancellationToken cancellationToken = default)
+    {
+        // Only the first page pays for the existence check; later pages are a continuation of
+        // a form we've already confirmed. A form with no submissions still returns an empty
+        // batch, not 404.
+        if (startId is null && !await dbContext.Forms.AnyAsync(f => f.Id == formId, cancellationToken))
+        {
+            return null;
+        }
+
+        var query = dbContext.FormSubmissions
+            .AsNoTracking()
+            .Where(s => s.FormId == formId);
+
+        if (startId is not null)
+        {
+            query = query.Where(s => s.Id >= startId.Value);
+        }
+
+        var page = await query
+            .OrderBy(s => s.Id)
+            .Take(take + 1)
+            .Include(s => s.Answers)
+            .ToListAsync(cancellationToken);
+
+        Guid? nextStartId = null;
+        if (page.Count > take)
+        {
+            nextStartId = page[take].Id;
+            page.RemoveAt(take);
+        }
+
+        // Resolve option ids to labels from the exact versions these submissions reference.
+        // Published versions are immutable (ADR 0007), so the id always resolves; the same
+        // Include shape as GetByIdAsync keeps the query translatable.
+        var versionIds = page.Select(s => s.FormVersionId).Distinct().ToList();
+        var optionLabels = (await dbContext.FormVersions
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Where(v => versionIds.Contains(v.Id))
+                .Include(v => v.Pages)
+                    .ThenInclude(p => p.Questions)
+                        .ThenInclude(q => (q as ChoiceQuestion)!.Options)
+                .ToListAsync(cancellationToken))
+            .SelectMany(v => v.Pages)
+            .SelectMany(p => p.Questions)
+            .OfType<ChoiceQuestion>()
+            .SelectMany(q => q.Options)
+            .GroupBy(o => o.Id)
+            .ToDictionary(g => g.Key, g => g.First().Label);
+
+        var items = page
+            .Select(s => new SubmissionListItem
+            {
+                Id = s.Id,
+                SubmittedAt = s.SubmittedAt,
+                FormVersionNumber = s.FormVersionNumber,
+                Answers = s.Answers
+                    .GroupBy(a => a.QuestionId)
+                    .Select(g => new SubmissionAnswerItem
+                    {
+                        QuestionId = g.Key,
+                        QuestionText = g.First().QuestionText,
+                        Order = g.Min(a => a.Order),
+                        Value = DisplayValue(g, optionLabels),
+                    })
+                    .OrderBy(a => a.Order)
+                    .ToList(),
+            })
+            .ToList();
+
+        return new SubmissionBatchResult { Items = items, NextStartId = nextStartId };
+    }
+
+    // One question's answer rows -> a single display string. Choice questions may bring more
+    // than one row (a checkbox group); value/boolean questions bring exactly one.
+    private static string? DisplayValue(
+        IEnumerable<SubmissionAnswer> answers, IReadOnlyDictionary<Guid, string> optionLabels)
+    {
+        var rows = answers.OrderBy(a => a.Order).ToList();
+
+        var options = rows.OfType<OptionSubmissionAnswer>().ToList();
+        if (options.Count > 0)
+        {
+            return string.Join(", ", options.Select(o =>
+                optionLabels.TryGetValue(o.OptionId, out var label) ? label : "(unknown option)"));
+        }
+
+        return rows[0] switch
+        {
+            BooleanSubmissionAnswer b => b.Checked ? "Yes" : "No",
+            ValueSubmissionAnswer v => v.Value,
+            _ => null,
+        };
+    }
+
     public async Task<PublishedFormBatchResult> GetPublishedBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default)
     {
         var query = dbContext.Forms

@@ -1,0 +1,93 @@
+@page "/responses"
+@using PhieuFlow.FormBuilder.Services
+@inject IFormsService FormsService
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>Responses</PageTitle>
+
+<header class="border-b border-border bg-surface px-8 pt-5 pb-4">
+    <div class="flex flex-col gap-1">
+        <div class="font-mono text-[10px] tracking-[0.07em] text-text-faintest uppercase">PhieuFlow / Responses</div>
+        <h1 class="m-0 text-[21px] font-semibold tracking-[-0.02em]">Responses</h1>
+    </div>
+</header>
+
+<div class="flex-1 px-8 pt-6 pb-10">
+    @if (_loadError is not null)
+    {
+        <div class="rounded-md border border-danger-border bg-danger-surface px-3 py-2 text-[12.5px] text-danger">@_loadError</div>
+    }
+    else if (_loading)
+    {
+        <div class="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface px-5 py-16">
+            <span class="text-sm font-semibold">Loading forms&hellip;</span>
+        </div>
+    }
+    else if (_withResponses.Count == 0)
+    {
+        <div class="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface px-5 py-16">
+            <span class="text-sm font-semibold">No responses yet</span>
+            <span class="text-[13px] text-text-faint">When a published form is filled in, it shows up here.</span>
+        </div>
+    }
+    else
+    {
+        <div class="overflow-hidden rounded-lg border border-border bg-surface shadow-[0_1px_2px_rgba(16,24,24,0.04)]">
+            <div class="grid grid-cols-[minmax(200px,1fr)_140px_120px] gap-3 border-b border-border-soft bg-surface-subtle px-[18px] py-[10px] font-mono text-[10px] tracking-[0.07em] text-text-faint uppercase">
+                <span>Form name</span>
+                <span>Live version</span>
+                <span class="text-right">Responses</span>
+            </div>
+            @foreach (var form in _withResponses)
+            {
+                <a href="@($"/forms/{form.Id}/responses")"
+                   class="grid grid-cols-[minmax(200px,1fr)_140px_120px] items-center gap-3 border-b border-border-row px-[18px] py-[13px] last:border-b-0 hover:bg-surface-subtle">
+                    <span class="flex min-w-0 flex-col gap-0.5">
+                        <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[13.5px] font-semibold text-text">@form.Title</span>
+                        <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] text-text-faint">@form.Description</span>
+                    </span>
+                    <span class="font-mono text-[12.5px] text-text-body">
+                        @(form.LatestPublishedVersionNumber is { } v ? $"v{v}" : "—")
+                    </span>
+                    <span class="text-right text-[13px] font-semibold text-text-body">View</span>
+                </a>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private readonly List<FormSummary> _withResponses = [];
+    private CancellationTokenSource? _cts;
+    private bool _loading = true;
+    private string? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cts = new CancellationTokenSource();
+        try
+        {
+            await foreach (var batch in FormsService.GetAllStreamingAsync(_cts.Token))
+            {
+                _withResponses.AddRange(batch.Where(f => f.HasSubmissions));
+                _loading = false;
+                StateHasChanged();
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _loadError = "Couldn't load forms from the server.";
+        }
+        catch (OperationCanceledException)
+        {
+            // navigated away mid-stream
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    public void Dispose() => _cts?.Cancel();
+}

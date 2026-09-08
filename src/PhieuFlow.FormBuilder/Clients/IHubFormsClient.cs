@@ -1,5 +1,6 @@
 using PhieuFlow.Hub.Contracts.Forms;
 using PhieuFlow.Hub.Contracts.Publishing;
+using PhieuFlow.Hub.Contracts.Submissions;
 
 namespace PhieuFlow.FormBuilder.Clients;
 
@@ -25,6 +26,9 @@ public interface IHubFormsClient
 
     /// <summary>Streams the forms list one server-fetched batch at a time, so callers can render as data arrives.</summary>
     IAsyncEnumerable<List<FormListItemDto>> GetFormBatchesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Streams one form's submissions a server-fetched batch at a time, keyset-paged like <see cref="GetFormBatchesAsync"/>.</summary>
+    IAsyncEnumerable<List<SubmissionListItemDto>> GetFormSubmissionBatchesAsync(Guid formId, CancellationToken cancellationToken = default);
 
     /// <summary>Deletes the form and its version history. A missing form is treated as already gone.</summary>
     Task DeleteFormAsync(Guid formId, CancellationToken cancellationToken = default);

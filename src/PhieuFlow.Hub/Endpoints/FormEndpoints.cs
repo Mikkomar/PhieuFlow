@@ -1,5 +1,6 @@
 using PhieuFlow.Hub.Contracts.Forms;
 using PhieuFlow.Hub.Contracts.Publishing;
+using PhieuFlow.Hub.Contracts.Submissions;
 using PhieuFlow.Hub.Contracts.Validation;
 using PhieuFlow.Hub.Mapping;
 using PhieuFlow.Persistence.Projections;
@@ -101,6 +102,27 @@ public static class FormEndpoints
                 await unitOfWork.Forms.GetLatestPublishedVersionNumberAsync(id, cancellationToken);
             return Results.Ok(dto);
         }).RequireAuthorization("forms:read");
+
+        // The consumer persists responses (ADR 0009); this is the read-back the FormBuilder
+        // Responses view calls. Keyset-paged by submission id, same contract as GET /forms.
+        app.MapGet("/forms/{id:guid}/submissions", async (
+            Guid id,
+            IUnitOfWork unitOfWork,
+            int take = 20,
+            Guid? startId = null,
+            CancellationToken cancellationToken = default) =>
+        {
+            if (take < 1 || take > MaxTake)
+            {
+                return Results.BadRequest($"'take' must be between 1 and {MaxTake}.");
+            }
+
+            var result = await unitOfWork.Forms.GetSubmissionsBatchAsync(id, startId, take, cancellationToken);
+
+            return result is null
+                ? Results.NotFound()
+                : Results.Ok(SubmissionResponseMapper.ToDto(result));
+        }).RequireAuthorization("submissions:read");
 
         app.MapPut("/forms/{id:guid}", async (Guid id, FormDto dto, IUnitOfWork unitOfWork, CancellationToken cancellationToken) =>
         {

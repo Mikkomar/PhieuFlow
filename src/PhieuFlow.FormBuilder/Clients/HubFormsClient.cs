@@ -2,6 +2,7 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using PhieuFlow.Hub.Contracts.Forms;
 using PhieuFlow.Hub.Contracts.Publishing;
+using PhieuFlow.Hub.Contracts.Submissions;
 
 namespace PhieuFlow.FormBuilder.Clients;
 
@@ -74,6 +75,34 @@ public class HubFormsClient(HttpClient httpClient) : IHubFormsClient
                 : $"/forms?take={BatchSize}&startId={startId}";
 
             var response = await httpClient.GetFromJsonAsync<FormBatchResponse>(url, cancellationToken);
+            if (response is null)
+            {
+                yield break;
+            }
+
+            yield return response.Items.ToList();
+
+            if (response.NextStartId is null)
+            {
+                yield break;
+            }
+
+            startId = response.NextStartId;
+        }
+    }
+
+    public async IAsyncEnumerable<List<SubmissionListItemDto>> GetFormSubmissionBatchesAsync(
+        Guid formId, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        Guid? startId = null;
+
+        while (true)
+        {
+            var url = startId is null
+                ? $"/forms/{formId}/submissions?take={BatchSize}"
+                : $"/forms/{formId}/submissions?take={BatchSize}&startId={startId}";
+
+            var response = await httpClient.GetFromJsonAsync<SubmissionBatchResponse>(url, cancellationToken);
             if (response is null)
             {
                 yield break;
