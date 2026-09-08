@@ -1,9 +1,9 @@
 namespace PhieuFlow.Tests.E2E.Infrastructure;
 
 /// <summary>
-/// Installs the Chromium build Playwright drives. ADR 0006 lists the one-time
-/// <c>playwright install</c> step as a dev/CI setup cost; running it in-process keeps the
-/// suite self-contained (there is no <c>pwsh</c> on PATH in every environment).
+/// Installs the Chromium build Playwright drives. Running <c>playwright install</c>
+/// in-process keeps the suite self-contained, since not every environment has <c>pwsh</c>
+/// on PATH.
 /// </summary>
 internal static class PlaywrightInstaller
 {
@@ -26,8 +26,7 @@ internal static class PlaywrightInstaller
             }
 
             // Microsoft.Playwright ships its CLI as an entry point on the test assembly.
-            // (No "--with-deps": that shells out to apt and needs root; on CI install the
-            // OS libraries separately.)
+            // No "--with-deps": it needs root. CI installs the OS libraries separately.
             var originalOut = Console.Out;
             var captured = new StringWriter();
             int exitCode;

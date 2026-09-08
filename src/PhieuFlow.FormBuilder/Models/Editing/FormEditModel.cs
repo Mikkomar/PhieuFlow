@@ -3,10 +3,9 @@ using PhieuFlow.Core.Entities;
 namespace PhieuFlow.FormBuilder.Models.Editing;
 
 /// <summary>
-/// The tree the builder edits. Every node carries an <see cref="Issues"/> collection the
-/// publish validator populates on a publish attempt, rendered as inline highlighting. Publish
-/// is gated by running that validator (locally on the Publish click, then again on the Hub),
-/// not by <see cref="HasIssues"/>.
+/// The tree the builder edits. Each node has an <see cref="Issues"/> collection the publish
+/// validator fills and the UI highlights inline. The validator gates publishing (client then
+/// Hub), not <see cref="HasIssues"/>.
 /// </summary>
 public sealed class FormEditModel : IHasIssues
 {
@@ -21,7 +20,7 @@ public sealed class FormEditModel : IHasIssues
     public string? LastModifiedBy { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
 
-    /// <summary>The version currently live for respondents, if any — feeds the pre-publish version-summary line.</summary>
+    /// <summary>The version currently live for respondents, if any. Feeds the pre-publish version summary.</summary>
     public int? LiveVersionNumber { get; set; }
 
     public List<FormPageEditModel> Pages { get; set; } = [];

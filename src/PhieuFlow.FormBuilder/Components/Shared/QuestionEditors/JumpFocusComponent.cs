@@ -4,9 +4,9 @@ using Microsoft.Extensions.Logging;
 namespace PhieuFlow.FormBuilder.Components.Shared.QuestionEditors;
 
 /// <summary>
-/// A sub-editor that a pre-publish dialog jump can land on. The owning card sets <see cref="FocusIssue"/>;
-/// once the editor has rendered, <see cref="FocusJumpTargetAsync"/> moves focus to the exact
-/// offending control and <see cref="OnJumpApplied"/> clears the request.
+/// A sub-editor a pre-publish jump can target. The card sets <see cref="FocusIssue"/>. After
+/// render, <see cref="FocusJumpTargetAsync"/> focuses the offending control and
+/// <see cref="OnJumpApplied"/> clears the request.
 /// </summary>
 public abstract class JumpFocusComponent : ComponentBase
 {

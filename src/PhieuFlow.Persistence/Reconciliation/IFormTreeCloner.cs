@@ -3,9 +3,9 @@ using PhieuFlow.Core.Entities;
 namespace PhieuFlow.Persistence.Reconciliation;
 
 /// <summary>
-/// Deep-copies a page/question/option tree, minting fresh ids for every node. Used when a
-/// brand-new tree has to be inserted rather than reconciled into an existing one: forking a
-/// published version on edit (ADR 0007) and duplicating a form.
+/// Deep-copies a page/question/option tree with fresh ids for every node. Used when a new
+/// tree must be inserted, not reconciled: forking a published version on edit, and
+/// duplicating a form.
 /// </summary>
 public interface IFormTreeCloner
 {

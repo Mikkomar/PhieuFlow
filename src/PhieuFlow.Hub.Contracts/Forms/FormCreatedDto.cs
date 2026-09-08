@@ -1,6 +1,6 @@
 namespace PhieuFlow.Hub.Contracts.Forms;
 
-/// <summary>Response of <c>POST /forms</c>: the id of the freshly-minted blank draft.</summary>
+/// <summary>Response of <c>POST /forms</c>: the id of the new blank draft.</summary>
 public class FormCreatedDto
 {
     public required Guid Id { get; set; }

@@ -16,6 +16,6 @@ public class FormDto
     public required FormVersionStatusDto Status { get; set; }
     public required List<FormPageDto> Pages { get; set; }
 
-    /// <summary>Publish-blocking problems with the form as a whole. Populated by the Hub validator.</summary>
+    /// <summary>Publish-blocking problems with the whole form. The Hub validator fills this list.</summary>
     public List<ValidationIssueDto> Issues { get; set; } = [];
 }

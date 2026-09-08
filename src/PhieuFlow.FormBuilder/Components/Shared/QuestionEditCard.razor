@@ -122,7 +122,7 @@
     [Parameter]
     public bool AutoFocusText { get; set; }
 
-    /// <summary>Set by the page editor when a pre-publish dialog jump landed on this card; focus its first offending field.</summary>
+    /// <summary>Set by the page editor when a pre-publish jump targets this card. Focus its first bad field.</summary>
     [Parameter]
     public bool FocusIssue { get; set; }
 
@@ -164,8 +164,8 @@
     private bool _hasAutoFocused;
     private bool _jumpHandled;
 
-    // A jump either lands on the question text (empty-text / whole-question issues) or is
-    // handed to the type-specific editor for the exact field.
+    // A jump targets either the question text (empty or whole-question issues) or the
+    // type-specific editor for the exact field.
     private bool FocusTextForJump => FocusIssue &&
         (Question.Issues.Count == 0 || Question.Issues[0].Field is ValidationField.Text or ValidationField.None);
 

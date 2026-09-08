@@ -34,9 +34,8 @@ public class Worker(
         {
             logger.LogError(ex, "An error occurred while seeding HubDatabase.");
 
-            // BackgroundService's default fault handling stops the host but doesn't set a
-            // non-zero exit code, which WaitForCompletion(seed) in the AppHost would
-            // otherwise read as success.
+            // BackgroundService stops the host on fault but sets no exit code, so the
+            // AppHost's WaitForCompletion(seed) would read the failure as success.
             Environment.ExitCode = 1;
         }
         finally

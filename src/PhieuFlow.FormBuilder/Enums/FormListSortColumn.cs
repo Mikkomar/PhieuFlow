@@ -1,6 +1,6 @@
 namespace PhieuFlow.FormBuilder.Enums;
 
-/// <summary>The forms-list sort column. Shared by <c>FormsListSession</c> (sorts by it) and <c>Home</c> (renders the sort headers).</summary>
+/// <summary>The forms-list sort column, shared by <c>FormsListSession</c> and <c>Home</c>.</summary>
 public enum FormListSortColumn
 {
     Name,

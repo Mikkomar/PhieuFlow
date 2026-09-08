@@ -93,8 +93,8 @@ public sealed class FormPublishGateTests(SqlServerFixture fixture) : Integration
         var id = await SaveFormAsync(client, "Raced", Question("All good"));
         // id is now v1/r1.
 
-        // A second session's save lands (bumping to r2) — the exact window between the publish
-        // handler's validate-read (which would have captured r1) and its flip.
+        // A second session's save arrives (bumping to r2): the window between the publish
+        // handler's validate-read (which captured r1) and its flip.
         await client.PutAsJsonAsync($"/forms/{id}", new FormDto
         {
             Id = id,

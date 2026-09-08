@@ -206,7 +206,7 @@
     {
         if (_sortColumn == FormListSortColumn.Modified && _sortDescending)
         {
-            return null; // default
+            return null; // the default sort carries no slug
         }
 
         var column = _sortColumn switch
@@ -254,7 +254,7 @@
         else
         {
             _sortColumn = column;
-            _sortDescending = column == FormListSortColumn.Modified; // Modified defaults descending, text/status ascending
+            _sortDescending = column == FormListSortColumn.Modified; // Modified starts descending, the rest ascending
         }
 
         _page = 1;

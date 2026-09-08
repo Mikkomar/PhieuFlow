@@ -3,9 +3,9 @@ using PhieuFlow.Core.Entities;
 namespace PhieuFlow.Persistence.Reconciliation;
 
 /// <summary>
-/// Outcome of <see cref="IFormVersionReconciler.Reconcile"/>: the version the caller should
-/// persist, and whether it is a freshly forked row (which the caller must <c>Add</c>) or the
-/// existing draft mutated in place (already tracked).
+/// Outcome of <see cref="IFormVersionReconciler.Reconcile"/>: the version to persist, and
+/// whether it is a new forked row (the caller must <c>Add</c> it) or the tracked draft
+/// changed in place.
 /// </summary>
 public readonly record struct FormVersionReconcileResult(FormVersion Version, bool IsFork)
 {

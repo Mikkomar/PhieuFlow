@@ -126,7 +126,7 @@
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    /// <summary>A pre-publish dialog jump asked to reveal this question; expand it and let the card focus its first issue.</summary>
+    /// <summary>A pre-publish jump targeted this question. Expand it and let the card focus its first issue.</summary>
     [Parameter]
     public Guid? JumpQuestionId { get; set; }
 
@@ -198,7 +198,7 @@
     {
         question.Order = Page.Questions.Count;
         Page.Edit(() => Page.Questions.Add(question));
-        // Close the type menu without restoring focus to its trigger — focus goes to the
+        // Close the type menu without restoring focus to its trigger. Focus goes to the
         // new question's text input via AutoFocusText.
         _pickerAnchor = null;
         _expandedQuestionId = question.Id;
@@ -291,7 +291,7 @@
         _liveAnnouncement = $"{label} moved to position {position} of {count}";
     }
 
-    // Reorder messages bubbled up from a question's options editor share this one live region.
+    // Reorder messages from a question's options editor share this one live region.
     private void AnnounceText(string message) => _liveAnnouncement = message;
 
     private static List<QuestionEditModel> Renumbered(List<QuestionEditModel> ordered)
@@ -311,8 +311,7 @@
             return "h-[3px] bg-accent";
         }
 
-        // Hairline between adjacent rows; nothing at the list's top/bottom edge (the
-        // container border owns those).
+        // Hairline between adjacent rows, but not at the list's top or bottom edge.
         return index == 0 || index == Page.Questions.Count ? "h-0" : "h-px bg-border-row";
     }
 }

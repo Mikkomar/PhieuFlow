@@ -61,7 +61,7 @@ else if (Question is CalendarQuestionDto)
     private static List<Choice> ToChoices(List<QuestionOptionDto> options) =>
         options.Select(o => new Choice(o.Id, o.Label)).ToList();
 
-    // Mirrors RespondentPreview.razor's ConstraintHint, adapted to the Hub.Contracts DTO types.
+    // Same logic as RespondentPreview.razor's ConstraintHint, on the Hub.Contracts DTO types.
     private static string? ConstraintHint(QuestionDto question) => question switch
     {
         CheckBoxGroupQuestionDto { MinSelections: { } min, MaxSelections: { } max } => $"Choose between {min} and {max} options",

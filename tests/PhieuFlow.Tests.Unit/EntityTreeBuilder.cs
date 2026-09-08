@@ -4,8 +4,8 @@ namespace PhieuFlow.Tests.Unit;
 
 /// <summary>
 /// Terse <see cref="FormVersion"/> entity-tree builders for <see cref="FormVersionReconcilerTests"/>.
-/// <see cref="DeepCopy"/> produces an id-preserving clone that a test tweaks into the "incoming"
-/// edit, mirroring how the client PUTs back a tree that shares node ids with the stored one.
+/// <see cref="DeepCopy"/> makes an id-preserving clone, like the tree a client PUTs back
+/// after an edit.
 /// </summary>
 internal static class EntityTreeBuilder
 {
@@ -104,7 +104,7 @@ internal static class EntityTreeBuilder
         .Select((label, i) => new QuestionOption { Id = Guid.NewGuid(), Label = label, Order = i })
         .ToList();
 
-    /// <summary>Id-preserving deep copy — the shape a client would PUT back after an edit.</summary>
+    /// <summary>Id-preserving deep copy: the shape a client PUTs back after an edit.</summary>
     public static FormVersion DeepCopy(this FormVersion source) => new()
     {
         Id = source.Id,

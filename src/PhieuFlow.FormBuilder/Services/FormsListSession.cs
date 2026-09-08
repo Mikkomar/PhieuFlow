@@ -5,11 +5,9 @@ using PhieuFlow.Hub.Contracts.Publishing;
 namespace PhieuFlow.FormBuilder.Services;
 
 /// <summary>
-/// The forms list's state machine, lifted out of <c>Home</c> the same way <see cref="FormEditorSession"/>
-/// was lifted out of <c>FormBuilder</c>: no Blazor types, unit-testable on its own. Owns the streamed-in
-/// forms, the current query/tab/sort/page (pushed in via <see cref="SetView"/> whenever the page's
-/// URL-derived state changes), the derived view (filtered/paged/counts), and the row actions
-/// (publish/duplicate/delete) that mutate the underlying list and recompute the view.
+/// The forms list's state machine, with no Blazor types. Owns the streamed-in forms, the
+/// current query, tab, sort and page (set through <see cref="SetView"/>), the derived view,
+/// and the publish, duplicate and delete row actions.
 /// </summary>
 public sealed class FormsListSession(
     IFormsService formsService,
@@ -48,7 +46,7 @@ public sealed class FormsListSession(
 
     public int TabCount(FormListTab tab) => _tabCounts[Array.IndexOf(Tabs, tab)];
 
-    /// <summary>Pushes the page's current query/tab/sort/page in and recomputes the derived view.</summary>
+    /// <summary>Takes the page's current query, tab, sort and page, and recomputes the view.</summary>
     public void SetView(string query, FormListTab tab, FormListSortColumn sortColumn, bool sortDescending, int page)
     {
         _query = query;
@@ -90,7 +88,7 @@ public sealed class FormsListSession(
         }
         catch (OperationCanceledException)
         {
-            // navigated away mid-stream — nothing to report
+            // navigated away mid-stream, nothing to report
         }
         finally
         {

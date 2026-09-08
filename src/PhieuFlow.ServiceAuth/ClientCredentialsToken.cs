@@ -7,10 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace PhieuFlow.ServiceAuth;
 
-/// <summary>
-/// Keycloak client-credentials settings (ADR 0005). Bound from the <c>Keycloak</c>
-/// configuration section; supplied by the AppHost as environment variables.
-/// </summary>
+/// <summary>Keycloak client-credentials settings, bound from the <c>Keycloak</c> configuration section.</summary>
 public sealed class KeycloakClientOptions
 {
     /// <summary>Realm authority, e.g. <c>http://localhost:8080/realms/phieuflow</c>.</summary>
@@ -21,9 +18,8 @@ public sealed class KeycloakClientOptions
     public string ClientSecret { get; set; } = "";
 
     /// <summary>
-    /// Scopes to request. When configuration does not set one, each service supplies its
-    /// own default via <c>AddKeycloakClientCredentials</c> — <c>forms:write</c> for the
-    /// form-builder, <c>published-forms:read</c> for the form-filler.
+    /// Scopes to request. When configuration sets none, <c>AddKeycloakClientCredentials</c>
+    /// applies a per-service default.
     /// </summary>
     public string Scope { get; set; } = "";
 
@@ -31,9 +27,8 @@ public sealed class KeycloakClientOptions
 }
 
 /// <summary>
-/// Fetches and caches one client-credentials access token process-wide, refreshing it
-/// shortly before expiry. Guarded so a burst of concurrent Hub calls triggers a single
-/// token request.
+/// Fetches and caches one client-credentials access token per process, refreshed shortly
+/// before expiry. A lock makes concurrent callers share one token request.
 /// </summary>
 public sealed class ClientCredentialsTokenProvider(
     IHttpClientFactory httpClientFactory,
@@ -93,8 +88,8 @@ public sealed class ClientCredentialsTokenProvider(
             }
             catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
             {
-                // Keycloak unreachable, wrong client secret, realm/scope misconfig — otherwise
-                // this fault fans out unlogged to every concurrent Hub call waiting on the gate.
+                // Keycloak unreachable, a wrong secret, or a bad realm or scope. Without
+                // this log the fault reaches waiting callers with no record.
                 logger.LogError(ex, "Acquiring a client-credentials token from {TokenEndpoint} failed.", o.TokenEndpoint);
                 throw;
             }
@@ -111,9 +106,8 @@ public sealed class ClientCredentialsTokenProvider(
 }
 
 /// <summary>
-/// Attaches the client-credentials bearer token to every Hub request. On a 401 it drops
-/// the cached token and retries once, covering a rotated secret or a Hub that came up
-/// after this process cached a token signed by a now-replaced key.
+/// Attaches the bearer token to every Hub request. On a 401 it drops the cached token and
+/// retries once, which covers a rotated secret or a replaced signing key.
 /// </summary>
 public sealed class ClientCredentialsTokenHandler(
     ClientCredentialsTokenProvider provider,
@@ -123,7 +117,7 @@ public sealed class ClientCredentialsTokenHandler(
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        // Buffer any body up front so the request can be replayed after a 401.
+        // Buffer any body first so the request can be sent again after a 401.
         byte[]? body = request.Content is null
             ? null
             : await request.Content.ReadAsByteArrayAsync(cancellationToken);

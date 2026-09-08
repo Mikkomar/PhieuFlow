@@ -7,8 +7,8 @@ using Xunit;
 namespace PhieuFlow.Tests.Unit;
 
 /// <summary>
-/// Unit coverage of the space-delimited scope-claim parsing in
-/// <see cref="ScopeHandler"/> (ADR 0005), independent of the HTTP pipeline.
+/// Unit coverage of the space-delimited scope-claim parsing in <see cref="ScopeHandler"/>,
+/// independent of the HTTP pipeline.
 /// </summary>
 public sealed class ScopeHandlerTests
 {

@@ -3,11 +3,9 @@ using PhieuFlow.FormBuilder.Models;
 namespace PhieuFlow.FormBuilder.Services;
 
 /// <summary>
-/// State machine behind the per-form Responses page, lifted out of the component the same
-/// way <see cref="FormsListSession"/> was: no Blazor types, unit-testable on its own.
-/// Consumes the submission batch stream (keyset-paged server-side), accumulates the rows,
-/// sorts them newest-first for display, derives the question columns as the union of every
-/// answered question across the loaded submissions, and pages the result client-side.
+/// State machine behind the per-form Responses page, with no Blazor types. Reads the
+/// keyset-paged submission stream, sorts rows newest-first, derives the question columns
+/// from every answered question, and pages the result client-side.
 /// </summary>
 public sealed class FormResponsesSession(
     IFormsService formsService,
@@ -68,7 +66,7 @@ public sealed class FormResponsesSession(
         }
         catch (OperationCanceledException)
         {
-            // navigated away mid-stream — nothing to report
+            // navigated away mid-stream, nothing to report
         }
         finally
         {

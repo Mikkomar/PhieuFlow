@@ -123,7 +123,7 @@ public class HubFormsClient(HttpClient httpClient) : IHubFormsClient
     {
         using var response = await httpClient.DeleteAsync($"/forms/{formId}", cancellationToken);
 
-        // The row is gone either way; a 404 just means someone else got there first.
+        // The row is gone regardless. A 404 just means another caller deleted it first.
         if (response.StatusCode is HttpStatusCode.NotFound)
         {
             return;

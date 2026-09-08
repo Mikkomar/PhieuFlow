@@ -9,11 +9,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// <c>GET /forms/published</c> — the respondent-facing, form-filler batched list. Reuses
-/// the same cursor-pagination shape as <c>GET /forms</c>
-/// (<see cref="Persistence.Repositories.FormRepository.GetBatchAsync"/>), but only surfaces
-/// forms with a published version, and always the published version's own content — never
-/// a newer draft's.
+/// <c>GET /forms/published</c>, the respondent-facing batched list. Same cursor pagination
+/// as <c>GET /forms</c>, but only forms with a published version, and always that version's
+/// own content, never a newer draft's.
 /// </summary>
 public sealed class FormPublishedListTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
@@ -55,7 +53,7 @@ public sealed class FormPublishedListTests(SqlServerFixture fixture) : Integrati
         using var writer = WriteClient;
         var id = await CreateAndPublishAsync(writer, "Original title");
 
-        // Edit after publish — this forks a new draft (v2) that is never published.
+        // Editing after publish forks a new draft (v2) that is never published.
         var current = await writer.GetFromJsonAsync<FormDto>($"/forms/{id}");
         current!.Title = "Unpublished edit";
         await writer.PutAsJsonAsync($"/forms/{id}", current);
@@ -74,9 +72,8 @@ public sealed class FormPublishedListTests(SqlServerFixture fixture) : Integrati
         var firstId = await CreateAndPublishAsync(writer, "Batch A");
         var secondId = await CreateAndPublishAsync(writer, "Batch B");
 
-        // Page all the way through with take=1 (forcing at least one continuation) and assert
-        // both of this test's forms turn up somewhere in the full traversal — that's what
-        // proves the cursor works, independent of how many rows exist.
+        // Page through with take=1 (at least one continuation) and assert both of this
+        // test's forms appear somewhere in the traversal. That proves the cursor works.
         using var reader = PublishedReadClient;
         var collected = new List<Guid>();
         Guid? startId = null;

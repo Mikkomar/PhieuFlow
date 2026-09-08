@@ -2,19 +2,16 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace PhieuFlow.Hub.Authorization;
 
-/// <summary>
-/// Requires a single OAuth2 scope to be present on the caller's token (ADR 0005).
-/// </summary>
+/// <summary>Requires one OAuth2 scope on the caller's token.</summary>
 public sealed class ScopeRequirement(string scope) : IAuthorizationRequirement
 {
     public string Scope { get; } = scope;
 }
 
 /// <summary>
-/// Succeeds when the required scope appears in the token's scope claim. The claim is one
-/// space-delimited string, not one claim per scope, so <c>RequireClaim</c> cannot express
-/// this. Kept OIDC-generic: reads <c>scope</c> (Keycloak) and falls back to <c>scp</c>
-/// (Microsoft Entra ID), so swapping the authority does not change this code (ADR 0005).
+/// Succeeds when the required scope appears in the token's <c>scope</c> claim, a single
+/// space-delimited string that <c>RequireClaim</c> cannot match. Also reads <c>scp</c> so
+/// Keycloak and Entra ID both work.
 /// </summary>
 public sealed class ScopeHandler : AuthorizationHandler<ScopeRequirement>
 {

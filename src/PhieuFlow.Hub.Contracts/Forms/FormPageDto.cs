@@ -8,6 +8,6 @@ public class FormPageDto
     public string? Title { get; set; }
     public required List<QuestionDto> Questions { get; set; }
 
-    /// <summary>Publish-blocking problems with this page. Populated by the Hub validator.</summary>
+    /// <summary>Publish-blocking problems with this page. The Hub validator fills this list.</summary>
     public List<ValidationIssueDto> Issues { get; set; } = [];
 }

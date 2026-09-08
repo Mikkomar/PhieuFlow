@@ -8,11 +8,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// ADR 0005: the Hub rejects unauthenticated callers (401) and callers whose token
-/// lacks the required scope (403), and serves callers whose token carries it. The
-/// integration-auth tier — runs the real Hub in-process with an offline-validated test
-/// token and in-memory SQLite, no Keycloak, no container. Authorization runs before the
-/// endpoint delegate, so the write-scope gates below 403 without any row having to exist.
+/// The Hub rejects unauthenticated callers (401) and callers missing the required scope
+/// (403), and serves the rest. The integration-auth tier runs the Hub in-process with an
+/// offline-validated token and in-memory SQLite. Authorization runs before the endpoint.
 /// </summary>
 [Collection(AuthCollection.Name)]
 public sealed class HubAuthorizationTests(HubAuthWebApplicationFactory factory)
@@ -171,7 +169,7 @@ public sealed class HubAuthorizationTests(HubAuthWebApplicationFactory factory)
 
         var response = await client.GetAsync($"/forms/{Guid.NewGuid()}/submissions");
 
-        // Authorization passed; the unknown form is a 404 from the endpoint, not a 403.
+        // Authorization passed. The unknown form is a 404 from the endpoint, not a 403.
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -222,9 +220,8 @@ public sealed class HubAuthorizationTests(HubAuthWebApplicationFactory factory)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    // Isolation (ADR 0005 extension): form-filler's token must never satisfy forms:read, and
-    // form-builder's token must never satisfy published-forms:read — the two clients are
-    // scoped to disjoint capabilities so form-filler structurally cannot read draft content.
+    // Isolation: the form-filler token must never satisfy forms:read and the form-builder
+    // token must never satisfy published-forms:read. Disjoint scopes keep drafts private.
     [Fact]
     public async Task TestGetForms_When_TokenHasOnlyPublishedFormsReadScope_Should_Return403()
     {

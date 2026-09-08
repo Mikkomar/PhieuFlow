@@ -5,7 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace PhieuFlow.Tests.Integration.Infrastructure;
 
 /// <summary>
-/// Mints signed access tokens for the Hub without Keycloak. The Hub's JWT bearer is
+/// Creates signed access tokens for the Hub without Keycloak. The Hub's JWT bearer is
 /// rebound offline to <see cref="SigningKey"/> and <see cref="Issuer"/> by
 /// <see cref="HubAuthWebApplicationFactory"/>.
 /// </summary>

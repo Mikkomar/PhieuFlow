@@ -9,9 +9,8 @@ using Xunit.Abstractions;
 namespace PhieuFlow.Tests.E2E.Infrastructure;
 
 /// <summary>
-/// Per-test Playwright setup: a fresh browser context + page, a trace recorded for the
-/// run (ADR 0006 calls out the trace viewer as the reason Playwright was chosen), and
-/// helpers for the flows every builder/versioning test repeats.
+/// Per-test Playwright setup: a fresh browser context and page, a recorded trace, and
+/// helpers for the flows every builder and versioning test repeats.
 /// </summary>
 [Collection(E2ECollection.Name)]
 public abstract class E2ETestBase : IAsyncLifetime
@@ -30,7 +29,7 @@ public abstract class E2ETestBase : IAsyncLifetime
 
     protected IPage Page { get; private set; } = null!;
 
-    /// <summary>Autosave debounce in <c>FormBuilder.razor</c> is 800 ms; wait past it.</summary>
+    /// <summary>Autosave debounce in <c>FormBuilder.razor</c> is 800 ms. Wait past it.</summary>
     protected static readonly TimeSpan AutosaveSettle = TimeSpan.FromMilliseconds(1500);
 
     public async Task InitializeAsync()
@@ -64,8 +63,8 @@ public abstract class E2ETestBase : IAsyncLifetime
     protected Task GotoFormBuilderAsync(string path = "/") => NavigateAsync(Page, FormBuilderUrl(path));
 
     /// <summary>
-    /// Navigates and waits for the Blazor Server interactive circuit to come up, so the
-    /// first <c>@oninput</c>/<c>@onclick</c> is not lost against the pre-rendered DOM.
+    /// Navigates and waits for the Blazor Server interactive circuit, so the first
+    /// <c>@oninput</c> or <c>@onclick</c> is not lost against the pre-rendered DOM.
     /// </summary>
     protected static async Task NavigateAsync(IPage page, string url)
     {
@@ -92,16 +91,15 @@ public abstract class E2ETestBase : IAsyncLifetime
     }
 
     /// <summary>
-    /// Header save indicator settled to a "saved …" state — matches "saved just now",
-    /// "saved N min ago", "saved at HH:mm"; deliberately not "unsaved changes".
+    /// Waits for the header save indicator to reach a "saved ..." state ("saved just now",
+    /// "saved N min ago", "saved at HH:mm"), not "unsaved changes".
     /// </summary>
     private static readonly Regex SavedIndicator = new(@"saved (just now|\d+ min ago|at \d)", RegexOptions.IgnoreCase);
 
     protected async Task WaitForSavedAsync()
     {
-        // Callers reach here right after an edit. Wait past the 800 ms autosave debounce
-        // so a lingering "saved just now" from the previous save can't satisfy the wait
-        // before the new save has even started.
+        // Callers reach here right after an edit. Wait past the 800 ms debounce so a
+        // lingering "saved just now" from the previous save cannot satisfy the wait early.
         await Page.WaitForTimeoutAsync(1000);
         try
         {
@@ -118,7 +116,7 @@ public abstract class E2ETestBase : IAsyncLifetime
 
     protected async Task ClickPublishAsync()
     {
-        // Publish now opens the pre-publish dialog; for a valid form it is the success
+        // Publish now opens the pre-publish dialog. For a valid form it is the success
         // confirmation, dismissed with "Done".
         await Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Publish" }).ClickAsync();
         await Page.GetByRole(AriaRole.Button, new PageGetByRoleOptions { Name = "Done" })

@@ -1,8 +1,8 @@
 @inherits JumpFocusComponent
 
 @{
-    // One materialised, Order-sorted pass per render — helpers and the loop all read this,
-    // so nothing rescans Question.Options per row.
+    // One Order-sorted list per render. Helpers and the loop all read it, so nothing
+    // re-sorts Question.Options per row.
     _ordered = Question.Options.OrderBy(o => o.Order).ToList();
 }
 
@@ -99,7 +99,7 @@
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    /// <summary>Bubbles a reorder message to the page's shared <c>aria-live</c> region (no live node here).</summary>
+    /// <summary>Sends a reorder message to the page's shared <c>aria-live</c> region.</summary>
     [Parameter]
     public EventCallback<string> OnAnnounce { get; set; }
 

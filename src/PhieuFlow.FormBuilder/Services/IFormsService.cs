@@ -13,7 +13,7 @@ public interface IFormsService
     /// </summary>
     Task<Guid> CreateNewAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Streams the forms list one server-fetched batch at a time, so callers can render as data arrives.</summary>
+    /// <summary>Streams the forms list one server batch at a time.</summary>
     IAsyncEnumerable<List<FormSummary>> GetAllStreamingAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Streams one form's submissions a batch at a time, mapped to <see cref="FormResponse"/>.</summary>
@@ -30,11 +30,9 @@ public interface IFormsService
     Task<PublishResultDto> PublishAsync(Guid formId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// After a save that forked a new draft (editing a published version does this server-side
-    /// with fresh node ids), re-fetches the forked tree and copies its ids onto <paramref name="local"/>
-    /// by position — content in <paramref name="local"/> (including edits made while the save was
-    /// in flight) is left untouched. Returns old page id → new page id so the caller can keep the
-    /// same page selected; empty if the re-fetch could not be completed.
+    /// After a save forked a new draft, re-fetches the forked tree and copies its node ids
+    /// onto <paramref name="local"/> by position, leaving its content untouched. Returns old
+    /// page id to new page id, or empty if the re-fetch failed.
     /// </summary>
     Task<IReadOnlyDictionary<Guid, Guid>> ReconcileForkAsync(FormEditModel local, CancellationToken cancellationToken = default);
 
@@ -42,9 +40,8 @@ public interface IFormsService
     Task DeleteAsync(Guid formId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Mints a fresh form seeded with a deep copy of <paramref name="sourceId"/>'s latest
-    /// version (new ids throughout, "Copy of" title, back to draft) and returns its id. The
-    /// caller re-reads the list to pick up the new row.
+    /// Creates a form from a deep copy of <paramref name="sourceId"/>'s latest version (new
+    /// ids, "Copy of" title, draft status) and returns its id. The caller re-reads the list.
     /// </summary>
     Task<Guid> DuplicateAsync(Guid sourceId, CancellationToken cancellationToken = default);
 }

@@ -5,17 +5,12 @@ using PhieuFlow.Hub.Contracts.Publishing;
 namespace PhieuFlow.Hub.Contracts.Submissions;
 
 /// <summary>
-/// Validates a set of submitted answers against a published form. Shared by the FormFiller
-/// (which blocks a submission before publishing it, because the RabbitMQ hop is one-way —
-/// ADR 0009) and the Hub consumer (which re-checks on the way in and dead-letters anything
-/// that does not pass). One implementation so the two can never drift.
+/// Validates submitted answers against a published form. Shared by the FormFiller and the
+/// Hub consumer so the two never drift.
 /// </summary>
 /// <remarks>
-/// Rules: <c>IsRequired</c>, number Min/Max, date Min/Max, text Min/Max length, checkbox-group
-/// Min/Max selections — bounds only bite when a value is present, so an optional blank answer
-/// passes. Plus structural integrity the client's UI cannot violate but a stale or crafted
-/// message can: the answer names a question on the form, its type matches that question, and a
-/// chosen option belongs to it.
+/// Checks <c>IsRequired</c> and Min/Max bounds (only when a value is present), plus
+/// structure: the question exists, the answer type matches, and options belong.
 /// </remarks>
 public sealed class SubmissionAnswersValidator
 {
@@ -34,8 +29,8 @@ public sealed class SubmissionAnswersValidator
             .SelectMany(page => page.Questions)
             .ToDictionary(question => question.Id);
 
-        // Structural pass — first error per question wins, and it wins over any constraint
-        // error found below (TryAdd never overwrites).
+        // Structural pass. First error per question wins over any constraint error below
+        // (TryAdd never overwrites).
         foreach (var answer in answers)
         {
             if (!questionsById.TryGetValue(answer.QuestionId, out var question))
@@ -58,7 +53,7 @@ public sealed class SubmissionAnswersValidator
             }
         }
 
-        // Constraint pass — one lookup of this question's answers, then the type-specific rule.
+        // Constraint pass: one lookup per question, then the type-specific rule.
         foreach (var question in questionsById.Values)
         {
             var given = answers.Where(a => a.QuestionId == question.Id).ToList();

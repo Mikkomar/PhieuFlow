@@ -9,10 +9,8 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// <c>GET /forms/published/{id}</c> — the respondent-facing single-form fetch. Per ADR 0007,
-/// "published" means the highest-VersionNumber row with Status == Published; per the design's
-/// state model, a nonexistent form and a never-published form must be indistinguishable (both
-/// 404) so a bad link can't reveal which one it is.
+/// <c>GET /forms/published/{id}</c>, the respondent-facing single-form fetch. A nonexistent
+/// form and a never-published form both 404, so a bad link cannot reveal which one it is.
 /// </summary>
 public sealed class FormPublishedByIdTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {

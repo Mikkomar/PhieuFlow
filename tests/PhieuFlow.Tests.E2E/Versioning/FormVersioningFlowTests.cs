@@ -9,8 +9,8 @@ using Xunit.Abstractions;
 namespace PhieuFlow.Tests.E2E.Versioning;
 
 /// <summary>
-/// End-to-end coverage of form versioning (ADR 0007): a published version is locked, and
-/// the next edit forks a new draft rather than mutating published history.
+/// End-to-end coverage of form versioning: a published version is locked, and the next
+/// edit forks a new draft rather than changing published history.
 /// </summary>
 public sealed class FormVersioningFlowTests(AppHostFixture fixture, ITestOutputHelper output)
     : E2ETestBase(fixture, output)

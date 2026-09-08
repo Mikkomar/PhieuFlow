@@ -106,7 +106,7 @@ else
     private FormEditorSession _session = null!;
     private FormBuilderHeader? _header;
 
-    // Alias onto the session's tree so the markup stays terse. Only touched from the loaded branch.
+    // Alias onto the session tree to keep the markup terse. Read only on the loaded branch.
     private FormEditModel _form => _session.Form;
 
     private Guid _activePageId;
@@ -167,14 +167,14 @@ else
                 _titleBlurred = false;
                 break;
 
-            // Reopened: the form was already in memory — leave view state alone.
-            // Failed: the load-state markup takes over.
+            // Reopened: the form was already in memory, so leave view state alone.
+            // Failed: the load-state markup handles it.
         }
     }
 
     private async Task RetryOpen()
     {
-        // Re-run the load rather than reloading the browser, so an in-memory draft survives.
+        // Re-run the load instead of reloading the browser, so an in-memory draft survives.
         var outcome = await _session.OpenAsync(FormId);
         if (outcome.Kind == OpenOutcomeKind.Opened)
         {
@@ -244,9 +244,8 @@ else
                 _prePublishOpen = true;
                 break;
 
-            // AlreadyPublished / SaveFailed / Incomplete / RequestFailed / Conflict: nothing to
-            // open — the header's save indicator, publish notice, and published pill already
-            // reflect the state.
+            // AlreadyPublished, SaveFailed, Incomplete, RequestFailed, Conflict: nothing to
+            // open. The header already reflects the state.
         }
     }
 

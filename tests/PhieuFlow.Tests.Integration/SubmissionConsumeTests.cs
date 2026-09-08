@@ -14,11 +14,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// <see cref="SubmissionMessageHandler"/> against the real database — the persistence half
-/// of the RabbitMQ consumer (ADR 0009), exercised with no broker. Covers the typed-answer
-/// mapping, the <c>ProcessedMessages</c> inbox dedup, and the poison classifications the
-/// consumer turns into a dead-letter. The transport itself (ack / nack / dead-letter wiring)
-/// is left to a manual check via the management plugin.
+/// <see cref="SubmissionMessageHandler"/> against the real database, the persistence half
+/// of the RabbitMQ consumer, with no broker. Covers typed-answer mapping, inbox dedup, and
+/// the poison classifications. A manual check covers the ack/nack transport wiring.
 /// </summary>
 public sealed class SubmissionConsumeTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
@@ -224,7 +222,7 @@ public sealed class SubmissionConsumeTests(SqlServerFixture fixture) : Integrati
         {
             FormId = form.Id,
             FormVersionNumber = form.VersionNumber,
-            // Only the text answer; the required checkbox / radio / group / date are absent.
+            // Only the text answer. The required checkbox, radio, group and date are absent.
             Answers = [new ValueAnswerDto { QuestionId = text.Id, QuestionText = text.Text, Order = 0, Value = "Some prose" }],
         };
 

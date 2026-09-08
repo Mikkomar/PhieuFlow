@@ -4,8 +4,7 @@ namespace PhieuFlow.Tests.E2E.Infrastructure;
 
 /// <summary>
 /// Thin page object over <c>FormBuilder.razor</c> so builder and versioning specs share
-/// one set of selectors. All locators are role/label/placeholder based, mirroring the
-/// component's accessibility attributes.
+/// one set of selectors. Locators are role-, label- and placeholder-based.
 /// </summary>
 public sealed class FormBuilderPage(IPage page)
 {
@@ -53,9 +52,8 @@ public sealed class FormBuilderPage(IPage page)
     }
 
     /// <summary>
-    /// Opens the "Add question" menu, picks <paramref name="type"/> (menu item label, e.g.
-    /// "Text area", "Number", "Radio buttons"), and types the question text into the
-    /// freshly-expanded card.
+    /// Opens the "Add question" menu, picks <paramref name="type"/> (the menu item label),
+    /// and types the question text into the newly expanded card.
     /// </summary>
     public async Task AddQuestionAsync(string type, string text)
     {
@@ -65,10 +63,8 @@ public sealed class FormBuilderPage(IPage page)
         await textField.WaitForAsync();
         await textField.FillAsync(text);
         await textField.BlurAsync();
-        // Blazor Server commits @oninput over the wire; give it a beat before the next
-        // action re-renders the list. NOTE: the builder can still drop this text if the
-        // card is collapsed immediately afterwards (one-way value= binding, no debounce),
-        // so assertions that must survive that should key off question type, not text.
+        // Wait for Blazor Server to commit @oninput. The builder can still drop this text
+        // if the card collapses right after, so durable assertions key off question type.
         await Page.WaitForTimeoutAsync(300);
     }
 
@@ -133,15 +129,14 @@ public sealed class FormBuilderPage(IPage page)
 
     public async Task DeleteActivePageAsync()
     {
-        // A page with questions raises a confirm() dialog; accept it.
+        // A page with questions raises a confirm() dialog. Accept it.
         Page.Dialog += async (_, dialog) => await dialog.AcceptAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Delete page" }).ClickAsync();
     }
 
     /// <summary>
-    /// Keyboard-reorders the question labelled <paramref name="text"/> by <paramref name="delta"/>
-    /// positions (Alt+Arrow, see <c>QuestionEditCard.OnRowKeyDown</c>). Re-resolves the row
-    /// between presses because the list re-renders after each move.
+    /// Keyboard-reorders the question labelled <paramref name="text"/> by
+    /// <paramref name="delta"/> positions (Alt+Arrow). Re-resolves the row between presses.
     /// </summary>
     public async Task MoveQuestionAsync(string text, int delta)
     {

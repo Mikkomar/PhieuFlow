@@ -138,15 +138,13 @@ public class FormRepository(
 
         if (currentVersion is null)
         {
-            // No form for this id (never existed, or deleted while a builder tab stayed open):
-            // never recreate it from a client-supplied id. Creation is POST /forms only.
+            // No form for this id. Never recreate it from a client-supplied id. Creation is
+            // POST /forms only.
             return FormSaveResult.NotFound;
         }
 
-        // Optimistic concurrency (ADR 0002/0007): the save must target the exact row the server
-        // holds now. VersionNumber is part of the key because a fork resets Revision to 1, so a
-        // stale client can otherwise collide with a different version's Revision and clobber it
-        // via ReconcilePages. The server never trusts these incoming numbers for the write.
+        // Optimistic concurrency: the save must target the exact row the server holds now.
+        // VersionNumber is in the key because a fork resets Revision to 1.
         if (incomingContent.VersionNumber != currentVersion.VersionNumber
             || incomingContent.Revision != currentVersion.Revision)
         {
@@ -155,8 +153,8 @@ public class FormRepository(
 
         try
         {
-            // Versioning policy (fork-on-publish-edit, tree reconciliation) lives in the
-            // reconciler (ADR 0007); this method only loads, guards concurrency, and persists.
+            // The versioning policy lives in the reconciler. This method only loads, guards
+            // concurrency, and persists.
             var outcome = reconciler.Reconcile(currentVersion, incomingContent, now);
             if (outcome.IsFork)
             {
@@ -167,8 +165,8 @@ public class FormRepository(
         }
         catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
         {
-            // A question changed type, or carried an unknown type — a client bug or a
-            // hand-crafted request. Reaches the endpoint as a bare 500 without this.
+            // A question changed type or carried an unknown type: a client bug or a crafted
+            // request. Without this it reaches the endpoint as a bare 500.
             logger.LogError(ex, "Reconciling the save for form {FormId} failed.", formId);
             throw;
         }
@@ -227,17 +225,14 @@ public class FormRepository(
             return FormDeleteResult.NotFound;
         }
 
-        // FormSubmission -> Form / FormVersion FKs are DeleteBehavior.Restrict
-        // (FormSubmissionConfiguration): a submission is a historical record that must outlive
-        // the form. Refuse the delete cleanly here rather than letting SaveChanges hit the FK
-        // and surface as a bare 500. Backed by IX_FormSubmissions_FormId.
+        // FormSubmission FKs are Restrict: a submission must outlive the form. Refuse the
+        // delete here rather than letting SaveChanges hit the FK as a bare 500.
         if (await dbContext.FormSubmissions.AnyAsync(s => s.FormId == formId, cancellationToken))
         {
             return FormDeleteResult.Blocked;
         }
 
-        // Versions -> pages -> questions -> options all cascade (see FormConfiguration /
-        // FormVersionConfiguration).
+        // Versions, pages, questions and options all cascade.
         dbContext.Forms.Remove(form);
         return FormDeleteResult.Deleted;
     }
@@ -354,9 +349,8 @@ public class FormRepository(
     public async Task<SubmissionBatchResult?> GetSubmissionsBatchAsync(
         Guid formId, Guid? startId, int take, CancellationToken cancellationToken = default)
     {
-        // Only the first page pays for the existence check; later pages are a continuation of
-        // a form we've already confirmed. A form with no submissions still returns an empty
-        // batch, not 404.
+        // Only the first page runs the existence check. A form with no submissions returns
+        // an empty batch, not 404.
         if (startId is null && !await dbContext.Forms.AnyAsync(f => f.Id == formId, cancellationToken))
         {
             return null;
@@ -384,9 +378,8 @@ public class FormRepository(
             page.RemoveAt(take);
         }
 
-        // Resolve option ids to labels from the exact versions these submissions reference.
-        // Published versions are immutable (ADR 0007), so the id always resolves; the same
-        // Include shape as GetByIdAsync keeps the query translatable.
+        // Resolve option ids to labels from the versions these submissions reference. A
+        // published version never changes, so the id always resolves.
         var versionIds = page.Select(s => s.FormVersionId).Distinct().ToList();
         var optionLabels = (await dbContext.FormVersions
                 .AsNoTracking()
@@ -426,8 +419,8 @@ public class FormRepository(
         return new SubmissionBatchResult { Items = items, NextStartId = nextStartId };
     }
 
-    // One question's answer rows -> a single display string. Choice questions may bring more
-    // than one row (a checkbox group); value/boolean questions bring exactly one.
+    // One question's answer rows become a single display string. A checkbox group has
+    // several rows. Value and boolean questions have one.
     private static string? DisplayValue(
         IEnumerable<SubmissionAnswer> answers, IReadOnlyDictionary<Guid, string> optionLabels)
     {

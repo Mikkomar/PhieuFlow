@@ -8,20 +8,16 @@ public interface IFormRepository
     Task<FormBatchResult> GetBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Batches one form's submissions, keyset-paged by submission id (ascending) exactly like
-    /// <see cref="GetBatchAsync"/>. Each answer is flattened to a display string: the raw text
-    /// for a value question, <c>"Yes"</c>/<c>"No"</c> for a checkbox, and the option label(s)
-    /// for a choice question — resolved against the immutable published version the response
-    /// references (ADR 0007), with a checkbox group's per-selection rows collapsed into one
-    /// comma-joined entry. Returns <c>null</c> when no form has that id (the caller 404s).
+    /// Batches one form's submissions, keyset-paged by submission id like
+    /// <see cref="GetBatchAsync"/>. Each answer is a display string, choice labels resolved
+    /// from the published version. Returns <c>null</c> when no form has that id.
     /// </summary>
     Task<SubmissionBatchResult?> GetSubmissionsBatchAsync(Guid formId, Guid? startId, int take, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Batches only forms that have a published version (ADR 0007: the highest-VersionNumber
-    /// row with Status == Published, regardless of whether a newer draft has since superseded
-    /// it), projecting the published version's own Title/Description — never the current
-    /// draft's. Used by the respondent-facing form-filler, which must never see draft content.
+    /// Batches only forms with a published version, projecting that version's own Title and
+    /// Description, never the current draft's. Used by the respondent-facing form-filler,
+    /// which must never see draft content.
     /// </summary>
     Task<PublishedFormBatchResult> GetPublishedBatchAsync(Guid? startId, int take, CancellationToken cancellationToken = default);
 
@@ -31,54 +27,46 @@ public interface IFormRepository
     Task<FormVersion?> GetByIdAsync(Guid formId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Fetches the full page/question tree of the form's published version (ADR 0007: the
-    /// highest-VersionNumber row with Status == Published), not the current draft. Returns
-    /// <c>null</c> uniformly when the form doesn't exist or has never been published — the
-    /// respondent-facing form-filler must not distinguish the two.
+    /// Fetches the full page and question tree of the form's published version, not the
+    /// current draft. Returns <c>null</c> when the form does not exist or was never
+    /// published. The form-filler must not tell the two apart.
     /// </summary>
     Task<FormVersion?> GetPublishedByIdAsync(Guid formId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Fetches the full page/question tree of one specific published version, identified by
-    /// <paramref name="versionNumber"/>. Returns <c>null</c> when the form has no published
-    /// row with that number. Used by the submission consumer to re-validate an inbound
-    /// response against the exact version it was filled against.
+    /// Fetches the full tree of one published version, by <paramref name="versionNumber"/>.
+    /// Returns <c>null</c> when the form has no published row with that number. The
+    /// submission consumer uses it to re-validate an inbound response.
     /// </summary>
     Task<FormVersion?> GetPublishedVersionAsync(Guid formId, int versionNumber, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Applies the incoming draft content to the form's latest version, forking a new draft when
-    /// the latest version is published. Returns <see cref="FormSaveStatus.FormNotFound"/> when no
-    /// form has that id (the caller 404s — creation is <c>POST /forms</c> only), and
-    /// <see cref="FormSaveStatus.RevisionMismatch"/> when the incoming <c>VersionNumber</c>/
-    /// <c>Revision</c> no longer matches the persisted row (the caller 409s and nothing is written).
+    /// Applies the incoming draft content to the latest version, forking a new draft when it
+    /// is published. Returns <c>FormNotFound</c> when no form has that id, or
+    /// <c>RevisionMismatch</c> when the incoming version or revision is stale.
     /// </summary>
     Task<FormSaveResult> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Flips exactly the row identified by <paramref name="expectedVersionNumber"/>/
-    /// <paramref name="expectedRevision"/> to Published. Returns
-    /// <see cref="FormPublishStatus.RevisionMismatch"/> instead of flipping a different row if the
-    /// server's current row has moved on (mirrors the optimistic-concurrency check in
-    /// <see cref="SaveAsync"/>).
+    /// Flips exactly the row named by <paramref name="expectedVersionNumber"/> and
+    /// <paramref name="expectedRevision"/> to Published. Returns <c>RevisionMismatch</c> when
+    /// the server's current row has moved on.
     /// </summary>
     Task<FormPublishResult> PublishAsync(Guid formId, int expectedVersionNumber, int expectedRevision, CancellationToken cancellationToken = default);
 
     Task<int?> GetLatestPublishedVersionNumberAsync(Guid formId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Removes the form and its whole version tree (cascade). Returns
-    /// <see cref="FormDeleteStatus.FormNotFound"/> when no form has that id (the caller 404s),
-    /// and <see cref="FormDeleteStatus.HasSubmissions"/> when the form has at least one
-    /// submission — a historical record whose FKs are <c>Restrict</c> — so the caller 409s and
-    /// nothing is written.
+    /// Removes the form and its whole version tree. Returns <c>FormNotFound</c> when no form
+    /// has that id, or <c>HasSubmissions</c> when a submission (a historical record with
+    /// <c>Restrict</c> FKs) blocks the delete.
     /// </summary>
     Task<FormDeleteResult> DeleteAsync(Guid formId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deep-copies <paramref name="sourceId"/>'s latest version into a brand-new form (v1, draft,
-    /// "Copy of" title, fresh ids throughout). Returns the new form's id, or <c>null</c> when the
-    /// source doesn't exist.
+    /// Deep-copies <paramref name="sourceId"/>'s latest version into a new form (v1, draft,
+    /// "Copy of" title, fresh ids). Returns the new form's id, or <c>null</c> when the source
+    /// does not exist.
     /// </summary>
     Task<Guid?> DuplicateAsync(Guid sourceId, CancellationToken cancellationToken = default);
 }

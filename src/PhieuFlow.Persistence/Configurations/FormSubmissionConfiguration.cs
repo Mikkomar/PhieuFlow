@@ -20,10 +20,8 @@ public class FormSubmissionConfiguration : IEntityTypeConfiguration<FormSubmissi
         builder.HasIndex(s => s.FormId);
         builder.HasIndex(s => new { s.FormId, s.FormVersionNumber });
 
-        // Restrict, not Cascade: a submission is a historical record and must not vanish when
-        // the form is deleted. Both FKs are NO ACTION, so no cascade path converges on Forms
-        // even though FormVersion -> Form itself cascades. WithMany() with no inverse keeps
-        // Form / FormVersion free of a Submissions collection.
+        // Restrict, not Cascade: a submission is a historical record that must outlive the
+        // form. WithMany() with no inverse keeps Form and FormVersion free of a collection.
         builder.HasOne(s => s.Form)
             .WithMany()
             .HasForeignKey(s => s.FormId)

@@ -3,7 +3,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var sql = builder.AddSqlServer("sql");
 var hubDb = sql.AddDatabase("HubDatabase", "PhieuFlowHub");
 
-// Keycloak is the local identity provider for service-to-service auth (ADR 0005).
+// Keycloak is the local identity provider for service-to-service auth.
 const string hubAudience = "phieuflow-hub";
 const string formBuilderClientId = "form-builder";
 const string formBuilderClientSecret = "form-builder-dev-secret";
@@ -13,19 +13,14 @@ const string formFillerClientSecret = "form-filler-dev-secret";
 var keycloak = builder.AddKeycloak("keycloak")
     .WithRealmImport(Path.Combine(builder.AppHostDirectory, "realms"));
 
-// The one deliberate async boundary (ADR 0001): the form-filler publishes completed
-// responses onto the durable `form-submissions` queue and the Hub consumer drains it.
-// The data volume keeps persistent messages across a broker restart; the management
-// plugin exposes the queue/DLX state for inspection during development.
+// The form-filler publishes completed responses onto the durable `form-submissions`
+// queue and the Hub consumer reads it. The data volume survives a broker restart.
 var rabbitmq = builder.AddRabbitMQ("rabbitmq")
     .WithDataVolume()
     .WithManagementPlugin();
 
-// The hub, the form-builder and the E2E tests all reach Keycloak through this one
-// endpoint, so the token issuer, the OIDC metadata address and the issuer the hub
-// validates against are guaranteed to be the same string — whatever host/port Aspire
-// assigns. In a real deployment Keycloak:Authority is set to a fixed external URL
-// (or swapped to Entra ID) and this wiring is not used.
+// Every service and the E2E tests reach Keycloak through this one endpoint, so the
+// token issuer and the validated issuer always match. A real deployment sets a fixed URL.
 var keycloakRealmAuthority = ReferenceExpression.Create(
     $"{keycloak.GetEndpoint("http")}/realms/phieuflow");
 
@@ -45,7 +40,7 @@ var hubBuilder = builder.AddProject<Projects.PhieuFlow_Hub>("hub")
     .WithEnvironment("Keycloak__DangerousAcceptAnyServerCertificate", "true")
     .WaitForCompletion(migrations);
 
-// Sample data is for local development only; production data comes from real usage.
+// Seed sample data for local development only.
 if (!builder.ExecutionContext.IsPublishMode)
 {
     var seed = builder.AddProject<Projects.PhieuFlow_SeedService>("seed")
@@ -68,8 +63,7 @@ builder.AddProject<Projects.PhieuFlow_FormBuilder>("formbuilder")
     .WithEnvironment("Keycloak__ClientSecret", formBuilderClientSecret)
     .WithHttpHealthCheck("/health");
 
-// Both halves of the ADR 0001 async boundary are wired: the form-filler publishes to
-// `form-submissions` and the Hub's SubmissionConsumerService drains it (ADR 0009).
+// The form-filler publishes to `form-submissions` and SubmissionConsumerService reads it.
 builder.AddProject<Projects.PhieuFlow_FormFiller>("formfiller")
     .WithExternalHttpEndpoints()
     .WithReference(hub)

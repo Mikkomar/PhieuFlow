@@ -7,7 +7,7 @@ namespace PhieuFlow.FormBuilder.Services;
 /// <summary>How a <see cref="AutosaveController.FlushAsync"/> ended.</summary>
 public enum AutosaveFlushResult
 {
-    /// <summary>Nothing left to persist — the server holds the latest edit.</summary>
+    /// <summary>Nothing left to persist. The server holds the latest edit.</summary>
     UpToDate,
 
     /// <summary>There is unsaved work but the gate (<c>canSave</c>) is closed, so nothing was sent.</summary>
@@ -16,26 +16,19 @@ public enum AutosaveFlushResult
     /// <summary>A save was attempted and the server could not be reached.</summary>
     Failed,
 
-    /// <summary>The retry budget ran out while edits kept arriving — the server is still behind.</summary>
+    /// <summary>The retry budget ran out while edits kept arriving. The server is still behind.</summary>
     Incomplete,
 }
 
 /// <summary>
-/// The builder's debounced autosave, lifted out of the page so the coalescing and the
-/// flush-with-retry race handling can be reasoned about (and unit-tested) on their own.
-/// <para>
-/// It owns only the scheduling: a monotonic edit counter vs. the counter last persisted (they
-/// diverge whenever there is unsaved work, including an edit that lands mid-save), a single
-/// in-flight <see cref="CancellationTokenSource"/>, and the <see cref="SaveState"/> the header
-/// renders. The actual round-trip is the <c>saveAsync</c> delegate; <c>canSave</c> is the gate
-/// (an untitled form has nothing to persist).
-/// </para>
+/// The builder's debounced autosave, kept separate from the page so its coalescing and
+/// retry logic can be unit-tested. It only schedules: an edit counter versus the last
+/// persisted counter, one in-flight save, and the header's <see cref="SaveState"/>.
 /// </summary>
 public sealed class AutosaveController : IDisposable
 {
-    // A user who keeps typing straight through a flush would loop it forever; give up after this
-    // many saves. The caller is told the flush did not catch up (Incomplete) rather than that
-    // everything is saved.
+    // Continuous typing could loop a flush forever. After this many saves, stop and report
+    // Incomplete rather than "saved".
     private const int MaxFlushAttempts = 4;
 
     private readonly Func<CancellationToken, Task<DateTimeOffset>> _saveAsync;
@@ -64,13 +57,13 @@ public sealed class AutosaveController : IDisposable
 
     public DateTimeOffset? LastSavedAt { get; private set; }
 
-    /// <summary>The persisted counter is behind the edit counter — an edit is waiting to be saved.</summary>
+    /// <summary>The persisted counter is behind the edit counter, so an edit is unsaved.</summary>
     public bool HasUnsavedWork => _pendingSeq != _savedSeq;
 
     /// <summary>Raised on every <see cref="State"/> / <see cref="LastSavedAt"/> change so the owner can re-render.</summary>
     public event Action? StateChanged;
 
-    /// <summary>Record an edit and (re)arm the debounce. A no-op past the gate beyond marking state idle.</summary>
+    /// <summary>Record an edit and re-arm the debounce. Past the gate it only marks state Idle.</summary>
     public void NotifyEdited()
     {
         _pendingSeq++;
@@ -78,9 +71,8 @@ public sealed class AutosaveController : IDisposable
 
         if (State == SaveState.Conflict)
         {
-            // A stale-revision conflict is terminal until the form is reloaded. Record the edit
-            // (HasUnsavedWork stays true) but don't re-arm the debounce — every attempt would just
-            // 409 again.
+            // A conflict is terminal until reload. Record the edit but do not re-arm the
+            // debounce. Every attempt would 409 again.
             return;
         }
 
@@ -97,18 +89,16 @@ public sealed class AutosaveController : IDisposable
         _ = DebounceThenSaveAsync(cts.Token);
     }
 
-    /// <summary>Drive the server up to the latest edit now, bypassing the debounce.</summary>
+    /// <summary>Save the latest edit now, without waiting for the debounce.</summary>
     public async Task<AutosaveFlushResult> FlushAsync()
     {
-        // A stale-revision conflict is terminal — re-sending would just 409 again. Report Failed
-        // so callers (publish, navigate-away) don't proceed on a copy the server rejected.
+        // A conflict is terminal. Report Failed so callers do not proceed on a rejected copy.
         if (State == SaveState.Conflict)
         {
             return AutosaveFlushResult.Failed;
         }
 
-        // Loops because a save can race a fresh keystroke that bumps the pending counter past
-        // what that save captured.
+        // Loop: a save can race a keystroke that bumps the pending counter past it.
         for (var attempt = 0; attempt < MaxFlushAttempts; attempt++)
         {
             if (!HasUnsavedWork && State != SaveState.Error)
@@ -133,8 +123,8 @@ public sealed class AutosaveController : IDisposable
             }
         }
 
-        // Fell out of the loop: either an edit is still queued past the last save, or the last
-        // save left an error. Never report UpToDate while HasUnsavedWork is true.
+        // Loop ended with work still queued or an error. Never report UpToDate while
+        // HasUnsavedWork is true.
         if (HasUnsavedWork || State == SaveState.Error)
         {
             _logger?.LogWarning(
@@ -147,10 +137,8 @@ public sealed class AutosaveController : IDisposable
     }
 
     /// <summary>
-    /// Externally marks the controller stale-revision conflicted — used when a publish attempt
-    /// 409s. This session's own last save may have succeeded, but the Hub's publish validated a
-    /// row another session has since moved past, so this copy is exactly as stale as a 409'd
-    /// autosave. Same terminal handling either way: stop retrying, the header offers Reload.
+    /// Marks the controller conflicted from outside, for when a publish attempt 409s. This
+    /// copy is then as stale as a 409'd autosave: stop retrying, the header offers Reload.
     /// </summary>
     public void MarkConflict()
     {
@@ -159,7 +147,7 @@ public sealed class AutosaveController : IDisposable
         SetState(SaveState.Conflict);
     }
 
-    /// <summary>Seed the controller as "everything saved" — used right after a fresh load or a publish.</summary>
+    /// <summary>Seed the controller as "everything saved", after a fresh load or a publish.</summary>
     public void SeedSaved(DateTimeOffset savedAt)
     {
         _cts?.Cancel();
@@ -170,7 +158,7 @@ public sealed class AutosaveController : IDisposable
         SetState(SaveState.Saved);
     }
 
-    /// <summary>Seed the controller as "nothing to save yet" — used after loading an untitled draft.</summary>
+    /// <summary>Seed the controller as "nothing to save yet", after loading an untitled draft.</summary>
     public void Reset()
     {
         _cts?.Cancel();
@@ -209,8 +197,8 @@ public sealed class AutosaveController : IDisposable
 
             if (generation != _generation)
             {
-                // SeedSaved/Reset/MarkConflict ran while this save was in flight and already
-                // reset the counters and state; a stale seq here would wedge HasUnsavedWork.
+                // SeedSaved/Reset/MarkConflict ran during this save and already reset the
+                // counters. A stale seq here would wedge HasUnsavedWork.
                 return;
             }
 
@@ -223,8 +211,8 @@ public sealed class AutosaveController : IDisposable
             }
             else
             {
-                // A keystroke landed while this save was in flight: it is not in what we just
-                // persisted, so stay Pending and let the queued debounce (or a flush) catch it.
+                // A keystroke arrived during this save, so it is not yet persisted. Stay
+                // Pending and let the queued debounce or a flush handle it.
                 SetState(SaveState.Pending);
             }
         }
@@ -234,8 +222,8 @@ public sealed class AutosaveController : IDisposable
         }
         catch (FormRevisionConflictException ex)
         {
-            // Another session advanced the form; the server refused this save. Terminal until a
-            // reload — NotifyEdited/FlushAsync stop attempting from here.
+            // Another session advanced the form and the server refused this save. Terminal
+            // until reload. NotifyEdited and FlushAsync stop trying.
             _logger?.LogInformation(ex, "Autosave hit an optimistic-concurrency conflict; the form is now read-only until reload.");
             if (generation == _generation)
             {
@@ -252,8 +240,8 @@ public sealed class AutosaveController : IDisposable
         }
         catch (Exception ex)
         {
-            // SaveAsync runs on a fire-and-forget task (DebounceThenSaveAsync); an empty save
-            // body, a JSON fault or a mapper failure would otherwise be an unobserved exception.
+            // SaveAsync runs fire-and-forget, so an empty save body, a JSON fault or a mapper
+            // failure would otherwise be an unobserved exception.
             _logger?.LogError(ex, "Autosave failed with an unexpected error.");
             if (generation == _generation)
             {

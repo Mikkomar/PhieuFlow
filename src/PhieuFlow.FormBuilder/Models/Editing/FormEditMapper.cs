@@ -5,10 +5,9 @@ using PhieuFlow.Hub.Contracts.Validation;
 namespace PhieuFlow.FormBuilder.Models.Editing;
 
 /// <summary>
-/// Maps between the builder's <see cref="FormEditModel"/> tree and the wire <see cref="FormDto"/>.
-/// Both directions carry the per-node validation <c>Issues</c>, so an annotated response maps
-/// straight back onto a fresh edit tree, and <see cref="ApplyIssues"/> copies issues onto an
-/// existing tree without disturbing in-flight edits.
+/// Maps between the builder's <see cref="FormEditModel"/> tree and the wire
+/// <see cref="FormDto"/>. Both directions carry per-node <c>Issues</c>. <see cref="ApplyIssues"/>
+/// copies issues onto an existing tree without touching in-flight edits.
 /// </summary>
 public static class FormEditMapper
 {
@@ -49,7 +48,7 @@ public static class FormEditMapper
         return form;
     }
 
-    /// <summary>Replaces every node's <c>Issues</c> in <paramref name="target"/> with those from the matching node in <paramref name="annotated"/>.</summary>
+    /// <summary>Copies each node's <c>Issues</c> from <paramref name="annotated"/> onto <paramref name="target"/>.</summary>
     public static void ApplyIssues(FormEditModel target, FormDto annotated)
     {
         Replace(target.Issues, annotated.Issues);

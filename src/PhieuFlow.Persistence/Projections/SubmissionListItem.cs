@@ -1,9 +1,9 @@
 namespace PhieuFlow.Persistence.Projections;
 
 /// <summary>
-/// A read model of one <c>FormSubmission</c> for the FormBuilder Responses view. Answers are
-/// already flattened to a display string per question (option ids resolved to labels, a
-/// checkbox group's per-selection rows collapsed into one comma-joined entry).
+/// A read model of one <c>FormSubmission</c> for the FormBuilder Responses view. Each
+/// answer is a display string: option ids resolved to labels, a checkbox group's
+/// selections joined by commas.
 /// </summary>
 public class SubmissionListItem
 {

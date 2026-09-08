@@ -9,9 +9,8 @@ using Xunit;
 namespace PhieuFlow.Tests.E2E.Auth;
 
 /// <summary>
-/// ADR 0005: the hub authenticates its callers with OAuth2 client-credentials tokens
-/// (Keycloak) and authorises by scope claim (<c>forms:read</c>, <c>forms:write</c>,
-/// <c>submissions:write</c>). These drive the hub REST API directly — no browser.
+/// The hub authenticates callers with OAuth2 client-credentials tokens (Keycloak) and
+/// authorises by scope claim. These tests drive the hub REST API directly, no browser.
 /// </summary>
 [Collection(E2ECollection.Name)]
 public sealed class ServiceAuthTests(AppHostFixture fixture)

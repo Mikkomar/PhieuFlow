@@ -8,12 +8,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// <c>PUT /forms/{id}</c> updates the latest version of an existing form and needs
-/// <c>forms:write</c>. It never creates: a PUT to an id the Hub does not know 404s rather
-/// than resurrecting it from a client-supplied primary key (creation is <c>POST /forms</c>
-/// only, and that endpoint mints the id server-side). It also enforces optimistic concurrency:
-/// a PUT whose <c>VersionNumber</c>/<c>Revision</c> no longer matches the persisted latest row
-/// 409s and writes nothing, so a second editor can't silently overwrite the first.
+/// <c>PUT /forms/{id}</c> updates an existing form's latest version. It never creates: a
+/// PUT to an unknown id 404s. It enforces optimistic concurrency: a stale
+/// <c>VersionNumber</c> or <c>Revision</c> 409s and writes nothing.
 /// </summary>
 public sealed class FormSaveTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
@@ -100,7 +97,7 @@ public sealed class FormSaveTests(SqlServerFixture fixture) : IntegrationTestBas
         using var client = WriteClient;
         var id = await CreateFormAsync(client);
 
-        // v1: r1 -> r2.
+        // v1: r1 to r2.
         (await PutAsync(client, id, "v1 edit", revision: 1, versionNumber: 1))
             .StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -117,8 +114,8 @@ public sealed class FormSaveTests(SqlServerFixture fixture) : IntegrationTestBas
         (await PutAsync(client, id, "v2 edit 2", revision: 1, versionNumber: 2))
             .StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // The stale v1 client (still VersionNumber 1, Revision 2) must not overwrite v2 even
-        // though Revision 2 collides with the live v2 row.
+        // The stale v1 client (VersionNumber 1, Revision 2) must not overwrite v2, even
+        // though Revision 2 matches the live v2 row.
         var stale = await PutAsync(client, id, "v1 clobber", revision: 2, versionNumber: 1);
 
         stale.StatusCode.Should().Be(HttpStatusCode.Conflict);

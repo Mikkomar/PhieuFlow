@@ -3,9 +3,9 @@ using PhieuFlow.Hub.Contracts.Forms;
 namespace PhieuFlow.Tests.Integration.Infrastructure;
 
 /// <summary>
-/// Shared <see cref="FormDto"/> builders for the coverage-gap tests. The all-types form is
-/// the one that drives <c>QuestionMapper</c>, <c>FormRequestMapper</c>/<c>FormResponseMapper</c>
-/// and the <c>FormRepository</c> reconcile/clone switch arms through every question subtype.
+/// Shared <see cref="FormDto"/> builders for the coverage-gap tests. The all-types form
+/// drives <c>QuestionMapper</c>, the request and response mappers, and the
+/// <c>FormRepository</c> reconcile and clone arms through every question subtype.
 /// </summary>
 internal static class TestForms
 {
@@ -73,10 +73,9 @@ internal static class TestForms
     };
 
     /// <summary>
-    /// One page, one question of every subtype, all <c>IsRequired = false</c> and carrying no
-    /// value/length/selection bounds. For the consumer "mechanics" tests (answer mapping,
-    /// inbox dedup, per-selection rows) that must persist a deliberately partial or empty
-    /// answer set now that <c>SubmissionMessageHandler</c> re-validates against the form.
+    /// One page, one question of every subtype, all optional with no bounds. For the consumer
+    /// mechanics tests (answer mapping, inbox dedup, per-selection rows) that persist a
+    /// partial or empty answer set past the re-validation in <c>SubmissionMessageHandler</c>.
     /// </summary>
     public static FormDto AllOptionalQuestions(Guid formId, string title) => new()
     {

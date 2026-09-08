@@ -15,6 +15,6 @@ public sealed class FormResponseAnswer
     public required string QuestionText { get; init; }
     public int Order { get; init; }
 
-    /// <summary>Display-ready value; <c>null</c> when the respondent left a value question blank.</summary>
+    /// <summary>Display-ready value. <c>null</c> when a value question was left blank.</summary>
     public string? Value { get; init; }
 }

@@ -46,10 +46,8 @@ public static class FormEndpoints
             });
         }).RequireAuthorization("forms:read");
 
-        // Respondent-facing (form-filler): published forms only, never draft/current content.
-        // Gated on its own scope (not forms:read) so a form-filler token structurally cannot
-        // reach the builder's draft-exposing endpoints above, and a form-builder token cannot
-        // reach this one.
+        // Respondent-facing: published forms only. Its own scope (not forms:read) keeps a
+        // form-filler token off the draft endpoints above, and vice versa.
         app.MapGet("/forms/published", async (IUnitOfWork unitOfWork, int take = 20, Guid? startId = null, CancellationToken cancellationToken = default) =>
         {
             if (take < 1 || take > MaxTake)
@@ -103,8 +101,8 @@ public static class FormEndpoints
             return Results.Ok(dto);
         }).RequireAuthorization("forms:read");
 
-        // The consumer persists responses (ADR 0009); this is the read-back the FormBuilder
-        // Responses view calls. Keyset-paged by submission id, same contract as GET /forms.
+        // Read-back for the FormBuilder Responses view. Keyset-paged by submission id,
+        // same contract as GET /forms.
         app.MapGet("/forms/{id:guid}/submissions", async (
             Guid id,
             IUnitOfWork unitOfWork,
@@ -134,7 +132,7 @@ public static class FormEndpoints
 
             if (result.Status == FormSaveStatus.RevisionMismatch)
             {
-                // Optimistic concurrency: another session advanced this form. Nothing written.
+                // Optimistic concurrency: another session advanced this form. Nothing was written.
                 return Results.Conflict();
             }
 
@@ -150,9 +148,8 @@ public static class FormEndpoints
             });
         }).RequireAuthorization("forms:write");
 
-        // Publish gate: validate the persisted latest version — any issue -> 422 with the
-        // tree annotated, nothing published. Callers flush pending edits first, so "latest
-        // version" is what the builder is showing.
+        // Validate the persisted latest version. Any issue returns 422 with the annotated
+        // tree and nothing is published. Callers flush pending edits first.
         app.MapPost("/forms/{id:guid}/publish", async (
             Guid id,
             IUnitOfWork unitOfWork,
@@ -191,17 +188,15 @@ public static class FormEndpoints
 
             if (result.Status == FormPublishStatus.RevisionMismatch)
             {
-                // Another session's save landed between validate and flip; nothing was published.
+                // Another session's save arrived between validate and flip. Nothing was published.
                 return Results.Conflict();
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);
             var state = result.State!;
 
-            // `dto` was mapped before the flip, so its Status still reads pre-publish (Draft).
-            // Correct the one field that changed rather than paying for a second full-tree fetch —
-            // content is guaranteed identical since the row just matched
-            // expectedVersionNumber/expectedRevision exactly.
+            // `dto` was mapped before the flip, so only Status is stale. Patch it rather
+            // than re-fetching the whole tree, whose content is unchanged.
             dto.Status = FormResponseMapper.ToDto(state.Status);
 
             return Results.Ok(new PublishResultDto
@@ -240,9 +235,8 @@ public static class FormEndpoints
 
             if (result.Status == FormDeleteStatus.HasSubmissions)
             {
-                // The form has responses whose FKs are Restrict; deleting it would destroy
-                // that data. Nothing was written. The builder disables the action for the
-                // same reason, so this is the stale-list / direct-call fallback.
+                // The form has responses with Restrict FKs, so a delete would lose data.
+                // The builder disables this too. This covers a stale list or direct call.
                 return Results.Conflict();
             }
 

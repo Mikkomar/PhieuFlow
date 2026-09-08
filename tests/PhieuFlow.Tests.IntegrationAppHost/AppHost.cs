@@ -1,6 +1,5 @@
-// Minimal Aspire topology for the integration-sql test tier: a SQL Server container and
-// the MigrationService worker, nothing else. PhieuFlow.Tests.Integration drives this via
-// Aspire.Hosting.Testing; the Hub itself is hosted in-process by the test project.
+// Minimal Aspire topology for the integration-sql tier: a SQL Server container and the
+// MigrationService worker. PhieuFlow.Tests.Integration drives it. The Hub runs in-process.
 
 var builder = DistributedApplication.CreateBuilder(args);
 

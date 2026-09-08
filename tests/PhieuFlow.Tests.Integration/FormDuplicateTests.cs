@@ -8,10 +8,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// <c>POST /forms/{id}/duplicate</c> deep-copies a form's latest version into a new draft in
-/// one transaction — the create and the copy either both land or neither does, so a failure
-/// can't leave a blank orphan form behind. 404s for an unknown source id; the
-/// <c>forms:write</c> scope gate is covered in <see cref="HubAuthorizationTests"/>.
+/// <c>POST /forms/{id}/duplicate</c> deep-copies a form's latest version into a new draft
+/// in one transaction, so a failure leaves no orphan. 404s for an unknown source id. The
+/// <c>forms:write</c> scope gate is in <see cref="HubAuthorizationTests"/>.
 /// </summary>
 public sealed class FormDuplicateTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
@@ -60,7 +59,7 @@ public sealed class FormDuplicateTests(SqlServerFixture fixture) : IntegrationTe
     public async Task TestDuplicate_When_SourceHasNoTitle_Should_NameTheCopyCopyOfUntitledForm()
     {
         using var client = WriteClient;
-        // POST /forms mints a blank draft — Title is empty and never set.
+        // POST /forms creates a blank draft, so Title is empty and never set.
         var created = await (await client.PostAsync("/forms", null)).Content.ReadFromJsonAsync<FormCreatedDto>();
 
         var response = await client.PostAsync($"/forms/{created!.Id}/duplicate", content: null);

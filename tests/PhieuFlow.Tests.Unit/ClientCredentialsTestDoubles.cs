@@ -4,15 +4,15 @@ using System.Text;
 namespace PhieuFlow.Tests.Unit;
 
 /// <summary>
-/// Shared hand-rolled test doubles for the <c>PhieuFlow.ServiceAuth</c> token classes —
-/// no mocking library, matching house style.
+/// Shared hand-rolled test doubles for the <c>PhieuFlow.ServiceAuth</c> token classes. No
+/// mocking library, matching house style.
 /// </summary>
 internal sealed record RecordedRequest(
     HttpMethod Method, Uri? Uri, string? Authorization, string? ContentType, string? Body);
 
 /// <summary>
-/// A queued <see cref="HttpMessageHandler"/>: each queued responder answers one request;
-/// once a single responder remains it answers every further request. Records what it saw.
+/// A queued <see cref="HttpMessageHandler"/>. Each queued responder answers one request.
+/// The last responder answers every further request. Records what it saw.
 /// </summary>
 internal sealed class StubHttpMessageHandler : HttpMessageHandler
 {

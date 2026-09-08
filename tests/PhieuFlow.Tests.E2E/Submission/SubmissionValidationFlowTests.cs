@@ -6,10 +6,9 @@ using Xunit.Abstractions;
 namespace PhieuFlow.Tests.E2E.Submission;
 
 /// <summary>
-/// The respondent app validates answers itself before publishing, because the submission
-/// crosses an async RabbitMQ boundary (ADR 0009) and the Hub cannot reject it in-band.
-/// A required question left blank must keep the message from ever being sent, and clear
-/// once the respondent supplies an answer.
+/// The respondent app validates answers before publishing, because the submission crosses
+/// an async queue and the Hub cannot reject it in-band. A required question left blank
+/// must block the message, and clear once the respondent answers.
 /// </summary>
 public sealed class SubmissionValidationFlowTests(AppHostFixture fixture, ITestOutputHelper output)
     : E2ETestBase(fixture, output)
@@ -17,7 +16,7 @@ public sealed class SubmissionValidationFlowTests(AppHostFixture fixture, ITestO
     [Fact]
     public async Task TestSubmit_When_RequiredQuestionLeftBlank_Should_BlockSubmissionUntilAnswered()
     {
-        // Context A — publish a one-page form with a single required question.
+        // Context A: publish a one-page form with a single required question.
         var builder = new FormBuilderPage(Page);
         var title = $"Validate-required {Guid.NewGuid():N}";
         await GotoFormBuilderAsync("/forms/new");
@@ -28,12 +27,12 @@ public sealed class SubmissionValidationFlowTests(AppHostFixture fixture, ITestO
         await ClickPublishAsync();
         var id = await GetFormIdByTitleAsync(title);
 
-        // Context B — the respondent submits without answering.
+        // Context B: the respondent submits without answering.
         var filler = await Context.NewPageAsync();
         await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
         await filler.GetByRole(AriaRole.Button, new() { Name = "Submit" }).ClickAsync();
 
-        // The message is never sent; the respondent stays on the form with an error shown.
+        // The message is never sent. The respondent stays on the form with an error shown.
         await Assertions.Expect(filler.GetByText("An answer is required.")).ToBeVisibleAsync();
         await Assertions.Expect(filler.GetByText("received")).Not.ToBeVisibleAsync();
 

@@ -7,10 +7,9 @@ using Microsoft.Extensions.Options;
 namespace PhieuFlow.Tests.Integration.Infrastructure;
 
 /// <summary>
-/// Authenticates every request as a service caller holding all Hub scopes, so the
-/// integration-sql tests reach the endpoints and their persistence without minting or
-/// validating a token. Token validation and scope enforcement are covered separately by
-/// <see cref="HubAuthWebApplicationFactory"/> (the integration-auth tier).
+/// Authenticates every request as a caller holding all Hub scopes, so the integration-sql
+/// tests reach the endpoints without minting or validating a token. The integration-auth
+/// tier covers token validation and scope enforcement.
 /// </summary>
 public sealed class TestAuthHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,

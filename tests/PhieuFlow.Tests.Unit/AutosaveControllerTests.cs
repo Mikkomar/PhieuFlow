@@ -42,8 +42,8 @@ public class AutosaveControllerTests
     [Fact]
     public async Task TestFlushAsync_When_WorkPending_Should_SaveAndReportUpToDate()
     {
-        // A timestamp distinct from "now" so this fails if LastSavedAt is ever seeded from the
-        // client clock instead of what the save delegate returns.
+        // A timestamp distinct from "now", so the test fails if LastSavedAt is ever seeded
+        // from the client clock instead of the save delegate's return.
         var save = new SaveSpy { SavedAt = DateTimeOffset.UtcNow.AddMinutes(-5) };
         // A long debounce so only the flush can drive the save.
         using var controller = new AutosaveController(save.Run, canSave: () => true, TimeSpan.FromSeconds(30));
@@ -64,7 +64,7 @@ public class AutosaveControllerTests
         AutosaveController controller = null!;
         var save = new SaveSpy
         {
-            // Every save is immediately followed by a fresh edit, so the flush can never catch up.
+            // Every save is followed by a fresh edit, so the flush never catches up.
             Behavior = () =>
             {
                 controller.NotifyEdited();
@@ -106,7 +106,7 @@ public class AutosaveControllerTests
         controller.NotifyEdited();
         await WaitUntil(() => controller.State == SaveState.Saving);
 
-        controller.NotifyEdited(); // lands while the first save is in flight
+        controller.NotifyEdited(); // arrives while the first save is in flight
         release.SetResult();
 
         await WaitUntil(() => save.Calls == 2);
@@ -190,8 +190,8 @@ public class AutosaveControllerTests
         controller.NotifyEdited();
         await WaitUntil(() => controller.State == SaveState.Saving);
 
-        // Simulates publish seeding "everything saved" right after a fork, while the debounced
-        // save from before the fork is still in flight.
+        // Simulates publish seeding "everything saved" just after a fork, while the
+        // pre-fork debounced save is still in flight.
         var seededAt = DateTimeOffset.UtcNow.AddMinutes(-1);
         controller.SeedSaved(seededAt);
 

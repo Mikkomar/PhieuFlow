@@ -8,12 +8,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// <c>GET /forms</c> — the builder-facing list (<c>FormRepository.GetBatchAsync</c>), the
-/// untested twin of <see cref="FormPublishedListTests"/>. Exercises the Guid cursor
-/// (<c>Id &gt;= startId</c> + <c>ORDER BY Id</c> under SQL Server's <c>uniqueidentifier</c>
-/// ordering, which is not .NET Guid order), the <c>Take(take + 1)</c> / <c>NextStartId</c>
-/// trim, the correlated-subquery projection (current version, latest published) and the
-/// <c>PageCount</c>/<c>QuestionCount</c> aggregates.
+/// <c>GET /forms</c>, the builder-facing list (<c>FormRepository.GetBatchAsync</c>).
+/// Exercises the Guid cursor under SQL Server <c>uniqueidentifier</c> ordering, the
+/// <c>Take(take + 1)</c> trim, the version projection, and the count aggregates.
 /// </summary>
 public sealed class FormListTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
@@ -88,7 +85,7 @@ public sealed class FormListTests(SqlServerFixture fixture) : IntegrationTestBas
     public async Task TestGetForms_When_FormHasNoQuestions_Should_ReportZeroQuestionCount()
     {
         using var client = CreateClient();
-        var id = await CreateBlankAsync(client); // POST /forms mints one empty page, no questions
+        var id = await CreateBlankAsync(client); // POST /forms creates one empty page, no questions
 
         var item = await SingleItemAsync(client, id);
 
@@ -106,7 +103,7 @@ public sealed class FormListTests(SqlServerFixture fixture) : IntegrationTestBas
         (await client.PutAsJsonAsync($"/forms/{id}", draft)).StatusCode.Should().Be(HttpStatusCode.OK);
         (await client.PostAsync($"/forms/{id}/publish", content: null)).StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // Edit the published version → forks v2 draft.
+        // Editing the published version forks a v2 draft.
         var current = await client.GetFromJsonAsync<FormDto>($"/forms/{id}");
         current!.Title = "Unpublished edit";
         (await client.PutAsJsonAsync($"/forms/{id}", current)).StatusCode.Should().Be(HttpStatusCode.OK);

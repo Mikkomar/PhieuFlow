@@ -9,11 +9,9 @@ using Xunit.Abstractions;
 namespace PhieuFlow.Tests.E2E.Submission;
 
 /// <summary>
-/// ADR 0002: the form-filler validates against the copy it loaded; the hub re-validates
-/// on consume against the current form and, on a revision mismatch, flags the submission
-/// for review rather than silently accepting or discarding it.
-///
-/// Skipped until hub-side re-validation and the review flag exist.
+/// The form-filler validates against the copy it loaded. The hub re-validates on consume
+/// and, on a revision mismatch, flags the submission for review. Skipped until hub-side
+/// re-validation and the review flag exist.
 /// </summary>
 public sealed class SubmissionStalenessTests(AppHostFixture fixture, ITestOutputHelper output)
     : E2ETestBase(fixture, output)
@@ -38,7 +36,7 @@ public sealed class SubmissionStalenessTests(AppHostFixture fixture, ITestOutput
         var filler = await Context.NewPageAsync();
         await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
 
-        // Owner tightens the constraint (optional -> required) and republishes.
+        // Owner tightens the constraint (optional to required) and republishes.
         await builder.OpenQuestionAsync("Optional note");
         await builder.ToggleRequiredAsync();
         await WaitForSavedAsync();

@@ -7,10 +7,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// Guards the isolation mechanism: every other test in this tier writes forms, and every
-/// one is wrapped in a <see cref="System.Transactions.TransactionScope"/> that rolls back.
-/// If that ever stops working, this test (run among ~50 others that create rows) sees the
-/// leaked rows.
+/// Guards the isolation mechanism: every other test in this tier wraps its form writes in a
+/// <see cref="System.Transactions.TransactionScope"/> that rolls back. If that breaks, this
+/// test sees the leaked rows.
 /// </summary>
 public sealed class TransactionIsolationTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {

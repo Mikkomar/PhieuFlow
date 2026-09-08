@@ -9,12 +9,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// A form carrying one question of every <see cref="QuestionDto"/> subtype, saved and read
-/// back over the real Hub + SQL Server. Drives <c>QuestionMapper</c> (both directions × 7
-/// arms), <c>FormRequestMapper</c>/<c>FormResponseMapper</c>, the TPH discriminator column
-/// — <c>Checkbox</c> and <c>CheckBoxGroup</c> are otherwise never persisted by any test —
-/// <c>decimal(18,4)</c>, <c>DateOnly → date</c>, the option shadow FK, and the split-query
-/// include with its in-memory ordering fix-ups in <c>GetByIdAsync</c>.
+/// A form with one question of every <see cref="QuestionDto"/> subtype, saved and read back
+/// over the real Hub and SQL Server. Drives both directions of <c>QuestionMapper</c>, the
+/// TPH discriminator, decimal and date column types, and the split-query include ordering.
 /// </summary>
 public sealed class FormQuestionTypesTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {

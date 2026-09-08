@@ -3,15 +3,15 @@ namespace PhieuFlow.Persistence.Projections;
 /// <summary>The three outcomes of <see cref="Repositories.IFormRepository.PublishAsync"/>.</summary>
 public enum FormPublishStatus
 {
-    /// <summary>The validated row was flipped; <see cref="FormPublishResult.State"/> is set.</summary>
+    /// <summary>The validated row was flipped. <see cref="FormPublishResult.State"/> is set.</summary>
     Published,
 
     /// <summary>No form has that id.</summary>
     FormNotFound,
 
     /// <summary>
-    /// The row the caller validated is no longer the one the server holds — another session's
-    /// save landed between validate and flip. Nothing was published.
+    /// The row the caller validated is no longer the one the server holds. Another session
+    /// saved between validate and flip. Nothing was published.
     /// </summary>
     RevisionMismatch,
 }

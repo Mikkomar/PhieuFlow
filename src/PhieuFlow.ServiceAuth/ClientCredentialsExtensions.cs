@@ -6,19 +6,14 @@ using PhieuFlow.ServiceAuth;
 namespace Microsoft.Extensions.Hosting;
 
 /// <summary>
-/// Wires up the OAuth2 client-credentials flow (ADR 0005) that the form-builder and
-/// form-filler use to authenticate their synchronous Hub calls. Both services share one
-/// implementation in <c>PhieuFlow.ServiceAuth</c>, differing only in the default scope.
+/// Sets up the OAuth2 client-credentials flow the form-builder and form-filler use for
+/// their synchronous Hub calls. Only the default scope differs between them.
 /// </summary>
 public static class ClientCredentialsExtensions
 {
     /// <summary>
-    /// Binds <see cref="KeycloakClientOptions"/> from the <c>Keycloak</c> configuration
-    /// section, falling back to <paramref name="defaultScope"/> when no scope is
-    /// configured, and registers the token provider, the delegating handler, and the
-    /// <c>keycloak-token</c> named client (with a development-only bypass for Aspire's
-    /// self-signed certificate). Call <see cref="AddClientCredentialsToken"/> to attach
-    /// the handler to the typed Hub client.
+    /// Binds <see cref="KeycloakClientOptions"/> from the <c>Keycloak</c> section, defaults
+    /// the scope to <paramref name="defaultScope"/>, and registers the token provider and handler.
     /// </summary>
     public static IHostApplicationBuilder AddKeycloakClientCredentials(
         this IHostApplicationBuilder builder, string defaultScope)
@@ -40,7 +35,7 @@ public static class ClientCredentialsExtensions
         var tokenClient = builder.Services.AddHttpClient("keycloak-token");
         if (builder.Environment.IsDevelopment())
         {
-            // Local orchestration only: Aspire serves Keycloak over a self-signed certificate.
+            // Local only: Aspire serves Keycloak over a self-signed certificate.
             tokenClient.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
             {
                 ServerCertificateCustomValidationCallback =
@@ -52,8 +47,8 @@ public static class ClientCredentialsExtensions
     }
 
     /// <summary>
-    /// Attaches the client-credentials bearer token to a typed Hub client, so every call
-    /// it makes carries a valid token and retries once on a 401.
+    /// Attaches the bearer token to a typed Hub client. Every call then carries a valid
+    /// token, and a 401 triggers one retry.
     /// </summary>
     public static IHttpClientBuilder AddClientCredentialsToken(this IHttpClientBuilder builder)
         => builder.AddHttpMessageHandler<ClientCredentialsTokenHandler>();

@@ -80,8 +80,8 @@ public class FormsService(IHubFormsClient hubFormsClient, ILogger<FormsService> 
         }
         catch (HttpRequestException ex)
         {
-            // Re-fetching the forked form failed: the in-memory tree keeps the pre-fork node ids
-            // and the next autosave collides on insert.
+            // Re-fetching the forked form failed. The in-memory tree keeps the pre-fork
+            // node ids, so the next autosave collides on insert.
             logger.LogError(ex, "Reconciling the fork of form {FormId} failed; stale node ids remain.", local.FormId);
             return EmptyRemap;
         }

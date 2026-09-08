@@ -12,11 +12,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// <c>GET /forms/{id}/submissions</c> reads back what the consumer persisted (ADR 0009):
-/// a keyset-paged batch (same contract as <c>GET /forms</c>) whose answers are already
-/// flattened to display strings — option ids resolved to labels against the published
-/// version. The <c>submissions:read</c> scope gate is covered in
-/// <see cref="HubAuthorizationTests"/>.
+/// <c>GET /forms/{id}/submissions</c> reads back persisted submissions: a keyset-paged
+/// batch whose answers are display strings, option ids resolved to labels. The
+/// <c>submissions:read</c> scope gate is in <see cref="HubAuthorizationTests"/>.
 /// </summary>
 public sealed class SubmissionListTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {

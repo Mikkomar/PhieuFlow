@@ -3,7 +3,7 @@ using PhieuFlow.Core.Entities;
 namespace PhieuFlow.SeedService.SampleData;
 
 /// <summary>
-/// Sample forms inserted into HubDatabase by the dev-only seeder.
+/// Sample forms that the development-only seeder inserts into HubDatabase.
 /// </summary>
 public static class SampleForms
 {

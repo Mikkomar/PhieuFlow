@@ -92,8 +92,8 @@
         .Select(o => new Choice(o.Id, string.IsNullOrWhiteSpace(o.Label) ? "Untitled option" : o.Label))
         .ToList();
 
-    // One constraint line per question, covering both bounds, min only, and max only.
-    // Returns null when neither bound is set or the type carries no hint.
+    // One constraint line per question: both bounds, min only, or max only. Returns null
+    // when neither bound is set or the type has no hint.
     private static string? ConstraintHint(QuestionEditModel question) => question switch
     {
         CheckBoxGroupQuestionEditModel { MinSelections: { } min, MaxSelections: { } max } => $"Choose between {min} and {max} options",

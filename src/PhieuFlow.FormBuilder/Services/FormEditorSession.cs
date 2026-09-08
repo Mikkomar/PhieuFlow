@@ -10,11 +10,9 @@ using PhieuFlow.Hub.Contracts.Validation;
 namespace PhieuFlow.FormBuilder.Services;
 
 /// <summary>
-/// Owns one form's edit lifecycle — load, autosave, published-version fork reconciliation and
-/// publish — for the <c>FormBuilder</c> page. Everything here is free of Blazor rendering and
-/// navigation types: the page constructs a session, subscribes to <see cref="Changed"/> to
-/// re-render, and acts on the returned outcomes (navigating, opening dialogs). That keeps the
-/// state machine unit-testable against a fake <see cref="IFormsService"/>.
+/// Owns one form's edit lifecycle for the <c>FormBuilder</c> page: load, autosave, fork
+/// reconciliation, publish. It uses no Blazor types, so the page drives it through
+/// <see cref="Changed"/> and returned outcomes, and tests use a fake <see cref="IFormsService"/>.
 /// </summary>
 public sealed class FormEditorSession : IAsyncDisposable
 {
@@ -27,8 +25,8 @@ public sealed class FormEditorSession : IAsyncDisposable
 
     private FormEditModel? _form;
 
-    // The form already held in memory. Guards OpenAsync from re-fetching (and clobbering unsaved
-    // edits) on a spurious re-parametrization.
+    // The form already in memory. Stops OpenAsync from re-fetching and losing unsaved edits
+    // on a spurious re-parametrization.
     private Guid? _loadedFormId;
 
     public FormEditorSession(
@@ -65,14 +63,14 @@ public sealed class FormEditorSession : IAsyncDisposable
     public event Action? Changed;
 
     /// <summary>
-    /// Raised after a save forked a new draft server-side and node ids were re-keyed. The map is
-    /// old page id → new page id, so the page can keep the same page selected.
+    /// Raised after a save forked a new draft and node ids were re-keyed. Maps old page id
+    /// to new page id, so the page keeps the same page selected.
     /// </summary>
     public event Action<IReadOnlyDictionary<Guid, Guid>>? ForkReconciled;
 
     /// <summary>
-    /// Opens <paramref name="formId"/>. <c>null</c> mints a blank draft and asks the page to
-    /// redirect to it by id (so a reload re-opens it). An id already held is a no-op.
+    /// Opens <paramref name="formId"/>. <c>null</c> creates a blank draft and asks the page
+    /// to redirect to it by id. An id already held is a no-op.
     /// </summary>
     public async Task<OpenOutcome> OpenAsync(Guid? formId)
     {
@@ -131,7 +129,7 @@ public sealed class FormEditorSession : IAsyncDisposable
         return OpenOutcome.Opened;
     }
 
-    /// <summary>Record an edit to <see cref="Form"/> and (re)arm the debounced autosave.</summary>
+    /// <summary>Record an edit to <see cref="Form"/> and re-arm the debounced autosave.</summary>
     public void NotifyEdited()
     {
         PublishNotice = null;
@@ -142,9 +140,8 @@ public sealed class FormEditorSession : IAsyncDisposable
     public Task<AutosaveFlushResult> FlushAsync() => _autosave.FlushAsync();
 
     /// <summary>
-    /// Runs the pre-publish gate locally, then flushes and calls the Hub (which re-validates as
-    /// the authority). Blocked cases (no title, already published, local issues, save failed)
-    /// return before any publish round-trip.
+    /// Runs the local pre-publish gate, then flushes and calls the Hub, which re-validates.
+    /// Blocked cases return before any round-trip.
     /// </summary>
     public async Task<PublishOutcome> PublishAsync()
     {
@@ -155,16 +152,15 @@ public sealed class FormEditorSession : IAsyncDisposable
             return new PublishOutcome(PublishOutcomeKind.AlreadyPublished);
         }
 
-        // An untitled form has never been autosaved, so there is nothing on the server to
-        // validate — surface the title requirement the way a blocked save does.
+        // An untitled form was never autosaved, so there is nothing on the server to
+        // validate. Report the missing title like a blocked save.
         if (string.IsNullOrWhiteSpace(form.Title))
         {
             return new PublishOutcome(PublishOutcomeKind.MissingTitle);
         }
 
-        // Local pre-publish gate — the same rules the Hub runs (ADR 0011), so an invalid form
-        // never leaves the browser and the dialog opens with no round-trip. The Hub still
-        // re-validates on the actual publish, so a race or any drift is caught there.
+        // Local gate with the same rules the Hub runs, so an invalid form never leaves the
+        // browser. The Hub re-validates on publish, catching any race or drift.
         var localDto = FormEditMapper.ToDto(form);
         if (!_publishValidator.Validate(localDto))
         {
@@ -173,18 +169,16 @@ public sealed class FormEditorSession : IAsyncDisposable
             return new PublishOutcome(PublishOutcomeKind.NeedsFixes, LocalGateResult(localDto, form), localRows);
         }
 
-        // Publish must not proceed on a stale server copy: bail if the flush can't reach the
-        // server (the header keeps its Retry affordance).
+        // Do not publish on a stale server copy. Stop if the flush cannot reach the server.
+        // The header keeps its Retry action.
         var flush = await _autosave.FlushAsync();
         if (flush is AutosaveFlushResult.Failed or AutosaveFlushResult.Blocked)
         {
             return new PublishOutcome(PublishOutcomeKind.SaveFailed);
         }
 
-        // The flush retried until its budget ran out and is still behind — publishing now would
-        // ship a version missing whatever the user typed during the flush. No round-trip; this
-        // is one transient sentence, not a validation report, so it goes in the header next to
-        // the save indicator rather than opening the (validation-failure-shaped) dialog.
+        // The flush ran out of retries and is still behind. Publishing now would drop recent
+        // edits, so show a one-line notice in the header instead of the dialog.
         if (flush is AutosaveFlushResult.Incomplete)
         {
             PublishNotice = "Some edits haven't reached the server yet. Publishing again in a moment will include them.";
@@ -199,8 +193,8 @@ public sealed class FormEditorSession : IAsyncDisposable
         try
         {
             var result = await _forms.PublishAsync(form.FormId);
-            // Best-effort inline annotation; the dialog rows come from the returned tree so they
-            // are correct even if a fork just changed the server's node ids.
+            // Best-effort inline annotation. The dialog rows come from the returned tree, so
+            // they are right even if a fork changed the server's node ids.
             FormEditMapper.ApplyIssues(form, result.Form);
 
             if (result.Published)
@@ -237,8 +231,8 @@ public sealed class FormEditorSession : IAsyncDisposable
         }
     }
 
-    // Stands in for the Hub's PublishResultDto on the local-gate path so the pre-publish
-    // dialog renders the same way it does for a 422 from the Hub.
+    // Stands in for the Hub's PublishResultDto on the local-gate path, so the pre-publish
+    // dialog renders the same as for a 422.
     private static PublishResultDto LocalGateResult(FormDto annotated, FormEditModel form) => new()
     {
         Published = false,
@@ -256,7 +250,7 @@ public sealed class FormEditorSession : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            // best-effort flush on teardown — a final unsaved edit can be lost here
+            // best-effort flush on teardown. A final unsaved edit can be lost.
             _logger?.LogDebug(ex, "Best-effort autosave flush on session teardown failed.");
         }
 
@@ -278,9 +272,8 @@ public sealed class FormEditorSession : IAsyncDisposable
         form.LastModifiedAt = result.LastModifiedAt;
         form.PublishedAt = result.PublishedAt;
 
-        // Editing a published version forks a new draft server-side with fresh node ids. Re-key
-        // the in-memory tree to those ids (content untouched) — otherwise the next save reconciles
-        // the stale published ids and collides on insert. Only on a fork.
+        // Editing a published version forks a new draft with fresh node ids. Re-key the
+        // in-memory tree to them, or the next save collides on insert.
         if (result.VersionNumber != previousVersion && !token.IsCancellationRequested)
         {
             var pageIdRemap = await _forms.ReconcileForkAsync(form, token);

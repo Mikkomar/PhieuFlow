@@ -1,6 +1,6 @@
 namespace PhieuFlow.FormBuilder.Models.Editing;
 
-/// <summary>One row of the pre-publish dialog's "problems block publishing" list, with where its jump link goes.</summary>
+/// <summary>One row of the pre-publish dialog's problem list, with its jump target.</summary>
 public sealed record PrePublishRow(string Number, string Message, string JumpLabel, JumpTarget Target)
 {
     /// <summary>Flattens the populated <c>Issues</c> tree into dialog rows, in reading order.</summary>

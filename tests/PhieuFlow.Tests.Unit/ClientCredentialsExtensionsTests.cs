@@ -9,9 +9,8 @@ using Xunit;
 namespace PhieuFlow.Tests.Unit;
 
 /// <summary>
-/// Unit coverage of <c>AddKeycloakClientCredentials</c> (ADR 0005) — the per-service scope
-/// default that replaced the two divergent compiled-in defaults, and the registrations it
-/// contributes.
+/// Unit coverage of <c>AddKeycloakClientCredentials</c>: the per-service scope default and
+/// the registrations it contributes.
 /// </summary>
 public sealed class ClientCredentialsExtensionsTests
 {

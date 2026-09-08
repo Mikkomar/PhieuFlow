@@ -56,7 +56,7 @@ public class FormResponsesSessionTests
     [Fact]
     public async Task TestLoadAsync_When_SubmissionsSpanQuestionSets_Should_UnionColumnsByOrder()
     {
-        // An older submission answered q1, q2; a newer one (a forked version) dropped q2 and
+        // An older submission answered q1 and q2. A newer forked version dropped q2 and
         // added q3 further down the form.
         var v1 = Response(DateTimeOffset.UtcNow.AddHours(-1),
             ("q1", "First", 0, "a"), ("q2", "Second", 1, "b"));

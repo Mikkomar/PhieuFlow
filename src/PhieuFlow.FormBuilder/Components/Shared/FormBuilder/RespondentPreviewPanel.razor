@@ -46,17 +46,15 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    // Tracks the last rendered Open so OnAfterRenderAsync can move focus into the drawer on a
-    // closed→open transition (Esc handling rides on that focus).
+    // Last rendered Open, so OnAfterRenderAsync can move focus into the drawer on a
+    // closed-to-open transition. The Esc handler needs that focus.
     private bool _wasOpen;
     private ElementReference _drawerRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // On a closed→open transition, pull focus into the bottom drawer so its Esc handler is
-        // armed and a keyboard user lands on the content they just opened. Harmless at ≥1100px
-        // (the drawer is display:none, FocusAsync throws, we swallow). Skipped on first render —
-        // there is no transition to react to.
+        // On a closed-to-open transition, move focus into the drawer so its Esc handler is
+        // armed. At >=1100px the drawer is hidden and FocusAsync throws, which we ignore.
         if (!firstRender && Open && !_wasOpen)
         {
             try

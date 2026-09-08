@@ -21,14 +21,13 @@ builder.Services.AddScoped<IFormRepository, FormRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IFormPublishValidator, FormPublishValidator>();
 
-// Versioning policy (ADR 0007): fork-on-publish-edit + tree reconciliation, kept as plain
-// DbContext-free logic that FormRepository orchestrates.
+// On an edit to a published version, fork a new version and reconcile the tree.
+// FormRepository drives this. No DbContext here.
 builder.Services.AddScoped<IFormTreeCloner, FormTreeCloner>();
 builder.Services.AddScoped<IFormVersionReconciler, FormVersionReconciler>();
 
-// Submission transport (ADR 0001/0009): the Aspire "rabbitmq" resource supplies the
-// connection; SubmissionConsumerService drains the form-submissions queue and persists
-// each response through SubmissionMessageHandler.
+// SubmissionConsumerService reads the form-submissions queue and persists each response
+// through SubmissionMessageHandler.
 builder.AddRabbitMQClient(connectionName: "rabbitmq");
 builder.Services.Configure<SubmissionConsumerOptions>(
     builder.Configuration.GetSection(SubmissionConsumerOptions.SectionName));
@@ -36,10 +35,8 @@ builder.Services.AddSingleton<SubmissionAnswersValidator>();
 builder.Services.AddScoped<SubmissionMessageHandler>();
 builder.Services.AddHostedService<SubmissionConsumerService>();
 
-// Service-to-service auth (ADR 0005): validate OAuth2 client-credentials tokens with
-// standard JWT bearer middleware against the IdP's OIDC metadata. Everything Keycloak-
-// specific lives in configuration (Keycloak:Authority) — swapping to Entra ID is a
-// config change, not a code change.
+// Validate OAuth2 client-credentials tokens with standard JWT bearer middleware. All
+// Keycloak-specific values are in configuration, so a move to Entra ID needs no code change.
 var authority = builder.Configuration["Keycloak:Authority"]
     ?? throw new InvalidOperationException("Keycloak:Authority is not configured.");
 
@@ -50,15 +47,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.Audience = builder.Configuration["Keycloak:Audience"] ?? "phieuflow-hub";
         options.RequireHttpsMetadata =
             builder.Configuration.GetValue("Keycloak:RequireHttpsMetadata", true);
-        // Keep raw claim names (scope, azp, sub) rather than the legacy SOAP URIs.
+        // Keep raw claim names (scope, azp, sub) instead of the legacy SOAP URIs.
         options.MapInboundClaims = false;
-        // ValidIssuer defaults to Authority; the token iss and the metadata issuer are
-        // the same because every caller reaches Keycloak through that one URL. Do not
-        // constrain token 'typ' — some Keycloak builds stamp "Bearer" not "at+jwt".
+        // ValidIssuer defaults to Authority, which every caller uses. Do not constrain the
+        // token "typ". Some Keycloak builds stamp "Bearer", not "at+jwt".
 
-        // Local orchestration only: Aspire serves Keycloak's OIDC metadata over a
-        // self-signed certificate. A real deployment leaves this unset and uses a
-        // trusted authority.
+        // Local only: Aspire serves the Keycloak metadata over a self-signed certificate.
+        // A real deployment leaves this unset.
         if (builder.Configuration.GetValue("Keycloak:DangerousAcceptAnyServerCertificate", false))
         {
             options.BackchannelHttpHandler = new HttpClientHandler
@@ -90,5 +85,5 @@ app.MapFormEndpoints();
 
 app.Run();
 
-// Exposed for WebApplicationFactory<Program> in PhieuFlow.Tests.Integration.
+// Made public for WebApplicationFactory<Program> in PhieuFlow.Tests.Integration.
 public partial class Program;

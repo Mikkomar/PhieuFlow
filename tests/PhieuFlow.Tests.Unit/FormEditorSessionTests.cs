@@ -218,8 +218,8 @@ public class FormEditorSessionTests
         {
             OnGetById = _ => FormWith(id, "Survey"),
             SaveResult = StateDto(version: 1),
-            // Every save is immediately followed by a fresh edit, so the flush can never catch up
-            // — mirrors AutosaveControllerTests.TestFlushAsync_When_EditsOutrunEveryRetry_Should_ReportIncomplete.
+            // Every save is followed by a fresh edit, so the flush never catches up. Mirrors
+            // AutosaveControllerTests.TestFlushAsync_When_EditsOutrunEveryRetry_Should_ReportIncomplete.
             OnSave = () => session!.NotifyEdited(),
         };
         await using var s = new FormEditorSession(forms);
@@ -390,9 +390,8 @@ public class FormEditorSessionTests
         forms.PublishCalls.Should().Be(1);
     }
 
-    // A publishable tree: titled, one page, one question with text. The local pre-publish gate
-    // (FormPublishValidator, run in PublishAsync) would flag anything less and short-circuit
-    // before the fake Hub is reached.
+    // A publishable tree: titled, one page, one question with text. Anything less trips the
+    // local pre-publish gate before the fake Hub is reached.
     private static FormEditModel FormWith(Guid id, string title)
     {
         var form = new FormEditModel { FormId = id, Title = title, VersionNumber = 1 };

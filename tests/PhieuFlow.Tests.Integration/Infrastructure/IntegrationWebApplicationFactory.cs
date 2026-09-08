@@ -13,22 +13,9 @@ using RabbitMQ.Client;
 namespace PhieuFlow.Tests.Integration.Infrastructure;
 
 /// <summary>
-/// Hosts the real Hub in-process against the migrated SQL Server database
-/// <see cref="SqlServerFixture"/> stood up. Two swaps:
-///
-/// <list type="bullet">
-/// <item>Authentication is replaced with <see cref="TestAuthHandler"/> — every request is
-/// authenticated with all scopes, so the endpoints and their persistence are what is under
-/// test, not token validation.</item>
-/// <item><see cref="HubDbContext"/> is re-registered onto a single shared
-/// <see cref="SqlConnection"/> instance (EF opens/closes it per operation). One physical
-/// connection means a per-test <see cref="System.Transactions.TransactionScope"/> stays a
-/// lightweight transaction and rolls back without MSDTC — which is absent on Linux/CI.</item>
-/// <item><c>TestServer.PreserveExecutionContext</c> is turned on so the test's ambient
-/// <see cref="System.Transactions.Transaction.Current"/> flows into the in-process request
-/// pipeline — without it TestHost suppresses the execution context and the shared
-/// connection never enlists, so the server's writes commit and leak across tests.</item>
-/// </list>
+/// Hosts the Hub in-process against the migrated SQL Server database. Authentication is
+/// <see cref="TestAuthHandler"/> (all scopes); <see cref="HubDbContext"/> shares one
+/// connection so a per-test <c>TransactionScope</c> rolls back without MSDTC.
 /// </summary>
 public sealed class IntegrationWebApplicationFactory(string connectionString) : WebApplicationFactory<Program>
 {
@@ -36,8 +23,8 @@ public sealed class IntegrationWebApplicationFactory(string connectionString) : 
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // AddSqlServerDbContext reads this at registration time; the provider is re-pinned
-        // to the shared connection below, so the value only has to be present and valid.
+        // AddSqlServerDbContext reads this at registration. The provider is re-pinned to the
+        // shared connection below, so the value only has to be present and valid.
         builder.UseSetting("ConnectionStrings:HubDatabase", connectionString);
 
         builder.ConfigureTestServices(services =>
@@ -47,14 +34,12 @@ public sealed class IntegrationWebApplicationFactory(string connectionString) : 
             RemoveHubDbContext(services);
             services.AddDbContext<HubDbContext>(options => options.UseSqlServer(_connection));
 
-            // This tier's AppHost has no broker. Drop the RabbitMQ consumer and its
-            // connection so host startup does not try to dial one; SubmissionConsumeTests
-            // drives SubmissionMessageHandler directly, which needs neither.
+            // This tier has no broker. Drop the RabbitMQ consumer so host startup does not
+            // dial one. SubmissionConsumeTests drives SubmissionMessageHandler directly.
             RemoveSubmissionConsumer(services);
 
-            // Last AddAuthentication wins for the default scheme, so every RequireAuthorization
-            // policy authenticates against TestAuthHandler. The Hub's JwtBearer registration
-            // stays wired but is never exercised.
+            // Last AddAuthentication wins the default scheme, so every RequireAuthorization
+            // policy runs against TestAuthHandler. The Hub's JwtBearer stays wired but unused.
             services.AddAuthentication(TestAuthHandler.SchemeName)
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
         });

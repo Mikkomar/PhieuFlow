@@ -107,7 +107,7 @@ else
     private bool _submitted;
     private readonly Dictionary<Guid, object?> _answers = [];
 
-    // Populated by SubmissionAnswersValidator on a failed Submit / Continue; keyed by
+    // Filled by SubmissionAnswersValidator on a failed Submit or Continue, keyed by
     // question id. Nothing is published while this is non-empty.
     private Dictionary<Guid, string> _errors = [];
 
@@ -137,7 +137,7 @@ else
         }
         catch (HttpRequestException ex)
         {
-            // Hub down / 5xx / network drop — leave _form null so FormUnavailable renders.
+            // Hub down, 5xx, or network drop. Leave _form null so FormUnavailable renders.
             Logger.LogError(ex, "Loading published form {FormId} for filling failed.", FormId);
             _form = null;
         }
@@ -159,8 +159,8 @@ else
             return;
         }
 
-        // Gate page navigation on the current page's answers only; later pages are not
-        // yet in view, so their questions must not block "Continue".
+        // Check only the current page's answers. Later pages are not in view yet, so their
+        // questions must not block "Continue".
         var pageQuestionIds = ActivePage.Questions.Select(q => q.Id).ToHashSet();
         var pageErrors = SubmissionAnswersValidator.Validate(_form!, BuildAnswers())
             .Where(pair => pageQuestionIds.Contains(pair.Key))
@@ -180,8 +180,8 @@ else
     {
         _answers[questionId] = value;
 
-        // Drop this question's error the moment the respondent edits it, mirroring the
-        // builder's IHasIssues.Edit behaviour; it is re-checked on the next Continue / Submit.
+        // Clear this question's error as soon as the respondent edits it, like the builder's
+        // IHasIssues.Edit. It is re-checked on the next Continue or Submit.
         _errors.Remove(questionId);
     }
 
@@ -206,9 +206,8 @@ else
             return;
         }
 
-        // Nothing is published until every answer clears its question's constraints; the
-        // async RabbitMQ hop (ADR 0009) means the Hub can only dead-letter a bad submission
-        // after the fact, so the client is the first place to enforce them.
+        // Publish only when every answer passes its constraints. The queue is one-way, so
+        // the Hub can only dead-letter a bad submission after the fact.
         var payload = BuildAnswers();
         var errors = SubmissionAnswersValidator.Validate(_form, payload);
         if (errors.Count > 0)
@@ -232,8 +231,8 @@ else
         }
         catch (Exception ex)
         {
-            // RabbitMqSubmissionPublisher rethrows on a broker/channel/serialization failure;
-            // the submission is not recorded and the respondent stays on the last page.
+            // RabbitMqSubmissionPublisher rethrows on a broker or serialization failure. The
+            // submission is not recorded and the respondent stays on the last page.
             Logger.LogError(ex, "Submission publish failed for form {FormId}.", FormId);
         }
         finally
@@ -253,8 +252,8 @@ else
 
             switch (question)
             {
-                // Must precede the ChoiceQuestionDto cases — it also derives from it.
-                // One row per chosen option; no rows when nothing is picked.
+                // Must come before the ChoiceQuestionDto cases, since it also derives from it.
+                // One row per chosen option, none when nothing is picked.
                 case CheckBoxGroupQuestionDto:
                     foreach (var optionId in value as IReadOnlySet<Guid> ?? new HashSet<Guid>())
                     {

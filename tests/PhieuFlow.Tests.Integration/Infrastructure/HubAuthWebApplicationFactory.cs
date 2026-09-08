@@ -15,9 +15,8 @@ namespace PhieuFlow.Tests.Integration.Infrastructure;
 
 /// <summary>
 /// Hosts the real Hub in-process with two swaps: JWT bearer validates
-/// <see cref="TestJwt"/>-signed tokens offline (no Keycloak, no network), and the
-/// SQL Server <see cref="HubDbContext"/> is replaced with a private in-memory SQLite
-/// database so the scope-authorized write path can round-trip without a container.
+/// <see cref="TestJwt"/>-signed tokens offline, and <see cref="HubDbContext"/> runs on a
+/// private in-memory SQLite database so the write path round-trips without a container.
 /// </summary>
 public sealed class HubAuthWebApplicationFactory : WebApplicationFactory<Program>
 {
@@ -31,8 +30,8 @@ public sealed class HubAuthWebApplicationFactory : WebApplicationFactory<Program
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // Aspire's AddSqlServerDbContext reads this at registration; the value is never
-        // used because the provider is swapped below.
+        // AddSqlServerDbContext reads this at registration. The value is unused because the
+        // provider is swapped below.
         builder.UseSetting("ConnectionStrings:HubDatabase", "Server=unused;Database=unused");
 
         builder.ConfigureTestServices(services =>
@@ -40,7 +39,7 @@ public sealed class HubAuthWebApplicationFactory : WebApplicationFactory<Program
             RemoveHubDbContext(services);
             services.AddDbContext<HubDbContext>(options => options.UseSqlite(_connection));
 
-            // No broker in this tier — drop the RabbitMQ consumer so host startup does not
+            // No broker in this tier. Drop the RabbitMQ consumer so host startup does not
             // dial one. This tier only exercises the auth boundary.
             RemoveSubmissionConsumer(services);
 
@@ -99,8 +98,8 @@ public sealed class HubAuthWebApplicationFactory : WebApplicationFactory<Program
     {
         services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
         {
-            // No Authority / MetadataAddress: the post-configure step then skips building
-            // a ConfigurationManager and the handler validates against options.Configuration.
+            // No Authority or MetadataAddress: the post-configure step skips building a
+            // ConfigurationManager and the handler validates against options.Configuration.
             options.Authority = null;
             options.RequireHttpsMetadata = false;
 

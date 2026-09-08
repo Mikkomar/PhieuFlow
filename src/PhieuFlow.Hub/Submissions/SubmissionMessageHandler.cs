@@ -9,11 +9,9 @@ using PhieuFlow.Persistence.UnitOfWork;
 namespace PhieuFlow.Hub.Submissions;
 
 /// <summary>
-/// Persists one completed response (ADR 0001/0009). Transport-independent — it takes a
-/// deserialized <see cref="FormSubmissionRequest"/> and the publisher's message id, and
-/// writes the <see cref="FormSubmission"/>, its answers, and the inbox row in a single
-/// transaction. Kept free of RabbitMQ types so it can be exercised against a real database
-/// with no broker.
+/// Persists one completed response: the <see cref="FormSubmission"/>, its answers, and the
+/// inbox row in one transaction. Takes a deserialized <see cref="FormSubmissionRequest"/>
+/// and the message id, with no RabbitMQ types, so tests need no broker.
 /// </summary>
 public sealed class SubmissionMessageHandler(
     HubDbContext db,
@@ -26,10 +24,8 @@ public sealed class SubmissionMessageHandler(
         Guid messageId,
         CancellationToken cancellationToken = default)
     {
-        // AddSqlServerDbContext turns on EnableRetryOnFailure, so the read(s) + the single
-        // SaveChanges run as one unit through the execution strategy (same pattern as
-        // MigrationService.Worker). ChangeTracker.Clear keeps a retried attempt from
-        // re-adding the graph from the previous try.
+        // EnableRetryOnFailure is on, so the reads and SaveChanges run as one unit through
+        // the execution strategy. ChangeTracker.Clear drops the graph from a failed attempt.
         var strategy = db.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
@@ -41,9 +37,8 @@ public sealed class SubmissionMessageHandler(
                 return SubmissionProcessingResult.DuplicateIgnored;
             }
 
-            // Load the exact published version this response was filled against. A miss means
-            // the message names a form/version the Hub has never published — it can never
-            // succeed. A published version is immutable, so this is a stable target.
+            // Load the published version this response was filled against. A miss means an
+            // unknown form or version, which can never succeed.
             var version = await unitOfWork.Forms.GetPublishedVersionAsync(
                 request.FormId, request.FormVersionNumber, cancellationToken);
 
@@ -55,9 +50,8 @@ public sealed class SubmissionMessageHandler(
                 return SubmissionProcessingResult.Poison;
             }
 
-            // Re-validate against the published form (ADR 0009). The client already checked,
-            // but the RabbitMQ hop is one-way, so a stale or crafted message arrives here
-            // unchecked — same validator the FormFiller runs before it publishes.
+            // Re-validate against the published form. The client checks too, but the one-way
+            // queue lets a stale or crafted message through. Same validator as the FormFiller.
             var validationErrors = validator.Validate(FormResponseMapper.ToPublishedDto(version), request.Answers);
             if (validationErrors.Count > 0)
             {
@@ -105,8 +99,8 @@ public sealed class SubmissionMessageHandler(
             }
             catch (DbUpdateException ex) when (IsUniqueViolation(ex))
             {
-                // A concurrent delivery of the same message id won the race on the inbox
-                // primary key. That delivery persisted the submission; this one is a no-op.
+                // A concurrent delivery won the race on the inbox key and persisted this
+                // submission. This one is a no-op.
                 logger.LogInformation(
                     "Submission message {MessageId} was persisted concurrently; ignoring.", messageId);
                 return SubmissionProcessingResult.DuplicateIgnored;

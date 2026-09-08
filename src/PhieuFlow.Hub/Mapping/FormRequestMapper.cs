@@ -5,7 +5,7 @@ namespace PhieuFlow.Hub.Mapping;
 
 /// <summary>
 /// Maps an incoming <see cref="FormDto"/> onto a fresh <see cref="FormVersion"/> entity.
-/// Status is intentionally not mapped inbound — the server owns it.
+/// It does not map Status inbound. The server owns Status.
 /// </summary>
 internal static class FormRequestMapper
 {
@@ -13,16 +13,14 @@ internal static class FormRequestMapper
     {
         Id = Guid.NewGuid(),
         FormId = formId,
-        // On PUT these carry the client's *expected* version/revision, which SaveAsync's
-        // optimistic-concurrency check reads. They are ignored for the persisted row: the
-        // Draft branch mutates the tracked current version, the fork branch mints its own.
+        // On PUT these hold the client's expected version and revision for the SaveAsync
+        // concurrency check. They are not persisted.
         VersionNumber = dto.VersionNumber,
         Revision = dto.Revision,
         Title = dto.Title,
         Description = dto.Description,
-        // TODO ADR-0005: the calling client id is now available via User.FindFirst("azp").
-        // End-user identity / per-user ownership is out of ADR 0005 scope, so this stays
-        // free text from the DTO for now.
+        // TODO: the calling client id is now available via User.FindFirst("azp"). Per-user
+        // ownership is out of scope for now, so this stays free text from the DTO.
         LastModifiedBy = dto.LastModifiedBy,
         Pages = dto.Pages.Select((p, index) => ToEntity(p, formId, index)).ToList(),
     };

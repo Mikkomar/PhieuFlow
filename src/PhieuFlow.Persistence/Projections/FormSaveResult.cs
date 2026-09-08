@@ -3,15 +3,15 @@ namespace PhieuFlow.Persistence.Projections;
 /// <summary>The three outcomes of <see cref="Repositories.IFormRepository.SaveAsync"/>.</summary>
 public enum FormSaveStatus
 {
-    /// <summary>The incoming content was applied (or forked); <see cref="FormSaveResult.State"/> is set.</summary>
+    /// <summary>The incoming content was applied or forked. <see cref="FormSaveResult.State"/> is set.</summary>
     Saved,
 
-    /// <summary>No form has that id — the caller returns 404. Creation is <c>POST /forms</c> only.</summary>
+    /// <summary>No form has that id. The caller returns 404. Creation is <c>POST /forms</c> only.</summary>
     FormNotFound,
 
     /// <summary>
-    /// The client saved against a version/revision the server no longer holds (another session
-    /// advanced the form) — the caller returns 409 and writes nothing.
+    /// The client saved against a version or revision the server no longer holds. The caller
+    /// returns 409 and writes nothing.
     /// </summary>
     RevisionMismatch,
 }

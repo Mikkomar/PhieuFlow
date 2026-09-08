@@ -12,11 +12,8 @@ namespace PhieuFlow.Tests.Integration.Infrastructure;
 
 /// <summary>
 /// The one expensive shared resource for the integration-sql tier: a real SQL Server
-/// container plus the production migration chain, stood up once for the collection by
-/// <see cref="DistributedApplicationTestingBuilder"/> driving
-/// <c>PhieuFlow.Tests.IntegrationAppHost</c> (only <c>sql</c> and the <c>migrations</c>
-/// worker — no Keycloak, no Hub container). The Hub itself is hosted in-process by
-/// <see cref="IntegrationWebApplicationFactory"/> against the connection string here.
+/// container plus the migration chain, stood up once via <c>PhieuFlow.Tests.IntegrationAppHost</c>
+/// (only <c>sql</c> and <c>migrations</c>). The Hub runs in-process against this connection.
 /// </summary>
 public sealed class SqlServerFixture : IAsyncLifetime
 {
@@ -59,9 +56,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
             ?? throw new InvalidOperationException("Aspire returned no connection string for HubDatabase.");
 
         Hub = new IntegrationWebApplicationFactory(ConnectionString);
-        // Building the host now surfaces a bad configuration as a fixture failure, not a
-        // first-test failure; PreserveExecutionContext lets the per-test TransactionScope
-        // flow into the in-process pipeline (belt-and-braces with the options config).
+        // Build the host now so a bad configuration fails the fixture, not the first test.
+        // PreserveExecutionContext lets the per-test TransactionScope flow into the pipeline.
         Hub.Server.PreserveExecutionContext = true;
     }
 
@@ -79,19 +75,16 @@ public sealed class SqlServerFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// A throwaway context on a pooled connection (not the pinned one in
-    /// <see cref="IntegrationWebApplicationFactory"/>). Use outside any ambient transaction —
-    /// for the migration guard test and <see cref="ResetAsync"/>.
+    /// A throwaway context on a pooled connection, not the pinned one in
+    /// <see cref="IntegrationWebApplicationFactory"/>. Use outside any ambient transaction.
     /// </summary>
     internal HubDbContext CreateDbContext() =>
         new(new DbContextOptionsBuilder<HubDbContext>().UseSqlServer(ConnectionString).Options);
 
     /// <summary>
-    /// Deletes all form data. Not the per-test isolation mechanism — that is the
-    /// <see cref="System.Transactions.TransactionScope"/> in <see cref="IntegrationTestBase"/> —
-    /// but an opt-out for a test that deliberately commits and must clean up after itself.
-    /// <c>Forms</c> cascades versions → pages → questions → options; submissions are
-    /// <c>Restrict</c> and must go first.
+    /// Deletes all form data. Not the per-test isolation mechanism (that is the
+    /// <c>TransactionScope</c> in <see cref="IntegrationTestBase"/>), but a cleanup for a
+    /// test that deliberately commits. Submissions are <c>Restrict</c>, so delete them first.
     /// </summary>
     public async Task ResetAsync()
     {

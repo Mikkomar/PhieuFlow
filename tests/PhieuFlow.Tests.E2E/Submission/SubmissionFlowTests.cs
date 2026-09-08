@@ -10,15 +10,9 @@ using Xunit.Abstractions;
 namespace PhieuFlow.Tests.E2E.Submission;
 
 /// <summary>
-/// The ADR 0006 primary scenario and its variants: a form is built and published in one
-/// browser context, filled and submitted in another, and the hub is asserted to have
-/// persisted the submission across the async RabbitMQ boundary (ADR 0001).
-///
-/// The form-filler publishes to the <c>form-submissions</c> queue (ADR 0008) and the Hub
-/// consumer now drains it and persists (ADR 0009); every test here stays skipped until the
-/// <c>GET /forms/{id}/submissions</c> endpoint exists to read the result back. The bodies
-/// are written against the intended contract so un-skipping is the only change needed;
-/// endpoint shapes with no DTO yet are read as <see cref="JsonElement"/>.
+/// The primary submission scenario and its variants: a form is built and published in one
+/// browser context, filled in another, and the hub is asserted to have persisted the
+/// submission. Skipped until <c>GET /forms/{id}/submissions</c> exists to read it back.
 /// </summary>
 public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelper output)
     : E2ETestBase(fixture, output)
@@ -30,7 +24,7 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
     [Trait("Category", "Future")]
     public async Task TestSubmit_When_AllQuestionTypesAnswered_Should_PersistSubmissionToHub()
     {
-        // Context A — build + publish a form covering every question type.
+        // Context A: build and publish a form covering every question type.
         var builder = new FormBuilderPage(Page);
         var title = $"Submit-all-types {Guid.NewGuid():N}";
         await GotoFormBuilderAsync("/forms/new");
@@ -43,7 +37,7 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
         await ClickPublishAsync();
         var id = await GetFormIdByTitleAsync(title);
 
-        // Context B — the respondent fills and submits.
+        // Context B: the respondent fills and submits.
         var filler = await Context.NewPageAsync();
         await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
         await filler.GetByLabel("Free text").FillAsync("Some prose");
@@ -52,7 +46,7 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
         await filler.GetByRole(AriaRole.Button, new() { Name = "Submit" }).ClickAsync();
         await Assertions.Expect(filler.GetByText("received")).ToBeVisibleAsync();
 
-        // Hub — the submission arrives after the RabbitMQ round-trip.
+        // Hub: the submission arrives after the RabbitMQ round-trip.
         var submission = await PollForFirstSubmissionAsync(id);
         var answers = submission.GetProperty("answers").EnumerateArray()
             .ToDictionary(a => a.GetProperty("questionText").GetString()!, a => a.GetProperty("value").GetString());
@@ -116,9 +110,8 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
     [Trait("Category", "Future")]
     public async Task TestSubmit_When_MessageDeliveredTwice_Should_PersistExactlyOneSubmission()
     {
-        // Once the submission publish path exists, the inbox table (ADR 0001) must make a
-        // redelivered message a no-op. Simulated by publishing the same message id twice
-        // onto the submissions queue and asserting a single persisted row.
+        // The inbox table must make a redelivered message a no-op. Publish the same message
+        // id twice onto the queue and assert a single persisted row.
         var id = await BuildAndPublishSimpleFormAsync();
         var messageId = Guid.NewGuid();
 
@@ -136,9 +129,8 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
     {
         var id = await BuildAndPublishSimpleFormAsync();
 
-        // Intent: stop the hub's submission consumer, submit, restart it, and assert the
-        // message is redelivered and persisted rather than lost (nack / delivery-limit,
-        // ADR 0001). Requires a test hook to pause the consumer.
+        // Intent: stop the consumer, submit, restart it, and assert the message is
+        // redelivered and persisted, not lost. Needs a test hook to pause the consumer.
         await PublishSubmissionMessageAsync(id, Guid.NewGuid());
         await Task.Delay(TimeSpan.FromSeconds(5));
 
@@ -191,9 +183,8 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
 
     private async Task PublishSubmissionMessageAsync(Guid formId, Guid messageId)
     {
-        // Placeholder for driving the submissions queue directly (or a future
-        // POST /forms/{id}/submissions test endpoint). Kept as an HTTP call so the test
-        // compiles; the real transport is RabbitMQ.
+        // Placeholder for driving the queue directly or a future test endpoint. An HTTP
+        // call so the test compiles. The real transport is RabbitMQ.
         using var client = Fixture.CreateHubClient();
         await client.PostAsJsonAsync($"/forms/{formId}/submissions", new { messageId, answers = Array.Empty<object>() });
     }

@@ -95,7 +95,7 @@ public sealed class FormPublishGateFlowTests(AppHostFixture fixture, ITestOutput
 
         var id = await GetFormIdByTitleAsync(title);
 
-        // First edit after publish forks v2; then add a dropdown with a duplicate label so
+        // The first edit after publish forks v2. Add a dropdown with a duplicate label so
         // the next publish fails validation.
         await builder.AddQuestionAsync("Dropdown", "Pick one");
         await builder.SetOptionsAsync("Same", "Same");

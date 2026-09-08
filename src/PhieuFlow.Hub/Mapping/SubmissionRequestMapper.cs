@@ -4,11 +4,9 @@ using PhieuFlow.Hub.Contracts.Submissions;
 namespace PhieuFlow.Hub.Mapping;
 
 /// <summary>
-/// Maps an inbound <see cref="SubmissionAnswerDto"/> onto its <see cref="SubmissionAnswer"/>
-/// entity. The DTO hierarchy mirrors the entity hierarchy 1:1, so this is a straight type
-/// switch — the reverse of the form-filler's <c>FillPage.BuildAnswers</c>. A CheckBoxGroup
-/// selection already arrives as one <see cref="OptionAnswerDto"/> per chosen option, so no
-/// per-question-type fan-out is needed here.
+/// Type switch from an inbound <see cref="SubmissionAnswerDto"/> to its matching
+/// <see cref="SubmissionAnswer"/>. A CheckBoxGroup selection arrives as one
+/// <see cref="OptionAnswerDto"/> per chosen option.
 /// </summary>
 internal static class SubmissionRequestMapper
 {

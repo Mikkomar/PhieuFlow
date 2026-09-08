@@ -9,9 +9,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Unit;
 
 /// <summary>
-/// Unit coverage of <see cref="ClientCredentialsTokenProvider"/> (ADR 0005) — the
-/// process-wide token cache, refresh-skew expiry, and single-flight gate — with a stub
-/// Keycloak and a hand-driven clock, no container.
+/// Unit coverage of <see cref="ClientCredentialsTokenProvider"/>: the process-wide token
+/// cache, refresh-skew expiry, and single-flight gate, with a stub Keycloak and a
+/// hand-driven clock.
 /// </summary>
 public sealed class ClientCredentialsTokenProviderTests
 {
@@ -69,7 +69,7 @@ public sealed class ClientCredentialsTokenProviderTests
     [Fact]
     public async Task TestGetAsync_When_ManyCallersRaceOnAColdCache_Should_IssueOneTokenRequest()
     {
-        // A slow responder widens the window in which callers can pile up on the gate.
+        // A slow responder widens the window for callers to queue on the gate.
         var keycloak = new StubHttpMessageHandler().Respond(async (_, ct) =>
         {
             await Task.Delay(25, ct);

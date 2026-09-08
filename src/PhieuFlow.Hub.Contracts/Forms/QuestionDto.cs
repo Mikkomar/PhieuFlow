@@ -17,7 +17,7 @@ public abstract class QuestionDto
     public required string Text { get; set; }
     public required bool IsRequired { get; set; }
 
-    /// <summary>Publish-blocking problems with this question. Populated by the Hub validator.</summary>
+    /// <summary>Publish-blocking problems with this question. The Hub validator fills this list.</summary>
     public List<ValidationIssueDto> Issues { get; set; } = [];
 }
 

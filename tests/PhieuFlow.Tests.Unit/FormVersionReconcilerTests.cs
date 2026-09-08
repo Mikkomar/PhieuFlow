@@ -7,9 +7,8 @@ using static PhieuFlow.Tests.Unit.EntityTreeBuilder;
 namespace PhieuFlow.Tests.Unit;
 
 /// <summary>
-/// <see cref="FormVersionReconciler"/> in isolation (ADR 0007): the fork-on-publish-edit
-/// decision and the incoming-vs-current tree diff, with no database. The EF-integration half
-/// (that these graph edits flush as the right INSERT / cascade DELETE / UPDATE) stays in
+/// <see cref="FormVersionReconciler"/> in isolation: the fork-on-publish-edit decision and
+/// the incoming-vs-current tree diff, with no database. The EF-integration half is in
 /// <c>PhieuFlow.Tests.Integration.FormReconcileTests</c>.
 /// </summary>
 public class FormVersionReconcilerTests

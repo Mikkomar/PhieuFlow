@@ -102,7 +102,7 @@
     [Parameter, EditorRequired]
     public SaveState SaveState { get; set; }
 
-    /// <summary>True while a publish round-trip is in flight — freezes the title and preview controls.</summary>
+    /// <summary>True while a publish round-trip is in flight. Freezes the title and preview controls.</summary>
     [Parameter]
     public bool Disabled { get; set; }
 
@@ -139,7 +139,7 @@
     [Parameter]
     public EventCallback OnRetrySave { get; set; }
 
-    /// <summary>Invoked from the conflict state's "Reload" button — re-fetches the form from the server.</summary>
+    /// <summary>Called by the conflict state's "Reload" button. Re-fetches the form from the server.</summary>
     [Parameter]
     public EventCallback OnReload { get; set; }
 

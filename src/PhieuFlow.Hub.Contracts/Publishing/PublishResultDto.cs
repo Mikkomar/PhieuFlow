@@ -4,15 +4,15 @@ using PhieuFlow.Hub.Contracts.Validation;
 namespace PhieuFlow.Hub.Contracts.Publishing;
 
 /// <summary>
-/// The outcome of a publish attempt. On failure (<see cref="Published"/> is <c>false</c>,
-/// HTTP 422) <see cref="Form"/> is the submitted tree annotated with the problems that block
-/// the publish. On success the state fields carry the server's published version.
+/// The outcome of a publish attempt. On failure (<see cref="Published"/> false, HTTP 422),
+/// <see cref="Form"/> is the submitted tree annotated with the blocking problems. On
+/// success the state fields carry the published version.
 /// </summary>
 public class PublishResultDto
 {
     public required bool Published { get; set; }
 
-    /// <summary>The form tree, annotated with <see cref="ValidationIssueDto"/>s when the publish was blocked.</summary>
+    /// <summary>The form tree, annotated with <see cref="ValidationIssueDto"/>s when a publish is blocked.</summary>
     public required FormDto Form { get; set; }
 
     public required int VersionNumber { get; set; }

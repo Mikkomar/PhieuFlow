@@ -5,7 +5,7 @@ using PhieuFlow.Hub.Contracts.Publishing;
 namespace PhieuFlow.Hub.Mapping;
 
 /// <summary>
-/// Maps persisted form entities onto the wire <see cref="FormDto"/> tree returned to callers.
+/// Maps persisted form entities onto the wire <see cref="FormDto"/> tree for callers.
 /// Callers set <see cref="FormDto.LatestPublishedVersionNumber"/> after mapping.
 /// </summary>
 internal static class FormResponseMapper

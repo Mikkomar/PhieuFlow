@@ -9,9 +9,8 @@ using Xunit.Abstractions;
 namespace PhieuFlow.Tests.E2E.Builder;
 
 /// <summary>
-/// End-to-end coverage of the form-builder UI driving the real hub REST API
-/// (ADR 0001 synchronous form management). Every test builds through the browser and
-/// asserts the persisted result over <c>GET /forms</c>.
+/// End-to-end coverage of the form-builder UI driving the real hub REST API. Every test
+/// builds through the browser and asserts the persisted result over <c>GET /forms</c>.
 /// </summary>
 public sealed class FormBuilderFlowTests(AppHostFixture fixture, ITestOutputHelper output)
     : E2ETestBase(fixture, output)
@@ -105,8 +104,8 @@ public sealed class FormBuilderFlowTests(AppHostFixture fixture, ITestOutputHelp
 
         await GotoFormBuilderAsync("/forms/new");
         await builder.SetTitleAsync(title);
-        // Distinct question TYPES so the assertion identifies each row without depending
-        // on question text (which the builder can drop on rapid automated entry).
+        // Distinct question types so the assertion identifies each row without relying on
+        // question text, which the builder can drop on rapid automated entry.
         await builder.AddQuestionAsync("Text area", "First");
         await builder.AddQuestionAsync("Number", "Second");
         await builder.AddQuestionAsync("Calendar", "Third");
@@ -135,7 +134,7 @@ public sealed class FormBuilderFlowTests(AppHostFixture fixture, ITestOutputHelp
         await builder.AddQuestionAsync("Number", "Delete me");
         await WaitForSavedAsync();
 
-        // The just-added Number question is expanded; delete it.
+        // The just-added Number question is expanded. Delete it.
         await builder.DeleteExpandedQuestionAsync();
         await WaitForSavedAsync();
 
@@ -177,8 +176,8 @@ public sealed class FormBuilderFlowTests(AppHostFixture fixture, ITestOutputHelp
         var id = Guid.Parse(new Uri(Page.Url).Segments[^1]);
 
         await builder.AddQuestionAsync("Text area", "Question without a form title");
-        // Focus then blur so Blazor's @onblur actually fires (a bare .blur() on an
-        // unfocused element is a no-op).
+        // Focus then blur so Blazor's @onblur fires. A bare .blur() on an unfocused
+        // element is a no-op.
         await builder.TitleInput.FocusAsync();
         await builder.TitleInput.BlurAsync();
 

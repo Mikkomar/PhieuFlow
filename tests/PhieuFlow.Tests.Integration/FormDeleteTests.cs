@@ -53,9 +53,8 @@ public sealed class FormDeleteTests(SqlServerFixture fixture) : IntegrationTestB
 
         var response = await client.DeleteAsync($"/forms/{id}");
 
-        // FormSubmission FKs are DeleteBehavior.Restrict — a deliberate guard against destroying
-        // response data. The endpoint pre-checks and refuses cleanly instead of letting the FK
-        // surface as a bare 500.
+        // FormSubmission FKs are Restrict, guarding response data. The endpoint pre-checks
+        // and refuses cleanly instead of letting the FK surface as a bare 500.
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
         (await client.GetAsync($"/forms/{id}")).StatusCode.Should().Be(HttpStatusCode.OK, "nothing was deleted");

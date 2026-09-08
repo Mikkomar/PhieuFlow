@@ -10,16 +10,14 @@ using Xunit;
 namespace PhieuFlow.Tests.E2E.Infrastructure;
 
 /// <summary>
-/// The one expensive shared resource for the whole E2E assembly (ADR 0006: stand up the
-/// application topology once per test-run category). Starts the full AppHost graph — SQL,
-/// migrations, seed, Keycloak, hub, form-builder — via
-/// <see cref="DistributedApplicationTestingBuilder"/>, then boots a single headless
-/// Chromium that every test opens its own context against.
+/// The one expensive shared resource for the whole E2E assembly. Starts the full AppHost
+/// graph (SQL, migrations, seed, Keycloak, hub, form-builder) via
+/// <see cref="DistributedApplicationTestingBuilder"/>, then one headless Chromium.
 /// </summary>
 public sealed class AppHostFixture : IAsyncLifetime
 {
-    // Keycloak cold start (image pull on first run, JVM boot, realm import) stacks on top
-    // of the already-slow SQL Server container.
+    // Keycloak cold start (image pull, JVM boot, realm import) adds to the already-slow
+    // SQL Server container.
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromMinutes(10);
 
     // Matches the realm imported by the AppHost (src/PhieuFlow.AppHost/realms).
@@ -37,25 +35,25 @@ public sealed class AppHostFixture : IAsyncLifetime
     /// <summary>Base URL of the running form-builder UI (Blazor Server).</summary>
     public Uri FormBuilderBaseUrl { get; private set; } = null!;
 
-    /// <summary>Base URL of the Keycloak identity provider (ADR 0005).</summary>
+    /// <summary>Base URL of the Keycloak identity provider.</summary>
     public Uri KeycloakBaseUrl { get; private set; } = null!;
 
     /// <summary>
-    /// Base URL of the form-filler UI. The resource does not exist yet (ADR 0001/0006);
-    /// the skipped submission specs read this and will resolve once it is added to AppHost.
+    /// Base URL of the form-filler UI. The resource does not exist yet. The skipped
+    /// submission specs read this and resolve once it is added to AppHost.
     /// </summary>
     public Uri? FormFillerBaseUrl { get; private set; }
 
     /// <summary>
-    /// Bare HTTP client pointed at the hub REST API — no bearer token. Use this only to
-    /// assert the hub rejects unauthenticated callers; everything else needs
+    /// Bare HTTP client for the hub REST API, no bearer token. Use it only to assert the
+    /// hub rejects unauthenticated callers. Everything else needs
     /// <see cref="CreateAuthorizedHubClientAsync"/>.
     /// </summary>
     public HttpClient CreateHubClient() => _app.CreateHttpClient("hub");
 
     /// <summary>
-    /// HTTP client pointed at the hub REST API carrying a client-credentials bearer token
-    /// for the form-builder client. Defaults to <c>forms:read</c> when no scope is given.
+    /// HTTP client for the hub REST API with a client-credentials bearer token for the
+    /// form-builder client. Defaults to <c>forms:read</c> when no scope is given.
     /// </summary>
     public async Task<HttpClient> CreateAuthorizedHubClientAsync(params string[] scopes)
     {
@@ -74,9 +72,8 @@ public sealed class AppHostFixture : IAsyncLifetime
         GetServiceTokenAsync(FormBuilderClientId, FormBuilderClientSecret, scopes);
 
     /// <summary>
-    /// HTTP client pointed at the hub REST API carrying a client-credentials bearer token
-    /// for the form-filler client. Defaults to its only scope, <c>published-forms:read</c>,
-    /// when no scope is given.
+    /// HTTP client for the hub REST API with a client-credentials bearer token for the
+    /// form-filler client. Defaults to its only scope, <c>published-forms:read</c>.
     /// </summary>
     public async Task<HttpClient> CreateFormFillerAuthorizedHubClientAsync(params string[] scopes)
     {
@@ -164,7 +161,7 @@ public sealed class AppHostFixture : IAsyncLifetime
         }
         catch (Exception)
         {
-            // Resource not in the topology yet — expected until the form-filler ships.
+            // Resource not in the topology yet, expected until the form-filler ships.
             return null;
         }
     }

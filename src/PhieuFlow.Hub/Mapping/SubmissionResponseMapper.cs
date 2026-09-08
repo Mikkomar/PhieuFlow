@@ -3,7 +3,7 @@ using PhieuFlow.Persistence.Projections;
 
 namespace PhieuFlow.Hub.Mapping;
 
-/// <summary>Persistence read model -> wire DTO for the FormBuilder Responses view.</summary>
+/// <summary>Maps the persistence read model to the wire DTO for the FormBuilder Responses view.</summary>
 public static class SubmissionResponseMapper
 {
     public static SubmissionBatchResponse ToDto(SubmissionBatchResult result) => new()

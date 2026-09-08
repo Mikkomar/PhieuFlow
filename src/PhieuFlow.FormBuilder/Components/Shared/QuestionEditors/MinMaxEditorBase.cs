@@ -4,7 +4,7 @@ using PhieuFlow.Hub.Contracts.Validation;
 
 namespace PhieuFlow.FormBuilder.Components.Shared.QuestionEditors;
 
-/// <summary>Shared plumbing for the Min/Max range editors: a jump focuses the Min or Max input.</summary>
+/// <summary>Shared base for the Min/Max range editors. A jump focuses the Min or Max input.</summary>
 public abstract class MinMaxEditorBase : JumpFocusComponent
 {
     [Parameter]
@@ -13,7 +13,7 @@ public abstract class MinMaxEditorBase : JumpFocusComponent
     protected ElementReference MinRef;
     protected ElementReference MaxRef;
 
-    /// <summary>The question node this editor edits — carries the issues the Hub validator hung on it.</summary>
+    /// <summary>The question node this editor edits, with any issues from the Hub validator.</summary>
     protected abstract IHasIssues Node { get; }
 
     private IReadOnlyList<ValidationIssue> Issues => Node.Issues;

@@ -9,9 +9,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Unit;
 
 /// <summary>
-/// Unit coverage of <see cref="ClientCredentialsTokenHandler"/> (ADR 0005) — bearer
-/// attachment and the single invalidate-and-retry on a 401 — driven through an
-/// <see cref="HttpMessageInvoker"/> with a stub Hub.
+/// Unit coverage of <see cref="ClientCredentialsTokenHandler"/>: bearer attachment and the
+/// single invalidate-and-retry on a 401, driven through an <see cref="HttpMessageInvoker"/>
+/// with a stub Hub.
 /// </summary>
 public sealed class ClientCredentialsTokenHandlerTests
 {
@@ -68,7 +68,7 @@ public sealed class ClientCredentialsTokenHandlerTests
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         hub.SendCount.Should().Be(2);
-        keycloak.SendCount.Should().Be(2); // initial acquire + refetch after Invalidate()
+        keycloak.SendCount.Should().Be(2); // initial acquire and refetch after Invalidate()
     }
 
     [Fact]

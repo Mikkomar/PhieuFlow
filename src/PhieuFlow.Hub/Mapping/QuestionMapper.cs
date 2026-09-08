@@ -4,9 +4,8 @@ using PhieuFlow.Hub.Contracts.Forms;
 namespace PhieuFlow.Hub.Mapping;
 
 /// <summary>
-/// Polymorphic mapping between <see cref="Question"/> entities and their wire
-/// <see cref="QuestionDto"/> counterparts. This is the one place that changes when a
-/// question type is added on the Hub side.
+/// Polymorphic mapping between <see cref="Question"/> entities and <see cref="QuestionDto"/>.
+/// Change this when a question type is added on the Hub side.
 /// </summary>
 internal static class QuestionMapper
 {
@@ -147,8 +146,7 @@ internal static class QuestionMapper
         .Select(o => new QuestionOptionDto { Id = o.Id, Label = o.Label, Order = o.Order })
         .ToList();
 
-    // Option order is authoritative from the incoming list position, mirroring how pages
-    // and questions get their Order.
+    // List position sets option Order, the same as pages and questions.
     private static List<QuestionOption> OptionsToEntity(IEnumerable<QuestionOptionDto> options) => options
         .Select((o, index) => new QuestionOption { Id = o.Id, Label = o.Label, Order = index })
         .ToList();

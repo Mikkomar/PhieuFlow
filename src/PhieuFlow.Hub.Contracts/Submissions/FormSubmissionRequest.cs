@@ -3,11 +3,9 @@ using System.Text.Json.Serialization;
 namespace PhieuFlow.Hub.Contracts.Submissions;
 
 /// <summary>
-/// A completed form response on its way to the Hub. The transport is async RabbitMQ
-/// (ADR 0001); this contract is shared by the form-filler's publisher and the future Hub
-/// consumer. <see cref="FormVersionNumber"/> identifies the published version the
-/// respondent filled — the consumer resolves it to a version id via the unique
-/// <c>FormVersions(FormId, VersionNumber)</c> index.
+/// A completed form response sent to the Hub over the async queue. Shared by the
+/// form-filler publisher and the Hub consumer. <see cref="FormVersionNumber"/> names the
+/// published version the respondent filled.
 /// </summary>
 public class FormSubmissionRequest
 {
@@ -17,9 +15,8 @@ public class FormSubmissionRequest
 }
 
 /// <summary>
-/// One answer. Option-based answers carry only <see cref="OptionAnswerDto.OptionId"/> — the
-/// label lives on the form definition, and the published version is immutable (ADR 0007) so
-/// it always resolves.
+/// One answer. Option answers carry only <see cref="OptionAnswerDto.OptionId"/>. The label
+/// resolves from the published form, which never changes.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(ValueAnswerDto), "Value")]
@@ -32,7 +29,7 @@ public abstract class SubmissionAnswerDto
     public int Order { get; set; }
 }
 
-/// <summary>TextArea, Number, Calendar — the raw input string.</summary>
+/// <summary>TextArea, Number, or Calendar: the raw input string.</summary>
 public class ValueAnswerDto : SubmissionAnswerDto
 {
     public string? Value { get; set; }
@@ -44,7 +41,7 @@ public class BooleanAnswerDto : SubmissionAnswerDto
     public bool Checked { get; set; }
 }
 
-/// <summary>One chosen option of a DropDown / RadioButton / CheckBoxGroup question.</summary>
+/// <summary>One chosen option of a choice question.</summary>
 public class OptionAnswerDto : SubmissionAnswerDto
 {
     public required Guid OptionId { get; set; }

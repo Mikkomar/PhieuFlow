@@ -1,9 +1,8 @@
 namespace PhieuFlow.FormBuilder.Enums;
 
 /// <summary>
-/// Lifecycle of the form builder's debounced autosave, surfaced in the header's
-/// save indicator. Shared by <c>FormBuilder</c> (owns the state machine) and
-/// <c>FormBuilderHeader</c> (renders it).
+/// Lifecycle of the builder's debounced autosave, shown in the header's save indicator.
+/// Shared by <c>FormBuilder</c> and <c>FormBuilderHeader</c>.
 /// </summary>
 public enum SaveState
 {
@@ -16,8 +15,8 @@ public enum SaveState
     Error,
 
     /// <summary>
-    /// The server rejected the save with a 409 — another session advanced this form. Terminal:
-    /// autosave stops retrying and the header offers a reload (a plain retry can never clear it).
+    /// The server rejected the save with a 409: another session advanced this form. Terminal.
+    /// Autosave stops retrying and the header offers a reload.
     /// </summary>
     Conflict,
 }

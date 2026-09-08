@@ -1,8 +1,8 @@
 namespace PhieuFlow.Hub.Contracts.Validation;
 
 /// <summary>
-/// One publish-blocking problem, attached to the tree node it concerns. The node's position
-/// in the form tree is the location, so the issue carries no ids.
+/// One publish-blocking problem, attached to the tree node it concerns. Position in the
+/// tree is the location, so it carries no ids.
 /// </summary>
 public class ValidationIssueDto
 {

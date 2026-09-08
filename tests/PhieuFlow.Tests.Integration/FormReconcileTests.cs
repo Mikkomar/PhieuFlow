@@ -8,12 +8,9 @@ using Xunit;
 namespace PhieuFlow.Tests.Integration;
 
 /// <summary>
-/// Successive <c>PUT /forms/{id}</c> calls that mutate an existing draft, exercising
-/// <c>FormVersionReconciler</c> (ReconcilePages / ReconcileQuestions / ReconcileOptions /
-/// UpdateQuestionFields) against the real EF change tracker — add / remove / reorder /
-/// typed-field edits diffed against the tracked graph and flushed as INSERT / cascade
-/// DELETE / partial UPDATE. The reconciler's branching is unit-tested directly in
-/// <c>FormVersionReconcilerTests</c>; this suite covers the EF-integration half.
+/// Successive <c>PUT /forms/{id}</c> calls that mutate a draft, exercising
+/// <c>FormVersionReconciler</c> against the real EF change tracker: add, remove, reorder
+/// and field edits flushed to SQL. Unit tests cover its branching separately.
 /// </summary>
 public sealed class FormReconcileTests(SqlServerFixture fixture) : IntegrationTestBase(fixture)
 {
@@ -176,9 +173,8 @@ public sealed class FormReconcileTests(SqlServerFixture fixture) : IntegrationTe
 
         var response = await Save(client, form);
 
-        // TODO: ReconcileQuestions throws InvalidOperationException on a question whose type
-        // changed; FormEndpoints has no exception handler, so it surfaces as a bare 500. It
-        // should translate to 400 (client bug / hand-crafted request) or 409.
+        // TODO: a question whose type changed makes ReconcileQuestions throw
+        // InvalidOperationException, which surfaces as a bare 500. It should be a 400 or 409.
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
 
         var reread = await GetAsync(client, id);

@@ -16,8 +16,8 @@ public class UnitOfWork(HubDbContext dbContext, IFormRepository forms, ILogger<U
         }
         catch (DbUpdateException ex)
         {
-            // Restrict FKs (a form with submissions), unique-index clashes, concurrency
-            // token mismatches — all surface here and otherwise reach the caller as a bare 500.
+            // Restrict FKs, unique-index clashes and concurrency-token mismatches all
+            // surface here. Otherwise they reach the caller as a bare 500.
             logger.LogError(ex, "Persisting changes to HubDatabase failed.");
             throw;
         }

@@ -20,7 +20,7 @@ public sealed class FormVersionReconciler(IFormTreeCloner treeCloner) : IFormVer
             return FormVersionReconcileResult.UpdatedInPlace(currentVersion);
         }
 
-        // Published: currentVersion is immutable from here on. Fork a new draft.
+        // A published version cannot change. Fork a new draft.
         var forkedVersionId = Guid.NewGuid();
 
         var forked = new FormVersion

@@ -8,9 +8,8 @@ public interface IHasIssues
 
 public static class HasIssuesExtensions
 {
-    /// <summary>Applies <paramref name="mutate"/> and clears this node's own issues — this node
-    /// changed, so whatever the Hub validator said about it no longer applies. Every other node's
-    /// issues are untouched.</summary>
+    /// <summary>Applies <paramref name="mutate"/> and clears this node's own issues, since it
+    /// changed. Other nodes' issues are untouched.</summary>
     public static void Edit(this IHasIssues node, Action mutate)
     {
         mutate();

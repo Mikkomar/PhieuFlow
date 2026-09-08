@@ -3,7 +3,7 @@ using PhieuFlow.Hub.Contracts.Publishing;
 
 namespace PhieuFlow.FormBuilder.Services;
 
-/// <summary>Where the form load landed. Drives the builder's loading / not-found / editor views.</summary>
+/// <summary>The result of a form load. Selects the loading, not-found, or editor view.</summary>
 public enum FormLoadState
 {
     Loading,
@@ -15,16 +15,16 @@ public enum FormLoadState
 /// <summary>What <see cref="FormEditorSession.OpenAsync"/> wants the page to do next.</summary>
 public enum OpenOutcomeKind
 {
-    /// <summary>A form was fetched and is now the session's <see cref="FormEditorSession.Form"/> — (re)initialise view state.</summary>
+    /// <summary>A form was fetched into <see cref="FormEditorSession.Form"/>. Re-initialise view state.</summary>
     Opened,
 
-    /// <summary>The same form was already in memory; nothing was re-fetched and view state must be left alone.</summary>
+    /// <summary>The same form was already in memory. Nothing was re-fetched. Leave view state alone.</summary>
     Reopened,
 
-    /// <summary>A blank draft was minted; the page must navigate to <see cref="OpenOutcome.NewFormId"/>.</summary>
+    /// <summary>A blank draft was created. Navigate to <see cref="OpenOutcome.NewFormId"/>.</summary>
     RedirectToNew,
 
-    /// <summary>The load failed; inspect <see cref="FormEditorSession.LoadState"/> / <see cref="FormEditorSession.LoadError"/>.</summary>
+    /// <summary>The load failed. See <see cref="FormEditorSession.LoadState"/> and <see cref="FormEditorSession.LoadError"/>.</summary>
     Failed,
 }
 
@@ -57,18 +57,17 @@ public enum PublishOutcomeKind
     SaveFailed,
 
     /// <summary>
-    /// Blocked because the autosave flush exhausted its retry budget while edits were still
-    /// unsaved. See <see cref="FormEditorSession.PublishNotice"/>.
+    /// Blocked because the autosave flush ran out of retries with edits unsaved. See
+    /// <see cref="FormEditorSession.PublishNotice"/>.
     /// </summary>
     Incomplete,
 
-    /// <summary>The publish request itself failed; see <see cref="FormEditorSession.PublishError"/>.</summary>
+    /// <summary>The publish request itself failed. See <see cref="FormEditorSession.PublishError"/>.</summary>
     RequestFailed,
 
     /// <summary>
-    /// The Hub rejected the publish with 409 — another session's save landed between validate and
-    /// flip. See <see cref="FormEditorSession.SaveState"/> (now <c>Conflict</c>) for the header's
-    /// reload affordance; nothing else to show.
+    /// The Hub rejected the publish with 409: another session's save arrived mid-publish.
+    /// <see cref="FormEditorSession.SaveState"/> is now <c>Conflict</c>; the header offers reload.
     /// </summary>
     Conflict,
 }

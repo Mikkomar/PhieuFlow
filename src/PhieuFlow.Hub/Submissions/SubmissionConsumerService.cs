@@ -7,14 +7,9 @@ using RabbitMQ.Client.Events;
 namespace PhieuFlow.Hub.Submissions;
 
 /// <summary>
-/// Drains the <see cref="SubmissionQueue"/> and persists each completed response via
-/// <see cref="SubmissionMessageHandler"/> (ADR 0001/0009). Owns one channel off the Aspire
-/// singleton <see cref="IConnection"/>, declares the full topology (main queue + dead-letter
-/// exchange/queue), and consumes with manual ack and a prefetch limit.
-///
-/// Ack policy: a persisted or already-seen message is acked; a poison message (bad body,
-/// unknown form/version, unmappable answer) is rejected without requeue and dead-letters; a
-/// transient fault is nacked with requeue and bounded by the queue's <c>x-delivery-limit</c>.
+/// Reads the <see cref="SubmissionQueue"/> and persists each response through
+/// <see cref="SubmissionMessageHandler"/>. Declares the full topology and consumes with
+/// manual ack: persisted or duplicate acks, poison rejects to the dead-letter queue.
 /// </summary>
 public sealed class SubmissionConsumerService(
     IConnection connection,
@@ -28,9 +23,8 @@ public sealed class SubmissionConsumerService(
     {
         _channel = await connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
-        // Dead-letter path. Declaration-only — there is no shared broker admin, so nothing
-        // relies on a policy. The publisher declares only the main queue; the consumer owns
-        // the exchange/queue its x-dead-letter-exchange argument points at.
+        // Dead-letter path. No shared broker admin, so the consumer declares the exchange
+        // and queue itself. The publisher declares only the main queue.
         await _channel.ExchangeDeclareAsync(
             exchange: SubmissionQueue.DeadLetterExchangeName,
             type: ExchangeType.Direct,
@@ -52,8 +46,7 @@ public sealed class SubmissionConsumerService(
             routingKey: SubmissionQueue.DeadLetterRoutingKey,
             cancellationToken: stoppingToken);
 
-        // Same arguments as RabbitMqSubmissionPublisher — an identical redeclare, whichever
-        // side connected first.
+        // Same arguments as RabbitMqSubmissionPublisher, so either side can declare first.
         await _channel.QueueDeclareAsync(
             queue: SubmissionQueue.Name,
             durable: true,
@@ -143,9 +136,8 @@ public sealed class SubmissionConsumerService(
         }
         catch (Exception ex)
         {
-            // Transient: broker/DB fault after the EF retry strategy exhausted its own
-            // retries. Requeue; x-delivery-limit bounds it and dead-letters an exhausted
-            // message. The inbox makes a later redelivery safe.
+            // Transient broker or database fault. Requeue and let x-delivery-limit cap
+            // retries. The inbox makes a later redelivery safe.
             logger.LogError(ex, "Transient failure processing submission {MessageId}; requeueing.", messageId);
             await channel.BasicNackAsync(eventArgs.DeliveryTag, multiple: false, requeue: true);
         }
@@ -157,8 +149,8 @@ public sealed class SubmissionConsumerService(
 
         if (_channel is not null)
         {
-            // Unacked in-flight deliveries are requeued by the broker on close; the
-            // ProcessedMessages inbox dedups any that had already committed.
+            // The broker requeues unacked deliveries on close. The ProcessedMessages inbox
+            // makes a redelivery of an already-committed message a no-op.
             await _channel.CloseAsync(cancellationToken);
             await _channel.DisposeAsync();
             _channel = null;
