@@ -3,9 +3,10 @@ using PhieuFlow.Core.Entities;
 namespace PhieuFlow.FormBuilder.Models.Editing;
 
 /// <summary>
-/// The tree the builder edits. Every node carries an <see cref="Issues"/> collection the Hub
-/// validator populates on a publish attempt, rendered as inline highlighting; the Hub's own
-/// validation on the actual publish attempt is what blocks publish, not <see cref="HasIssues"/>.
+/// The tree the builder edits. Every node carries an <see cref="Issues"/> collection the
+/// publish validator populates on a publish attempt, rendered as inline highlighting. Publish
+/// is gated by running that validator (locally on the Publish click, then again on the Hub),
+/// not by <see cref="HasIssues"/>.
 /// </summary>
 public sealed class FormEditModel : IHasIssues
 {

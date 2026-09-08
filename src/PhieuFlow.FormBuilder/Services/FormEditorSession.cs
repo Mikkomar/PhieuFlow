@@ -4,6 +4,8 @@ using PhieuFlow.FormBuilder.Clients;
 using PhieuFlow.FormBuilder.Enums;
 using PhieuFlow.FormBuilder.Models.Editing;
 using PhieuFlow.Hub.Contracts.Forms;
+using PhieuFlow.Hub.Contracts.Publishing;
+using PhieuFlow.Hub.Contracts.Validation;
 
 namespace PhieuFlow.FormBuilder.Services;
 
@@ -21,6 +23,7 @@ public sealed class FormEditorSession : IAsyncDisposable
     private readonly IFormsService _forms;
     private readonly AutosaveController _autosave;
     private readonly ILogger<FormEditorSession>? _logger;
+    private readonly IFormPublishValidator _publishValidator;
 
     private FormEditModel? _form;
 
@@ -31,10 +34,12 @@ public sealed class FormEditorSession : IAsyncDisposable
     public FormEditorSession(
         IFormsService forms,
         ILogger<AutosaveController>? autosaveLogger = null,
-        ILogger<FormEditorSession>? logger = null)
+        ILogger<FormEditorSession>? logger = null,
+        IFormPublishValidator? publishValidator = null)
     {
         _forms = forms;
         _logger = logger;
+        _publishValidator = publishValidator ?? new FormPublishValidator();
         _autosave = new AutosaveController(SaveCoreAsync, CanSave, TimeSpan.FromMilliseconds(800), autosaveLogger);
         _autosave.StateChanged += () => Changed?.Invoke();
     }
@@ -137,8 +142,9 @@ public sealed class FormEditorSession : IAsyncDisposable
     public Task<AutosaveFlushResult> FlushAsync() => _autosave.FlushAsync();
 
     /// <summary>
-    /// Flushes, then runs the pre-publish gate. Blocked cases (no title, already published, save
-    /// failed) return before any publish round-trip.
+    /// Runs the pre-publish gate locally, then flushes and calls the Hub (which re-validates as
+    /// the authority). Blocked cases (no title, already published, local issues, save failed)
+    /// return before any publish round-trip.
     /// </summary>
     public async Task<PublishOutcome> PublishAsync()
     {
@@ -154,6 +160,17 @@ public sealed class FormEditorSession : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(form.Title))
         {
             return new PublishOutcome(PublishOutcomeKind.MissingTitle);
+        }
+
+        // Local pre-publish gate — the same rules the Hub runs (ADR 0011), so an invalid form
+        // never leaves the browser and the dialog opens with no round-trip. The Hub still
+        // re-validates on the actual publish, so a race or any drift is caught there.
+        var localDto = FormEditMapper.ToDto(form);
+        if (!_publishValidator.Validate(localDto))
+        {
+            FormEditMapper.ApplyIssues(form, localDto);
+            var localRows = PrePublishRow.From(FormEditMapper.ToEditModel(localDto));
+            return new PublishOutcome(PublishOutcomeKind.NeedsFixes, LocalGateResult(localDto, form), localRows);
         }
 
         // Publish must not proceed on a stale server copy: bail if the flush can't reach the
@@ -219,6 +236,17 @@ public sealed class FormEditorSession : IAsyncDisposable
             Changed?.Invoke();
         }
     }
+
+    // Stands in for the Hub's PublishResultDto on the local-gate path so the pre-publish
+    // dialog renders the same way it does for a 422 from the Hub.
+    private static PublishResultDto LocalGateResult(FormDto annotated, FormEditModel form) => new()
+    {
+        Published = false,
+        Form = annotated,
+        VersionNumber = form.VersionNumber,
+        LiveVersionNumber = form.LiveVersionNumber,
+        IsFirstPublish = form.LiveVersionNumber is null,
+    };
 
     public async ValueTask DisposeAsync()
     {

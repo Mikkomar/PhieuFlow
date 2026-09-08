@@ -1,16 +1,16 @@
 using PhieuFlow.Hub.Contracts.Forms;
-using PhieuFlow.Hub.Contracts.Validation;
 
-namespace PhieuFlow.Hub.Validation;
+namespace PhieuFlow.Hub.Contracts.Validation;
 
 /// <summary>
-/// The single pre-publish gate. Walks the form tree and, for every rule breach, appends a
-/// <see cref="ValidationIssueDto"/> to the offending node's <c>Issues</c> list. A tree with
-/// any issue must not be published.
+/// The pre-publish gate. Walks the form tree and, for every rule breach, appends a
+/// <see cref="ValidationIssueDto"/> to the offending node's <c>Issues</c> list and returns
+/// <c>false</c>. A tree with any issue must not be published.
 /// </summary>
 /// <remarks>
-/// This is the only validator. The builder does not re-implement these rules client-side; it
-/// renders whatever issues the Hub hangs on the returned tree.
+/// Shared: the FormBuilder runs it the moment Publish is pressed so an invalid form never
+/// leaves the browser, and the Hub runs it again on <c>POST /forms/{id}/publish</c> as the
+/// authority. One implementation so the two can never drift.
 /// </remarks>
 public interface IFormPublishValidator
 {
@@ -18,6 +18,7 @@ public interface IFormPublishValidator
     bool Validate(FormDto form);
 }
 
+/// <inheritdoc cref="IFormPublishValidator"/>
 public sealed class FormPublishValidator : IFormPublishValidator
 {
     public bool Validate(FormDto form)

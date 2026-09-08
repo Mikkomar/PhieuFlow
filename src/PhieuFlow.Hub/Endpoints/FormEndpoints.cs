@@ -1,7 +1,7 @@
 using PhieuFlow.Hub.Contracts.Forms;
 using PhieuFlow.Hub.Contracts.Publishing;
+using PhieuFlow.Hub.Contracts.Validation;
 using PhieuFlow.Hub.Mapping;
-using PhieuFlow.Hub.Validation;
 using PhieuFlow.Persistence.Projections;
 using PhieuFlow.Persistence.UnitOfWork;
 

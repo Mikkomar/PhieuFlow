@@ -345,10 +345,60 @@ public class FormEditorSessionTests
         session.SaveState.Should().Be(SaveState.Conflict);
     }
 
+    [Fact]
+    public async Task TestPublishAsync_When_LocalGateFindsIssues_Should_ReturnNeedsFixesWithoutCallingHub()
+    {
+        var id = Guid.NewGuid();
+        var forms = new FakeFormsService { OnGetById = _ => FormWith(id, "Survey") };
+        await using var session = new FormEditorSession(forms);
+        await session.OpenAsync(id);
+
+        // Blank the one question's text so the shared FormPublishValidator flags it.
+        session.Form.Pages[0].Questions[0].Text = "   ";
+
+        var outcome = await session.PublishAsync();
+
+        outcome.Kind.Should().Be(PublishOutcomeKind.NeedsFixes);
+        outcome.Rows.Should().NotBeNullOrEmpty();
+        outcome.Result!.Published.Should().BeFalse();
+        session.Form.HasIssues.Should().BeTrue();
+        forms.PublishCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task TestPublishAsync_When_LocalGatePasses_Should_CallHub()
+    {
+        var id = Guid.NewGuid();
+        var forms = new FakeFormsService { OnGetById = _ => FormWith(id, "Survey") };
+        await using var session = new FormEditorSession(forms);
+        await session.OpenAsync(id);
+
+        forms.PublishResult = new PublishResultDto
+        {
+            Published = true,
+            Form = FormEditMapper.ToDto(FormWith(id, "Survey")),
+            VersionNumber = 2,
+            IsFirstPublish = true,
+            Revision = 1,
+            Status = FormVersionStatusDto.Published,
+            LastModifiedAt = DateTimeOffset.UtcNow,
+        };
+
+        var outcome = await session.PublishAsync();
+
+        outcome.Kind.Should().Be(PublishOutcomeKind.Published);
+        forms.PublishCalls.Should().Be(1);
+    }
+
+    // A publishable tree: titled, one page, one question with text. The local pre-publish gate
+    // (FormPublishValidator, run in PublishAsync) would flag anything less and short-circuit
+    // before the fake Hub is reached.
     private static FormEditModel FormWith(Guid id, string title)
     {
         var form = new FormEditModel { FormId = id, Title = title, VersionNumber = 1 };
-        form.Pages.Add(new FormPageEditModel { Id = Guid.NewGuid(), Title = "Page 1", Order = 0 });
+        var page = new FormPageEditModel { Id = Guid.NewGuid(), Title = "Page 1", Order = 0 };
+        page.Questions.Add(new TextAreaQuestionEditModel { Id = Guid.NewGuid(), Text = "Your name", Order = 0 });
+        form.Pages.Add(page);
         return form;
     }
 

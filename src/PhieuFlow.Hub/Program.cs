@@ -5,7 +5,7 @@ using PhieuFlow.Hub.Authorization;
 using PhieuFlow.Hub.Contracts.Submissions;
 using PhieuFlow.Hub.Endpoints;
 using PhieuFlow.Hub.Submissions;
-using PhieuFlow.Hub.Validation;
+using PhieuFlow.Hub.Contracts.Validation;
 using PhieuFlow.Persistence;
 using PhieuFlow.Persistence.Repositories;
 using PhieuFlow.Persistence.UnitOfWork;
