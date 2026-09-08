@@ -26,7 +26,7 @@ public sealed class SubmissionConsumeTests(SqlServerFixture fixture) : Integrati
     public async Task TestHandleAsync_When_SubmissionIsNew_Should_PersistTypedAnswerRowsAndInboxRow()
     {
         using var client = CreateClient();
-        var form = await PublishAllTypesFormAsync(client, "New submission");
+        var form = await PublishOptionalFormAsync(client, "New submission");
 
         var text = form.Pages[0].Questions.OfType<TextAreaQuestionDto>().Single();
         var checkbox = form.Pages[0].Questions.OfType<CheckboxQuestionDto>().Single();
@@ -83,7 +83,7 @@ public sealed class SubmissionConsumeTests(SqlServerFixture fixture) : Integrati
     public async Task TestHandleAsync_When_MessageIdAlreadyProcessed_Should_IgnoreAndKeepExactlyOneSubmission()
     {
         using var client = CreateClient();
-        var form = await PublishAllTypesFormAsync(client, "Redelivered");
+        var form = await PublishOptionalFormAsync(client, "Redelivered");
         var text = form.Pages[0].Questions.OfType<TextAreaQuestionDto>().Single();
 
         var messageId = Guid.NewGuid();
@@ -152,7 +152,7 @@ public sealed class SubmissionConsumeTests(SqlServerFixture fixture) : Integrati
     public async Task TestHandleAsync_When_CheckBoxGroupHasMultipleSelections_Should_PersistOneOptionRowPerSelection()
     {
         using var client = CreateClient();
-        var form = await PublishAllTypesFormAsync(client, "Multi select");
+        var form = await PublishOptionalFormAsync(client, "Multi select");
         var group = form.Pages[0].Questions.OfType<CheckBoxGroupQuestionDto>().Single();
 
         var request = new FormSubmissionRequest
@@ -192,7 +192,7 @@ public sealed class SubmissionConsumeTests(SqlServerFixture fixture) : Integrati
     public async Task TestHandleAsync_When_AnswerListIsEmpty_Should_PersistSubmissionWithNoAnswerRows()
     {
         using var client = CreateClient();
-        var form = await PublishAllTypesFormAsync(client, "No answers");
+        var form = await PublishOptionalFormAsync(client, "No answers");
 
         var messageId = Guid.NewGuid();
         var request = new FormSubmissionRequest
@@ -212,6 +212,102 @@ public sealed class SubmissionConsumeTests(SqlServerFixture fixture) : Integrati
         (await db.ProcessedMessages.AnyAsync(m => m.MessageId == messageId)).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task TestHandleAsync_When_RequiredAnswerMissing_Should_ReturnPoisonAndPersistNothing()
+    {
+        using var client = CreateClient();
+        var form = await PublishAllTypesFormAsync(client, "Missing required");
+        var text = form.Pages[0].Questions.OfType<TextAreaQuestionDto>().Single();
+
+        var messageId = Guid.NewGuid();
+        var request = new FormSubmissionRequest
+        {
+            FormId = form.Id,
+            FormVersionNumber = form.VersionNumber,
+            // Only the text answer; the required checkbox / radio / group / date are absent.
+            Answers = [new ValueAnswerDto { QuestionId = text.Id, QuestionText = text.Text, Order = 0, Value = "Some prose" }],
+        };
+
+        (await HandleAsync(request, messageId)).Should().Be(SubmissionProcessingResult.Poison);
+
+        using var read = Services.CreateScope();
+        var db = read.ServiceProvider.GetRequiredService<HubDbContext>();
+
+        (await db.FormSubmissions.AnyAsync(s => s.FormId == form.Id)).Should().BeFalse();
+        (await db.ProcessedMessages.AnyAsync(m => m.MessageId == messageId)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TestHandleAsync_When_NumberAnswerOutOfRange_Should_ReturnPoisonAndPersistNothing()
+    {
+        using var client = CreateClient();
+        var form = await PublishAllTypesFormAsync(client, "Number out of range");
+        var number = form.Pages[0].Questions.OfType<NumberQuestionDto>().Single();
+
+        var answers = ValidAnswersForAllTypes(form);
+        answers[answers.FindIndex(a => a.QuestionId == number.Id)] =
+            new ValueAnswerDto { QuestionId = number.Id, QuestionText = number.Text, Order = 5, Value = "5" }; // Min is 35.1234
+
+        var messageId = Guid.NewGuid();
+        var request = new FormSubmissionRequest
+        {
+            FormId = form.Id, FormVersionNumber = form.VersionNumber, Answers = answers,
+        };
+
+        (await HandleAsync(request, messageId)).Should().Be(SubmissionProcessingResult.Poison);
+
+        using var read = Services.CreateScope();
+        var db = read.ServiceProvider.GetRequiredService<HubDbContext>();
+        (await db.FormSubmissions.AnyAsync(s => s.FormId == form.Id)).Should().BeFalse();
+        (await db.ProcessedMessages.AnyAsync(m => m.MessageId == messageId)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TestHandleAsync_When_OptionIdNotInPublishedForm_Should_ReturnPoisonAndPersistNothing()
+    {
+        using var client = CreateClient();
+        var form = await PublishAllTypesFormAsync(client, "Bogus option");
+        var radio = form.Pages[0].Questions.OfType<RadioButtonQuestionDto>().Single();
+
+        var answers = ValidAnswersForAllTypes(form);
+        answers[answers.FindIndex(a => a.QuestionId == radio.Id)] =
+            new OptionAnswerDto { QuestionId = radio.Id, QuestionText = radio.Text, Order = 3, OptionId = Guid.NewGuid() };
+
+        var messageId = Guid.NewGuid();
+        var request = new FormSubmissionRequest
+        {
+            FormId = form.Id, FormVersionNumber = form.VersionNumber, Answers = answers,
+        };
+
+        (await HandleAsync(request, messageId)).Should().Be(SubmissionProcessingResult.Poison);
+
+        using var read = Services.CreateScope();
+        var db = read.ServiceProvider.GetRequiredService<HubDbContext>();
+        (await db.FormSubmissions.AnyAsync(s => s.FormId == form.Id)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TestHandleAsync_When_EveryRequiredAnswerPresentAndValid_Should_Persist()
+    {
+        using var client = CreateClient();
+        var form = await PublishAllTypesFormAsync(client, "Fully valid");
+
+        var messageId = Guid.NewGuid();
+        var request = new FormSubmissionRequest
+        {
+            FormId = form.Id, FormVersionNumber = form.VersionNumber, Answers = ValidAnswersForAllTypes(form),
+        };
+
+        (await HandleAsync(request, messageId)).Should().Be(SubmissionProcessingResult.Persisted);
+
+        using var read = Services.CreateScope();
+        var db = read.ServiceProvider.GetRequiredService<HubDbContext>();
+
+        var submission = await db.FormSubmissions.Include(s => s.Answers).SingleAsync(s => s.FormId == form.Id);
+        submission.Answers.Should().HaveCount(7);
+        (await db.ProcessedMessages.AnyAsync(m => m.MessageId == messageId)).Should().BeTrue();
+    }
+
     private async Task<SubmissionProcessingResult> HandleAsync(FormSubmissionRequest request, Guid messageId)
     {
         using var scope = Services.CreateScope();
@@ -219,16 +315,47 @@ public sealed class SubmissionConsumeTests(SqlServerFixture fixture) : Integrati
         return await handler.HandleAsync(request, messageId, CancellationToken.None);
     }
 
-    private static async Task<PublishedFormDto> PublishAllTypesFormAsync(HttpClient client, string title)
+    private static Task<PublishedFormDto> PublishAllTypesFormAsync(HttpClient client, string title) =>
+        PublishFormAsync(client, title, TestForms.AllQuestionTypes);
+
+    private static Task<PublishedFormDto> PublishOptionalFormAsync(HttpClient client, string title) =>
+        PublishFormAsync(client, title, TestForms.AllOptionalQuestions);
+
+    private static async Task<PublishedFormDto> PublishFormAsync(
+        HttpClient client, string title, Func<Guid, string, FormDto> build)
     {
         var created = await (await client.PostAsync("/forms", null)).Content.ReadFromJsonAsync<FormCreatedDto>();
         var id = created!.Id;
 
-        (await client.PutAsJsonAsync($"/forms/{id}", TestForms.AllQuestionTypes(id, title)))
+        (await client.PutAsJsonAsync($"/forms/{id}", build(id, title)))
             .EnsureSuccessStatusCode();
         (await client.PostAsync($"/forms/{id}/publish", content: null))
             .EnsureSuccessStatusCode();
 
         return (await client.GetFromJsonAsync<PublishedFormDto>($"/forms/published/{id}"))!;
+    }
+
+    // A complete, in-bounds answer for every question on TestForms.AllQuestionTypes.
+    private static List<SubmissionAnswerDto> ValidAnswersForAllTypes(PublishedFormDto form)
+    {
+        var q = form.Pages[0].Questions;
+        var text = q.OfType<TextAreaQuestionDto>().Single();
+        var checkbox = q.OfType<CheckboxQuestionDto>().Single();
+        var dropDown = q.OfType<DropDownQuestionDto>().Single();
+        var radio = q.OfType<RadioButtonQuestionDto>().Single();
+        var group = q.OfType<CheckBoxGroupQuestionDto>().Single();
+        var number = q.OfType<NumberQuestionDto>().Single();
+        var calendar = q.OfType<CalendarQuestionDto>().Single();
+
+        return
+        [
+            new ValueAnswerDto { QuestionId = text.Id, QuestionText = text.Text, Order = 0, Value = "Some prose" },
+            new BooleanAnswerDto { QuestionId = checkbox.Id, QuestionText = checkbox.Text, Order = 1, Checked = true },
+            new OptionAnswerDto { QuestionId = dropDown.Id, QuestionText = dropDown.Text, Order = 2, OptionId = dropDown.Options[0].Id },
+            new OptionAnswerDto { QuestionId = radio.Id, QuestionText = radio.Text, Order = 3, OptionId = radio.Options[0].Id },
+            new OptionAnswerDto { QuestionId = group.Id, QuestionText = group.Text, Order = 4, OptionId = group.Options[0].Id },
+            new ValueAnswerDto { QuestionId = number.Id, QuestionText = number.Text, Order = 5, Value = "40" },
+            new ValueAnswerDto { QuestionId = calendar.Id, QuestionText = calendar.Text, Order = 6, Value = "2026-06-15" },
+        ];
     }
 }

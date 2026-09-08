@@ -29,6 +29,14 @@ public interface IFormRepository
     Task<FormVersion?> GetPublishedByIdAsync(Guid formId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Fetches the full page/question tree of one specific published version, identified by
+    /// <paramref name="versionNumber"/>. Returns <c>null</c> when the form has no published
+    /// row with that number. Used by the submission consumer to re-validate an inbound
+    /// response against the exact version it was filled against.
+    /// </summary>
+    Task<FormVersion?> GetPublishedVersionAsync(Guid formId, int versionNumber, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Applies the incoming draft content to the form's latest version, forking a new draft when
     /// the latest version is published. Returns <see cref="FormSaveStatus.FormNotFound"/> when no
     /// form has that id (the caller 404s — creation is <c>POST /forms</c> only), and

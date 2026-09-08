@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Serilog;
 using PhieuFlow.Hub.Authorization;
+using PhieuFlow.Hub.Contracts.Submissions;
 using PhieuFlow.Hub.Endpoints;
 using PhieuFlow.Hub.Submissions;
 using PhieuFlow.Hub.Validation;
@@ -25,6 +26,7 @@ builder.Services.AddScoped<IFormPublishValidator, FormPublishValidator>();
 builder.AddRabbitMQClient(connectionName: "rabbitmq");
 builder.Services.Configure<SubmissionConsumerOptions>(
     builder.Configuration.GetSection(SubmissionConsumerOptions.SectionName));
+builder.Services.AddSingleton<SubmissionAnswersValidator>();
 builder.Services.AddScoped<SubmissionMessageHandler>();
 builder.Services.AddHostedService<SubmissionConsumerService>();
 

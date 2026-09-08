@@ -2,61 +2,99 @@ using System.Globalization;
 using PhieuFlow.Hub.Contracts.Forms;
 using PhieuFlow.Hub.Contracts.Publishing;
 
-namespace PhieuFlow.FormFiller.Validation;
+namespace PhieuFlow.Hub.Contracts.Submissions;
 
 /// <summary>
-/// Client-side answer validation for the respondent app. A submission is published
-/// fire-and-forget onto the RabbitMQ queue (ADR 0009), so the Hub cannot reject a bad
-/// answer synchronously — the respondent app must refuse to publish until every answer
-/// satisfies its question's constraints (<c>IsRequired</c>, Min/Max value, Min/Max length,
-/// Min/Max selections).
+/// Validates a set of submitted answers against a published form. Shared by the FormFiller
+/// (which blocks a submission before publishing it, because the RabbitMQ hop is one-way —
+/// ADR 0009) and the Hub consumer (which re-checks on the way in and dead-letters anything
+/// that does not pass). One implementation so the two can never drift.
 /// </summary>
 /// <remarks>
-/// The messages mirror <c>QuestionInput.ConstraintHint</c>'s phrasing so the hint that
-/// describes the rule and the error that reports the breach read the same way.
+/// Rules: <c>IsRequired</c>, number Min/Max, date Min/Max, text Min/Max length, checkbox-group
+/// Min/Max selections — bounds only bite when a value is present, so an optional blank answer
+/// passes. Plus structural integrity the client's UI cannot violate but a stale or crafted
+/// message can: the answer names a question on the form, its type matches that question, and a
+/// chosen option belongs to it.
 /// </remarks>
-public sealed class SubmissionValidator
+public sealed class SubmissionAnswersValidator
 {
     private const string RequiredMessage = "An answer is required.";
 
-    /// <summary>
-    /// Checks every answer against its question. The value types are the ones
-    /// <c>FillPage</c> stores in its answer map: <see cref="string"/> for text/number/date,
-    /// <see cref="bool"/> for a single checkbox, <see cref="Guid"/> for a single choice and
-    /// <c>IReadOnlySet&lt;Guid&gt;</c> for a checkbox group.
-    /// </summary>
     /// <returns>
     /// One message per offending question, keyed by question id. An empty map means the
-    /// form is ready to submit.
+    /// answers are ready to submit.
     /// </returns>
     public IReadOnlyDictionary<Guid, string> Validate(
         PublishedFormDto form,
-        IReadOnlyDictionary<Guid, object?> answers)
+        IReadOnlyList<SubmissionAnswerDto> answers)
     {
         var errors = new Dictionary<Guid, string>();
+        var questionsById = form.Pages
+            .SelectMany(page => page.Questions)
+            .ToDictionary(question => question.Id);
 
-        foreach (var question in form.Pages.SelectMany(page => page.Questions))
+        // Structural pass — first error per question wins, and it wins over any constraint
+        // error found below (TryAdd never overwrites).
+        foreach (var answer in answers)
         {
-            var message = Check(question, answers.GetValueOrDefault(question.Id));
+            if (!questionsById.TryGetValue(answer.QuestionId, out var question))
+            {
+                errors.TryAdd(answer.QuestionId, "This answer does not correspond to a question on the form.");
+                continue;
+            }
+
+            if (!TypeMatches(question, answer))
+            {
+                errors.TryAdd(answer.QuestionId, "The answer type does not match the question.");
+                continue;
+            }
+
+            if (answer is OptionAnswerDto option
+                && question is ChoiceQuestionDto choice
+                && choice.Options.All(o => o.Id != option.OptionId))
+            {
+                errors.TryAdd(answer.QuestionId, "The selected option is not offered by this question.");
+            }
+        }
+
+        // Constraint pass — one lookup of this question's answers, then the type-specific rule.
+        foreach (var question in questionsById.Values)
+        {
+            var given = answers.Where(a => a.QuestionId == question.Id).ToList();
+            var message = Check(question, given);
             if (message is not null)
             {
-                errors[question.Id] = message;
+                errors.TryAdd(question.Id, message);
             }
         }
 
         return errors;
     }
 
-    private static string? Check(QuestionDto question, object? answer) => question switch
+    private static bool TypeMatches(QuestionDto question, SubmissionAnswerDto answer) => answer switch
     {
-        TextAreaQuestionDto q => CheckText(q, answer as string),
-        NumberQuestionDto q => CheckNumber(q, answer as string),
-        CalendarQuestionDto q => CheckDate(q, answer as string),
-        CheckboxQuestionDto q => q.IsRequired && answer is not true ? RequiredMessage : null,
-        CheckBoxGroupQuestionDto q => CheckGroup(q, answer as IReadOnlySet<Guid>),
-        ChoiceQuestionDto q => q.IsRequired && answer is not Guid ? "Select an option." : null,
+        ValueAnswerDto => question is TextAreaQuestionDto or NumberQuestionDto or CalendarQuestionDto,
+        BooleanAnswerDto => question is CheckboxQuestionDto,
+        OptionAnswerDto => question is ChoiceQuestionDto,
+        _ => false,
+    };
+
+    private static string? Check(QuestionDto question, List<SubmissionAnswerDto> given) => question switch
+    {
+        TextAreaQuestionDto q => CheckText(q, Value(given)),
+        NumberQuestionDto q => CheckNumber(q, Value(given)),
+        CalendarQuestionDto q => CheckDate(q, Value(given)),
+        CheckboxQuestionDto q => q.IsRequired && given.OfType<BooleanAnswerDto>().FirstOrDefault()?.Checked != true
+            ? RequiredMessage
+            : null,
+        CheckBoxGroupQuestionDto q => CheckGroup(q, given.OfType<OptionAnswerDto>().Select(o => o.OptionId).ToList()),
+        ChoiceQuestionDto q => CheckSingleChoice(q, given.OfType<OptionAnswerDto>().Count()),
         _ => null,
     };
+
+    private static string? Value(List<SubmissionAnswerDto> given) =>
+        given.OfType<ValueAnswerDto>().FirstOrDefault()?.Value;
 
     private static string? CheckText(TextAreaQuestionDto question, string? value)
     {
@@ -120,9 +158,14 @@ public sealed class SubmissionValidator
         return belowMin || aboveMax ? DateBounds(question.MinDate, question.MaxDate) : null;
     }
 
-    private static string? CheckGroup(CheckBoxGroupQuestionDto question, IReadOnlySet<Guid>? selected)
+    private static string? CheckGroup(CheckBoxGroupQuestionDto question, List<Guid> selected)
     {
-        var count = selected?.Count ?? 0;
+        if (selected.Count != selected.Distinct().Count())
+        {
+            return "Each option can only be chosen once.";
+        }
+
+        var count = selected.Count;
 
         if (count == 0)
         {
@@ -144,6 +187,16 @@ public sealed class SubmissionValidator
             (null, { } max) => $"Choose at most {max}.",
             _ => RequiredMessage,
         };
+    }
+
+    private static string? CheckSingleChoice(ChoiceQuestionDto question, int optionCount)
+    {
+        if (optionCount == 0)
+        {
+            return question.IsRequired ? "Select an option." : null;
+        }
+
+        return optionCount > 1 ? "Select only one option." : null;
     }
 
     private static string NumberBounds(decimal? min, decimal? max)

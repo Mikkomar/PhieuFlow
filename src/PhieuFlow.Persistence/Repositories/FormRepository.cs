@@ -89,6 +89,35 @@ public class FormRepository(HubDbContext dbContext, ILogger<FormRepository> logg
         return version;
     }
 
+    public async Task<FormVersion?> GetPublishedVersionAsync(Guid formId, int versionNumber, CancellationToken cancellationToken = default)
+    {
+        var version = await dbContext.FormVersions
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Where(v => v.FormId == formId
+                && v.VersionNumber == versionNumber
+                && v.Status == FormVersionStatus.Published)
+            .Include(v => v.Pages.OrderBy(p => p.Order))
+                .ThenInclude(p => p.Questions)
+                    .ThenInclude(q => (q as ChoiceQuestion)!.Options)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (version is not null)
+        {
+            foreach (var page in version.Pages)
+            {
+                page.Questions = page.Questions.OrderBy(q => q.Order).ToList();
+
+                foreach (var question in page.Questions.OfType<ChoiceQuestion>())
+                {
+                    question.Options = question.Options.OrderBy(o => o.Order).ToList();
+                }
+            }
+        }
+
+        return version;
+    }
+
     public async Task<FormSaveResult> SaveAsync(Guid formId, FormVersion incomingContent, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;

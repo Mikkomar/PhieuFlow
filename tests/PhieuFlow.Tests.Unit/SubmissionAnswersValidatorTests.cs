@@ -1,14 +1,14 @@
 using AwesomeAssertions;
-using PhieuFlow.FormFiller.Validation;
 using PhieuFlow.Hub.Contracts.Forms;
 using PhieuFlow.Hub.Contracts.Publishing;
+using PhieuFlow.Hub.Contracts.Submissions;
 using Xunit;
 
 namespace PhieuFlow.Tests.Unit;
 
-public class SubmissionValidatorTests
+public class SubmissionAnswersValidatorTests
 {
-    private readonly SubmissionValidator _validator = new();
+    private readonly SubmissionAnswersValidator _validator = new();
 
     [Fact]
     public void TestValidate_When_EveryAnswerSatisfiesItsConstraints_Should_ReturnNoErrors()
@@ -16,9 +16,8 @@ public class SubmissionValidatorTests
         var text = TextArea(required: true, minLength: 2, maxLength: 10);
         var number = Number(required: true, min: 1, max: 5);
         var form = Form(Page(text, number));
-        var answers = new Dictionary<Guid, object?> { [text.Id] = "hello", [number.Id] = "3" };
 
-        _validator.Validate(form, answers).Should().BeEmpty();
+        _validator.Validate(form, [Value(text, "hello"), Value(number, "3")]).Should().BeEmpty();
     }
 
     [Fact]
@@ -27,7 +26,7 @@ public class SubmissionValidatorTests
         var text = TextArea(required: true);
         var form = Form(Page(text));
 
-        _validator.Validate(form, Answer(text.Id, "   "))[text.Id].Should().Be("An answer is required.");
+        _validator.Validate(form, [Value(text, "   ")])[text.Id].Should().Be("An answer is required.");
     }
 
     [Fact]
@@ -36,7 +35,7 @@ public class SubmissionValidatorTests
         var text = TextArea(minLength: 5);
         var form = Form(Page(text));
 
-        _validator.Validate(form, Answer(text.Id, "")).Should().BeEmpty();
+        _validator.Validate(form, [Value(text, "")]).Should().BeEmpty();
     }
 
     [Fact]
@@ -45,7 +44,7 @@ public class SubmissionValidatorTests
         var text = TextArea(minLength: 5);
         var form = Form(Page(text));
 
-        _validator.Validate(form, Answer(text.Id, "hi"))[text.Id].Should().Be("Enter at least 5 characters.");
+        _validator.Validate(form, [Value(text, "hi")])[text.Id].Should().Be("Enter at least 5 characters.");
     }
 
     [Fact]
@@ -54,7 +53,7 @@ public class SubmissionValidatorTests
         var text = TextArea(maxLength: 3);
         var form = Form(Page(text));
 
-        _validator.Validate(form, Answer(text.Id, "toolong"))[text.Id].Should().Be("Enter at most 3 characters.");
+        _validator.Validate(form, [Value(text, "toolong")])[text.Id].Should().Be("Enter at most 3 characters.");
     }
 
     [Fact]
@@ -63,16 +62,16 @@ public class SubmissionValidatorTests
         var text = TextArea(minLength: 3, maxLength: 6);
         var form = Form(Page(text));
 
-        _validator.Validate(form, Answer(text.Id, "ab"))[text.Id].Should().Be("Enter between 3 and 6 characters.");
+        _validator.Validate(form, [Value(text, "ab")])[text.Id].Should().Be("Enter between 3 and 6 characters.");
     }
 
     [Fact]
-    public void TestValidate_When_RequiredNumberIsBlank_Should_FlagThatQuestion()
+    public void TestValidate_When_RequiredNumberHasNoAnswer_Should_FlagThatQuestion()
     {
         var number = Number(required: true, min: 0);
         var form = Form(Page(number));
 
-        _validator.Validate(form, Answer(number.Id, ""))[number.Id].Should().Be("An answer is required.");
+        _validator.Validate(form, [])[number.Id].Should().Be("An answer is required.");
     }
 
     [Fact]
@@ -81,7 +80,7 @@ public class SubmissionValidatorTests
         var number = Number(min: 0, max: 10);
         var form = Form(Page(number));
 
-        _validator.Validate(form, Answer(number.Id, "abc"))[number.Id].Should().Be("Enter a valid number.");
+        _validator.Validate(form, [Value(number, "abc")])[number.Id].Should().Be("Enter a valid number.");
     }
 
     [Fact]
@@ -90,7 +89,7 @@ public class SubmissionValidatorTests
         var number = Number(min: 10, max: 20);
         var form = Form(Page(number));
 
-        _validator.Validate(form, Answer(number.Id, "4"))[number.Id].Should().Be("Enter a number between 10 and 20.");
+        _validator.Validate(form, [Value(number, "4")])[number.Id].Should().Be("Enter a number between 10 and 20.");
     }
 
     [Fact]
@@ -99,7 +98,7 @@ public class SubmissionValidatorTests
         var number = Number(max: 20);
         var form = Form(Page(number));
 
-        _validator.Validate(form, Answer(number.Id, "25"))[number.Id].Should().Be("Enter 20 or less.");
+        _validator.Validate(form, [Value(number, "25")])[number.Id].Should().Be("Enter 20 or less.");
     }
 
     [Fact]
@@ -108,7 +107,7 @@ public class SubmissionValidatorTests
         var number = Number(min: 1, max: 5);
         var form = Form(Page(number));
 
-        _validator.Validate(form, Answer(number.Id, "5")).Should().BeEmpty();
+        _validator.Validate(form, [Value(number, "5")]).Should().BeEmpty();
     }
 
     [Fact]
@@ -117,7 +116,7 @@ public class SubmissionValidatorTests
         var calendar = Calendar(min: new DateOnly(2026, 1, 1), max: new DateOnly(2026, 12, 31));
         var form = Form(Page(calendar));
 
-        _validator.Validate(form, Answer(calendar.Id, "2025-06-01"))[calendar.Id]
+        _validator.Validate(form, [Value(calendar, "2025-06-01")])[calendar.Id]
             .Should().Be("Pick a date between 2026-01-01 and 2026-12-31.");
     }
 
@@ -127,7 +126,7 @@ public class SubmissionValidatorTests
         var calendar = Calendar(min: new DateOnly(2026, 1, 1));
         var form = Form(Page(calendar));
 
-        _validator.Validate(form, Answer(calendar.Id, "not-a-date"))[calendar.Id].Should().Be("Enter a valid date.");
+        _validator.Validate(form, [Value(calendar, "not-a-date")])[calendar.Id].Should().Be("Enter a valid date.");
     }
 
     [Fact]
@@ -136,7 +135,7 @@ public class SubmissionValidatorTests
         var calendar = Calendar(max: new DateOnly(2026, 1, 1));
         var form = Form(Page(calendar));
 
-        _validator.Validate(form, Answer(calendar.Id, "2026-02-01"))[calendar.Id]
+        _validator.Validate(form, [Value(calendar, "2026-02-01")])[calendar.Id]
             .Should().Be("Pick a date on or before 2026-01-01.");
     }
 
@@ -146,7 +145,7 @@ public class SubmissionValidatorTests
         var checkbox = Checkbox(required: true);
         var form = Form(Page(checkbox));
 
-        _validator.Validate(form, Answer(checkbox.Id, false))[checkbox.Id].Should().Be("An answer is required.");
+        _validator.Validate(form, [Bool(checkbox, false)])[checkbox.Id].Should().Be("An answer is required.");
     }
 
     [Fact]
@@ -155,7 +154,7 @@ public class SubmissionValidatorTests
         var checkbox = Checkbox(required: true);
         var form = Form(Page(checkbox));
 
-        _validator.Validate(form, Answer(checkbox.Id, true)).Should().BeEmpty();
+        _validator.Validate(form, [Bool(checkbox, true)]).Should().BeEmpty();
     }
 
     [Fact]
@@ -164,7 +163,7 @@ public class SubmissionValidatorTests
         var checkbox = Checkbox();
         var form = Form(Page(checkbox));
 
-        _validator.Validate(form, Answer(checkbox.Id, false)).Should().BeEmpty();
+        _validator.Validate(form, [Bool(checkbox, false)]).Should().BeEmpty();
     }
 
     [Fact]
@@ -173,7 +172,7 @@ public class SubmissionValidatorTests
         var dropDown = DropDown(required: true);
         var form = Form(Page(dropDown));
 
-        _validator.Validate(form, new Dictionary<Guid, object?>())[dropDown.Id].Should().Be("Select an option.");
+        _validator.Validate(form, [])[dropDown.Id].Should().Be("Select an option.");
     }
 
     [Fact]
@@ -182,7 +181,7 @@ public class SubmissionValidatorTests
         var radio = Radio(required: true);
         var form = Form(Page(radio));
 
-        _validator.Validate(form, Answer(radio.Id, radio.Options[0].Id)).Should().BeEmpty();
+        _validator.Validate(form, [Option(radio, radio.Options[0].Id)]).Should().BeEmpty();
     }
 
     [Fact]
@@ -191,7 +190,7 @@ public class SubmissionValidatorTests
         var group = Group(required: true, min: 1);
         var form = Form(Page(group));
 
-        _validator.Validate(form, Answer(group.Id, new HashSet<Guid>()))[group.Id].Should().Be("An answer is required.");
+        _validator.Validate(form, [])[group.Id].Should().Be("An answer is required.");
     }
 
     [Fact]
@@ -199,9 +198,9 @@ public class SubmissionValidatorTests
     {
         var group = Group(min: 2, max: 3);
         var form = Form(Page(group));
-        var picked = new HashSet<Guid> { group.Options[0].Id };
 
-        _validator.Validate(form, Answer(group.Id, picked))[group.Id].Should().Be("Choose between 2 and 3 options.");
+        _validator.Validate(form, [Option(group, group.Options[0].Id)])[group.Id]
+            .Should().Be("Choose between 2 and 3 options.");
     }
 
     [Fact]
@@ -209,9 +208,9 @@ public class SubmissionValidatorTests
     {
         var group = Group(max: 1);
         var form = Form(Page(group));
-        var picked = new HashSet<Guid> { group.Options[0].Id, group.Options[1].Id };
 
-        _validator.Validate(form, Answer(group.Id, picked))[group.Id].Should().Be("Choose at most 1.");
+        _validator.Validate(form, [Option(group, group.Options[0].Id), Option(group, group.Options[1].Id)])[group.Id]
+            .Should().Be("Choose at most 1.");
     }
 
     [Fact]
@@ -220,7 +219,7 @@ public class SubmissionValidatorTests
         var group = Group(min: 2);
         var form = Form(Page(group));
 
-        _validator.Validate(form, Answer(group.Id, new HashSet<Guid>())).Should().BeEmpty();
+        _validator.Validate(form, []).Should().BeEmpty();
     }
 
     [Fact]
@@ -229,9 +228,9 @@ public class SubmissionValidatorTests
         var text = TextArea(required: true);
         var number = Number(min: 0, max: 10);
         var form = Form(Page(text), Page(number));
-        var answers = new Dictionary<Guid, object?> { [text.Id] = "", [number.Id] = "50" };
 
-        _validator.Validate(form, answers).Should().ContainKeys(text.Id, number.Id);
+        _validator.Validate(form, [Value(text, ""), Value(number, "50")])
+            .Should().ContainKeys(text.Id, number.Id);
     }
 
     [Fact]
@@ -240,12 +239,64 @@ public class SubmissionValidatorTests
         var first = TextArea(required: true);
         var second = Number(required: true, min: 1);
         var form = Form(Page(first), Page(second));
-        var answers = new Dictionary<Guid, object?> { [first.Id] = "done", [second.Id] = "9" };
 
-        _validator.Validate(form, answers).Should().BeEmpty();
+        _validator.Validate(form, [Value(first, "done"), Value(second, "9")]).Should().BeEmpty();
     }
 
-    // ---- builders --------------------------------------------------------------
+    // ---- structural integrity (a stale or crafted message, never the client's UI) ---------
+
+    [Fact]
+    public void TestValidate_When_AnswerNamesAQuestionNotOnTheForm_Should_FlagIt()
+    {
+        var text = TextArea();
+        var form = Form(Page(text));
+        var stray = Guid.NewGuid();
+
+        _validator.Validate(form, [new ValueAnswerDto { QuestionId = stray, QuestionText = "?", Order = 0, Value = "x" }])[stray]
+            .Should().Be("This answer does not correspond to a question on the form.");
+    }
+
+    [Fact]
+    public void TestValidate_When_AnswerTypeDoesNotMatchTheQuestion_Should_FlagThatQuestion()
+    {
+        var number = Number();
+        var form = Form(Page(number));
+
+        _validator.Validate(form, [Bool(number, true)])[number.Id]
+            .Should().Be("The answer type does not match the question.");
+    }
+
+    [Fact]
+    public void TestValidate_When_ChosenOptionIsNotOnTheQuestion_Should_FlagThatQuestion()
+    {
+        var radio = Radio(required: true);
+        var form = Form(Page(radio));
+
+        _validator.Validate(form, [Option(radio, Guid.NewGuid())])[radio.Id]
+            .Should().Be("The selected option is not offered by this question.");
+    }
+
+    [Fact]
+    public void TestValidate_When_SingleChoiceHasMoreThanOneSelection_Should_FlagThatQuestion()
+    {
+        var radio = Radio(required: true);
+        var form = Form(Page(radio));
+
+        _validator.Validate(form, [Option(radio, radio.Options[0].Id), Option(radio, radio.Options[1].Id)])[radio.Id]
+            .Should().Be("Select only one option.");
+    }
+
+    [Fact]
+    public void TestValidate_When_CheckBoxGroupRepeatsAnOption_Should_FlagThatQuestion()
+    {
+        var group = Group(min: 1, max: 3);
+        var form = Form(Page(group));
+
+        _validator.Validate(form, [Option(group, group.Options[0].Id), Option(group, group.Options[0].Id)])[group.Id]
+            .Should().Be("Each option can only be chosen once.");
+    }
+
+    // ---- builders ------------------------------------------------------------------------
 
     private static PublishedFormDto Form(params FormPageDto[] pages) => new()
     {
@@ -327,5 +378,27 @@ public class SubmissionValidatorTests
         .Select(i => new QuestionOptionDto { Id = Guid.NewGuid(), Label = $"Option {i}", Order = i })
         .ToList();
 
-    private static Dictionary<Guid, object?> Answer(Guid questionId, object? value) => new() { [questionId] = value };
+    private static ValueAnswerDto Value(QuestionDto question, string? value) => new()
+    {
+        QuestionId = question.Id,
+        QuestionText = question.Text,
+        Order = 0,
+        Value = value,
+    };
+
+    private static BooleanAnswerDto Bool(QuestionDto question, bool @checked) => new()
+    {
+        QuestionId = question.Id,
+        QuestionText = question.Text,
+        Order = 0,
+        Checked = @checked,
+    };
+
+    private static OptionAnswerDto Option(QuestionDto question, Guid optionId) => new()
+    {
+        QuestionId = question.Id,
+        QuestionText = question.Text,
+        Order = 0,
+        OptionId = optionId,
+    };
 }

@@ -2,7 +2,7 @@ using Serilog;
 using PhieuFlow.FormFiller.Clients;
 using PhieuFlow.FormFiller.Components;
 using PhieuFlow.FormFiller.Submissions;
-using PhieuFlow.FormFiller.Validation;
+using PhieuFlow.Hub.Contracts.Submissions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,8 +43,9 @@ builder.Services.AddHttpClient<IHubFormsClient, HubFormsClient>(client =>
 builder.Services.AddScoped<ISubmissionPublisher, RabbitMqSubmissionPublisher>();
 
 // Client-side answer validation: the submission is published fire-and-forget (ADR 0009),
-// so FillPage must gate it against each question's constraints before it leaves.
-builder.Services.AddSingleton<SubmissionValidator>();
+// so FillPage must gate it against each question's constraints before it leaves. Same
+// validator the Hub consumer re-runs on the way in.
+builder.Services.AddSingleton<SubmissionAnswersValidator>();
 
 var app = builder.Build();
 

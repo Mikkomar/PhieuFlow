@@ -72,6 +72,57 @@ internal static class TestForms
         ],
     };
 
+    /// <summary>
+    /// One page, one question of every subtype, all <c>IsRequired = false</c> and carrying no
+    /// value/length/selection bounds. For the consumer "mechanics" tests (answer mapping,
+    /// inbox dedup, per-selection rows) that must persist a deliberately partial or empty
+    /// answer set now that <c>SubmissionMessageHandler</c> re-validates against the form.
+    /// </summary>
+    public static FormDto AllOptionalQuestions(Guid formId, string title) => new()
+    {
+        Id = formId,
+        Title = title,
+        Description = "Every question type, none required.",
+        CreatedAt = DateTimeOffset.UtcNow,
+        LastModifiedAt = DateTimeOffset.UtcNow,
+        Revision = 1,
+        VersionNumber = 1,
+        Status = FormVersionStatusDto.Draft,
+        Pages =
+        [
+            new FormPageDto
+            {
+                Id = Guid.NewGuid(),
+                Title = "Page 1",
+                Questions =
+                [
+                    new TextAreaQuestionDto { Id = Guid.NewGuid(), Text = "Free text", IsRequired = false },
+                    new CheckboxQuestionDto
+                    {
+                        Id = Guid.NewGuid(), Text = "Agree to terms", IsRequired = false, Label = "I agree",
+                    },
+                    new DropDownQuestionDto
+                    {
+                        Id = Guid.NewGuid(), Text = "Country", IsRequired = false,
+                        Options = Options("Finland", "Vietnam", "Peru"),
+                    },
+                    new RadioButtonQuestionDto
+                    {
+                        Id = Guid.NewGuid(), Text = "Contract", IsRequired = false,
+                        Options = Options("Permanent", "Fixed term"),
+                    },
+                    new CheckBoxGroupQuestionDto
+                    {
+                        Id = Guid.NewGuid(), Text = "Equipment", IsRequired = false,
+                        Options = Options("Laptop", "Monitor", "Headset", "Phone"),
+                    },
+                    new NumberQuestionDto { Id = Guid.NewGuid(), Text = "Shoe size (EU)", IsRequired = false },
+                    new CalendarQuestionDto { Id = Guid.NewGuid(), Text = "Start date", IsRequired = false },
+                ],
+            },
+        ],
+    };
+
     /// <summary>A minimal draft: one page, one text-area question.</summary>
     public static FormDto SingleTextQuestion(Guid formId, string title) => new()
     {

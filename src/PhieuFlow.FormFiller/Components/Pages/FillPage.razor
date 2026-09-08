@@ -1,7 +1,7 @@
 @page "/forms/{FormId:guid}"
 @inject IHubFormsClient HubFormsClient
 @inject ISubmissionPublisher SubmissionPublisher
-@inject SubmissionValidator SubmissionValidator
+@inject SubmissionAnswersValidator SubmissionAnswersValidator
 @inject ILogger<FillPage> Logger
 
 @if (_loading)
@@ -107,8 +107,8 @@ else
     private bool _submitted;
     private readonly Dictionary<Guid, object?> _answers = [];
 
-    // Populated by SubmissionValidator on a failed Submit / Continue; keyed by question id.
-    // Nothing is published while this is non-empty.
+    // Populated by SubmissionAnswersValidator on a failed Submit / Continue; keyed by
+    // question id. Nothing is published while this is non-empty.
     private Dictionary<Guid, string> _errors = [];
 
     private FormPageDto ActivePage => _form!.Pages[_currentPageIndex];
@@ -162,7 +162,7 @@ else
         // Gate page navigation on the current page's answers only; later pages are not
         // yet in view, so their questions must not block "Continue".
         var pageQuestionIds = ActivePage.Questions.Select(q => q.Id).ToHashSet();
-        var pageErrors = SubmissionValidator.Validate(_form!, _answers)
+        var pageErrors = SubmissionAnswersValidator.Validate(_form!, BuildAnswers())
             .Where(pair => pageQuestionIds.Contains(pair.Key))
             .ToDictionary(pair => pair.Key, pair => pair.Value);
 
@@ -207,8 +207,10 @@ else
         }
 
         // Nothing is published until every answer clears its question's constraints; the
-        // async RabbitMQ hop (ADR 0009) leaves the client as the only place to enforce them.
-        var errors = SubmissionValidator.Validate(_form, _answers);
+        // async RabbitMQ hop (ADR 0009) means the Hub can only dead-letter a bad submission
+        // after the fact, so the client is the first place to enforce them.
+        var payload = BuildAnswers();
+        var errors = SubmissionAnswersValidator.Validate(_form, payload);
         if (errors.Count > 0)
         {
             _errors = new Dictionary<Guid, string>(errors);
@@ -224,7 +226,7 @@ else
             {
                 FormId = _form.Id,
                 FormVersionNumber = _form.VersionNumber,
-                Answers = BuildAnswers(),
+                Answers = payload,
             });
             _submitted = true;
         }

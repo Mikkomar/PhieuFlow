@@ -4,6 +4,7 @@ using PhieuFlow.Core.Entities;
 using PhieuFlow.Hub.Contracts.Submissions;
 using PhieuFlow.Hub.Mapping;
 using PhieuFlow.Persistence;
+using PhieuFlow.Persistence.UnitOfWork;
 
 namespace PhieuFlow.Hub.Submissions;
 
@@ -16,6 +17,8 @@ namespace PhieuFlow.Hub.Submissions;
 /// </summary>
 public sealed class SubmissionMessageHandler(
     HubDbContext db,
+    IUnitOfWork unitOfWork,
+    SubmissionAnswersValidator validator,
     ILogger<SubmissionMessageHandler> logger)
 {
     public async Task<SubmissionProcessingResult> HandleAsync(
@@ -38,18 +41,30 @@ public sealed class SubmissionMessageHandler(
                 return SubmissionProcessingResult.DuplicateIgnored;
             }
 
-            // Unique index FormVersions(FormId, VersionNumber). A miss means the message
-            // names a form/version the Hub has never had — it can never succeed.
-            var formVersionId = await db.FormVersions
-                .Where(v => v.FormId == request.FormId && v.VersionNumber == request.FormVersionNumber)
-                .Select(v => (Guid?)v.Id)
-                .FirstOrDefaultAsync(cancellationToken);
+            // Load the exact published version this response was filled against. A miss means
+            // the message names a form/version the Hub has never published — it can never
+            // succeed. A published version is immutable, so this is a stable target.
+            var version = await unitOfWork.Forms.GetPublishedVersionAsync(
+                request.FormId, request.FormVersionNumber, cancellationToken);
 
-            if (formVersionId is null)
+            if (version is null)
             {
                 logger.LogWarning(
                     "Submission message {MessageId} names unknown form {FormId} v{VersionNumber}; dead-lettering.",
                     messageId, request.FormId, request.FormVersionNumber);
+                return SubmissionProcessingResult.Poison;
+            }
+
+            // Re-validate against the published form (ADR 0009). The client already checked,
+            // but the RabbitMQ hop is one-way, so a stale or crafted message arrives here
+            // unchecked — same validator the FormFiller runs before it publishes.
+            var validationErrors = validator.Validate(FormResponseMapper.ToPublishedDto(version), request.Answers);
+            if (validationErrors.Count > 0)
+            {
+                logger.LogWarning(
+                    "Submission message {MessageId} for form {FormId} v{VersionNumber} failed validation; dead-lettering. {Errors}",
+                    messageId, request.FormId, request.FormVersionNumber,
+                    string.Join("; ", validationErrors.Select(e => $"{e.Key}: {e.Value}")));
                 return SubmissionProcessingResult.Poison;
             }
 
@@ -73,7 +88,7 @@ public sealed class SubmissionMessageHandler(
             {
                 Id = submissionId,
                 FormId = request.FormId,
-                FormVersionId = formVersionId.Value,
+                FormVersionId = version.Id,
                 FormVersionNumber = request.FormVersionNumber,
                 SubmittedAt = DateTimeOffset.UtcNow,
                 Answers = answers,
