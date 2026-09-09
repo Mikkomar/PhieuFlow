@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
-using System.Text.Json;
 using AwesomeAssertions;
 using Microsoft.Playwright;
+using PhieuFlow.Hub.Contracts.Submissions;
 using PhieuFlow.Tests.E2E.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
@@ -9,50 +9,49 @@ using Xunit.Abstractions;
 namespace PhieuFlow.Tests.E2E.Submission;
 
 /// <summary>
-/// The form-filler validates against the copy it loaded. The hub re-validates on consume
-/// and, on a revision mismatch, flags the submission for review. Skipped until hub-side
-/// re-validation and the review flag exist.
+/// The form-filler validates answers against the form copy it loaded. The hub validates them
+/// again against the version the response names, not against any later, stricter version.
 /// </summary>
 public sealed class SubmissionStalenessTests(AppHostFixture fixture, ITestOutputHelper output)
     : E2ETestBase(fixture, output)
 {
-    private const string Blocker =
-        "hub re-validation on consume + flag-for-review on revision mismatch not implemented — ADR 0002";
-
-    [Fact(Skip = Blocker)]
-    [Trait("Category", "Future")]
-    public async Task TestSubmit_When_RevisionStaleOnConsume_Should_FlagSubmissionForReview()
+    [Fact]
+    public async Task TestSubmit_When_ConstraintTightenedByNewerVersionAfterLoad_Should_PersistAgainstLoadedVersion()
     {
         var builder = new FormBuilderPage(Page);
         var title = $"Stale {Guid.NewGuid():N}";
         await GotoFormBuilderAsync("/forms/new");
         await builder.SetTitleAsync(title);
-        await builder.AddQuestionAsync("Text area", "Optional note"); // starts optional
+        await builder.AddQuestionAsync("Text area", "Optional note"); // optional in v1
         await WaitForSavedAsync();
         await ClickPublishAsync();
         var id = await GetFormIdByTitleAsync(title);
 
-        // Respondent loads the form at its current revision and leaves the field blank.
+        // The respondent loads the published v1. The optional field stays blank.
         var filler = await Context.NewPageAsync();
-        await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
+        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
 
-        // Owner tightens the constraint (optional to required) and republishes.
+        // The owner makes the question required. That forks a v2 draft. A second publish
+        // makes v2 the current published version.
         await builder.OpenQuestionAsync("Optional note");
         await builder.ToggleRequiredAsync();
         await WaitForSavedAsync();
         await ClickPublishAsync();
 
-        // Respondent submits the stale copy, which passed its (now outdated) validation.
+        // The respondent sends the copy they loaded. The form-filler validates it against v1,
+        // where the field is optional, so the blank answer passes.
         await filler.GetByRole(AriaRole.Button, new() { Name = "Submit" }).ClickAsync();
         await Assertions.Expect(filler.GetByText("received")).ToBeVisibleAsync();
 
-        var submission = await PollForFirstSubmissionAsync(id);
-        submission.GetProperty("status").GetString().Should().Be("FlaggedForReview");
+        // The hub validates the response against v1, the version the respondent used, not
+        // against the stricter v2. It stores the response and links it to v1.
+        var submissions = await PollForSubmissionsAsync(id);
+        submissions.Should().ContainSingle();
+        submissions[0].FormVersionNumber.Should().Be(1);
     }
 
-    [Fact(Skip = Blocker)]
-    [Trait("Category", "Future")]
-    public async Task TestSubmit_When_RevisionCurrentOnConsume_Should_AcceptWithoutFlag()
+    [Fact]
+    public async Task TestSubmit_When_FilledAgainstCurrentVersion_Should_PersistWithAnswer()
     {
         var builder = new FormBuilderPage(Page);
         var title = $"Fresh {Guid.NewGuid():N}";
@@ -64,27 +63,29 @@ public sealed class SubmissionStalenessTests(AppHostFixture fixture, ITestOutput
         var id = await GetFormIdByTitleAsync(title);
 
         var filler = await Context.NewPageAsync();
-        await filler.GotoAsync(new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
-        await filler.GetByLabel("Note").FillAsync("all good");
+        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
+        await filler.GetByRole(AriaRole.Textbox).FillAsync("all good");
         await filler.GetByRole(AriaRole.Button, new() { Name = "Submit" }).ClickAsync();
         await Assertions.Expect(filler.GetByText("received")).ToBeVisibleAsync();
 
-        var submission = await PollForFirstSubmissionAsync(id);
-        submission.GetProperty("status").GetString().Should().Be("Accepted");
+        var submissions = await PollForSubmissionsAsync(id);
+        submissions.Should().ContainSingle();
+        submissions[0].FormVersionNumber.Should().Be(1);
+        submissions[0].Answers.Should().ContainSingle(a => a.QuestionText == "Note" && a.Value == "all good");
     }
 
-    private async Task<JsonElement> PollForFirstSubmissionAsync(Guid formId, int attempts = 20)
+    private async Task<IReadOnlyList<SubmissionListItemDto>> PollForSubmissionsAsync(Guid formId, int attempts = 20)
     {
-        using var client = Fixture.CreateHubClient();
+        using var client = await Fixture.CreateAuthorizedHubClientAsync("submissions:read");
         for (var i = 0; i < attempts; i++)
         {
             var response = await client.GetAsync($"/forms/{formId}/submissions");
             if (response.IsSuccessStatusCode)
             {
-                var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
-                if (doc.ValueKind == JsonValueKind.Array && doc.GetArrayLength() > 0)
+                var batch = await response.Content.ReadFromJsonAsync<SubmissionBatchResponse>();
+                if (batch is { Items.Count: > 0 })
                 {
-                    return doc[0];
+                    return batch.Items;
                 }
             }
 
