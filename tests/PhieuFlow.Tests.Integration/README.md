@@ -1,50 +1,61 @@
 # PhieuFlow.Tests.Integration
 
-Two tiers, one project. Both run under `dotnet test tests/PhieuFlow.Tests.Integration`.
+Two tiers in one project. `dotnet test tests/PhieuFlow.Tests.Integration` runs
+both.
 
-## `integration-sql` — endpoints + persistence against real SQL Server
+## `integration-sql` — endpoints and persistence against real SQL Server
 
-The form-management endpoints (`FormCreateTests`, `FormSaveTests`, `FormPublishGateTests`,
-…) driven over HTTP against a hub hosted in-process, backed by a **real SQL Server
-database built by the production migration chain**. Authentication is replaced with a
-scheme that always authorizes (`TestAuthHandler`) — this tier tests the endpoints and what
-they persist, not token validation.
+These tests drive the form-management endpoints over HTTP. Examples:
+`FormCreateTests`, `FormSaveTests`, `FormPublishGateTests`. The Hub runs in
+process. A real SQL Server database backs it. `MigrationService` builds the
+schema with the production migration chain. A test auth scheme (`TestAuthHandler`)
+always authorizes. This tier tests the endpoints and what they persist, not
+token validation.
 
 | Path | Purpose |
 | --- | --- |
-| `../PhieuFlow.Tests.IntegrationAppHost` | Minimal Aspire topology: a SQL Server container + the `MigrationService` worker, nothing else. |
-| `Infrastructure/SqlServerFixture.cs` | Starts that topology once for the collection via `Aspire.Hosting.Testing`, waits for `migrations` to finish, exposes the connection string + the in-process hub. Turns on `TestServer.PreserveExecutionContext` so the per-test `TransactionScope` flows into the pipeline. |
-| `Infrastructure/IntegrationWebApplicationFactory.cs` | Hosts the hub in-process. Re-pins `HubDbContext` to one shared `SqlConnection` (so a per-test `TransactionScope` never needs MSDTC) and swaps in `TestAuthHandler`. |
-| `Infrastructure/IntegrationCollection.cs` | `[Collection("integration-sql")]` — one serial collection sharing the fixture. |
-| `Infrastructure/IntegrationTestBase.cs` | Wraps each test in a `TransactionScope` disposed without `Complete()`, so every write rolls back and the next test starts from the migrated-but-empty schema. |
-| `Infrastructure/TestForms.cs` | Shared `FormDto` builders — the all-question-types form that drives every mapper / reconcile / clone switch arm. |
-| `MigrationModelTests.cs` | Guards that migrations (not `EnsureCreated`) define the schema and still match the model. |
-| `TransactionIsolationTests.cs` | Guards that the rollback actually happens. |
+| `../PhieuFlow.Tests.IntegrationAppHost` | A minimal Aspire topology: one SQL Server container and the `MigrationService` worker. Nothing else. |
+| `Infrastructure/SqlServerFixture.cs` | Starts that topology one time for the collection with `Aspire.Hosting.Testing`. Waits for `migrations` to finish. Exposes the connection string and the in-process Hub. Turns on `TestServer.PreserveExecutionContext` so the per-test `TransactionScope` flows into the pipeline. |
+| `Infrastructure/IntegrationWebApplicationFactory.cs` | Hosts the Hub in process. Pins `HubDbContext` to one shared `SqlConnection` so a per-test `TransactionScope` does not need MSDTC. Swaps in `TestAuthHandler`. |
+| `Infrastructure/IntegrationCollection.cs` | `[Collection("integration-sql")]`. One serial collection shares the fixture. |
+| `Infrastructure/IntegrationTestBase.cs` | Wraps each test in a `TransactionScope` that disposes without `Complete()`. Every write rolls back. The next test starts from the migrated but empty schema. |
+| `Infrastructure/TestForms.cs` | Shared `FormDto` builders. The all-question-types form drives every mapper, reconcile, and clone branch. |
+| `Infrastructure/SubmissionSeed.cs` | Writes a `FormSubmission` row directly through `HubDbContext`. A fast shortcut for a test that only needs a form to have a submission. |
+| `MigrationModelTests.cs` | Checks that the migrations define the schema, not `EnsureCreated`, and that they still match the model. |
+| `TransactionIsolationTests.cs` | Checks that the rollback happens. |
 
-Coverage-gap classes added for the provider-dependent logic that unit tests can't reach:
+Coverage-gap classes for the provider-dependent logic that unit tests cannot
+reach:
 
 | Class | Covers |
 | --- | --- |
-| `FormListTests` | `GET /forms` / `GetBatchAsync` — the Guid cursor (SQL Server `uniqueidentifier` order), `take` range, `PageCount`/`QuestionCount` aggregates, the latest-published pointer, the `HasSubmissions` flag. |
-| `FormQuestionTypesTests` | every `QuestionDto` subtype persisted and read back (`QuestionMapper` both ways, TPH discriminator — `Checkbox`/`CheckBoxGroup` are otherwise never persisted — `decimal(18,4)`, `DateOnly`). |
-| `FormReconcileTests` | `ReconcilePages`/`ReconcileQuestions`/`ReconcileOptions`/`UpdateQuestionFields` under the real EF change tracker; the question-type-change guard. |
-| `FormDeleteTests` (`…HasASubmission…`) | the `FormSubmission` `Restrict` FK — a delete that would destroy response data is refused with 409. |
+| `FormListTests` | `GET /forms` and `GetBatchAsync`: the Guid cursor (SQL Server `uniqueidentifier` order), the `take` range, the `PageCount` and `QuestionCount` aggregates, the latest-published pointer, and the `HasSubmissions` flag. |
+| `FormQuestionTypesTests` | Every `QuestionDto` subtype persisted and read back: `QuestionMapper` both ways, the TPH discriminator, `decimal(18,4)`, and `DateOnly`. `Checkbox` and `CheckBoxGroup` are otherwise never persisted. |
+| `FormReconcileTests` | `ReconcilePages`, `ReconcileQuestions`, `ReconcileOptions`, and `UpdateQuestionFields` under the real EF change tracker. Also the question-type-change guard. |
+| `FormDeleteTests` | The `FormSubmission` `Restrict` foreign key. A delete that would destroy submission data returns 409. |
+| `SubmissionConsumeTests` | `SubmissionMessageHandler` against the real database. This is the persistence half of the RabbitMQ consumer, with no broker. Covers typed-answer mapping, inbox dedup, and the poison classifications. |
+| `SubmissionListTests` | `GET /forms/{id}/submissions`: a keyset-paged batch of persisted submissions. Answers are display strings. Option ids resolve to labels. |
 
-One test deliberately asserts an **HTTP 500** (`FormReconcileTests.TestSaveAsync_When_AQuestionChangesType…`) —
-an unhandled-exception path the Hub should translate to a 4xx; the `// TODO` on it says so.
-(`FormDeleteTests.TestDelete_When_FormHasASubmission…` used to be the second; it now asserts
-the 409 the endpoint returns after pre-checking for submissions.)
+One test asserts an **HTTP 500** on purpose
+(`FormReconcileTests.TestSaveAsync_When_AQuestionChangesType_Should_Return500`).
+A question that changes type makes `ReconcileQuestions` throw, and the Hub
+returns a bare 500. It should return a 400 or 409. The `// TODO` on the test
+says so.
 
-The async submission boundary (RabbitMQ) is left to the E2E suite.
+The ack and nack transport wiring for the consumer has no automated test. A
+manual check covers it. The full async submission flow is in the E2E suite.
 
-**Needs Docker** (SQL Server container). First run pulls `mcr.microsoft.com/mssql/server`.
+**Needs Docker** for the SQL Server container. The first run pulls
+`mcr.microsoft.com/mssql/server`.
 
 ## `integration-auth` — the auth pipeline
 
-`HubAuthorizationTests` — the hub in-process with the real JWT bearer rebound offline
-(`HubAuthWebApplicationFactory` + `TestJwt`) and in-memory SQLite. Asserts 401/403/200 on
-the auth boundary, including negatives a real IdP can't cheaply mint (expired, garbage,
-unknown key, wrong audience, `scp`-claim). **No Docker.**
+`HubAuthorizationTests` runs the Hub in process with the real JWT bearer
+middleware rebound for offline validation (`HubAuthWebApplicationFactory` and
+`TestJwt`) and in-memory SQLite. It asserts 401, 403, and 200 on the auth
+boundary. It covers negatives that a real identity provider cannot mint cheaply:
+an expired token, a garbage token, an unknown signing key, a wrong audience, and
+a bad scope claim. **No Docker.**
 
 ```
 dotnet test tests/PhieuFlow.Tests.Integration --filter "FullyQualifiedName~HubAuthorizationTests"
@@ -52,6 +63,7 @@ dotnet test tests/PhieuFlow.Tests.Integration --filter "FullyQualifiedName~HubAu
 
 ## Conventions
 
-- Assertions use **AwesomeAssertions** (`actual.Should()....`), never xUnit `Assert.*`.
-- Test names: `Test<Operation>_When_<condition>_Should_<outcome>`, keywords fenced by
-  underscores. See `CLAUDE.md`.
+- Assertions use **AwesomeAssertions** (`actual.Should()....`). Do not use xUnit
+  `Assert.*`.
+- Test names use the pattern `Test<Operation>_When_<condition>_Should_<outcome>`.
+  Underscores fence the keywords. See `CLAUDE.md`.
