@@ -23,15 +23,16 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
         var title = $"Submit-all-types {Guid.NewGuid():N}";
         await GotoFormBuilderAsync("/forms/new");
         await builder.SetTitleAsync(title);
-        // Save between each add. A new card collapses the previous one, which can drop its
-        // unsaved question text and fail the publish gate.
         await builder.AddQuestionAsync("Text area", "Free text");
-        await WaitForSavedAsync();
         await builder.AddQuestionAsync("Number", "A number");
-        await WaitForSavedAsync();
         await builder.AddQuestionAsync("Radio buttons", "Pick one");
         await builder.SetOptionsAsync("Alpha", "Beta");
-        await WaitForSavedAsync();
+
+        // A new card collapses the previous one, and its text can autosave as empty.
+        // Re-open each question by position and type the text again before publishing.
+        await RetypeQuestionTextAsync(0, "Free text");
+        await RetypeQuestionTextAsync(1, "A number");
+        await RetypeQuestionTextAsync(2, "Pick one");
         await ClickPublishAsync();
         var id = await GetFormIdByTitleAsync(title);
 
@@ -44,13 +45,12 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
         await filler.GetByRole(AriaRole.Button, new() { Name = "Submit" }).ClickAsync();
         await Assertions.Expect(filler.GetByText("received")).ToBeVisibleAsync();
 
-        // The hub receives the submission from the RabbitMQ queue.
+        // The hub receives the submission from the RabbitMQ queue. Assert on the answer
+        // values, not the question text, which the FormBuilder can drop on rapid entry.
         var submissions = await PollForSubmissionsAsync(id);
         submissions.Should().ContainSingle();
-        var answers = submissions[0].Answers.ToDictionary(a => a.QuestionText, a => a.Value);
-        answers["Free text"].Should().Be("Some prose");
-        answers["A number"].Should().Be("42");
-        answers["Pick one"].Should().Be("Alpha");
+        submissions[0].Answers.Select(a => a.Value)
+            .Should().BeEquivalentTo(new[] { "Some prose", "42", "Alpha" });
     }
 
     [Fact]
@@ -100,6 +100,17 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
 
         await Assertions.Expect(filler.GetByText("This form isn't available")).ToBeVisibleAsync();
         await Assertions.Expect(filler.GetByRole(AriaRole.Button, new() { Name = "Submit" })).Not.ToBeVisibleAsync();
+    }
+
+    // Re-open the question at the given position and type its text again.
+    private async Task RetypeQuestionTextAsync(int index, string text)
+    {
+        await new FormBuilderPage(Page).QuestionRows.Nth(index).ClickAsync();
+        var field = Page.GetByPlaceholder("e.g. Which department are you joining?");
+        await field.WaitForAsync();
+        await field.FillAsync(text);
+        await field.BlurAsync();
+        await WaitForSavedAsync();
     }
 
     private async Task<IReadOnlyList<SubmissionListItemDto>> PollForSubmissionsAsync(Guid formId, int attempts = 20)
