@@ -29,7 +29,7 @@ public sealed class SubmissionStalenessTests(AppHostFixture fixture, ITestOutput
 
         // The respondent loads the published v1. The optional field stays blank.
         var filler = await Context.NewPageAsync();
-        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
+        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl, $"/forms/{id}").ToString());
 
         // The owner makes the question required. That forks a v2 draft. A second publish
         // makes v2 the current published version.
@@ -63,7 +63,7 @@ public sealed class SubmissionStalenessTests(AppHostFixture fixture, ITestOutput
         var id = await GetFormIdByTitleAsync(title);
 
         var filler = await Context.NewPageAsync();
-        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
+        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl, $"/forms/{id}").ToString());
         await filler.GetByRole(AriaRole.Textbox).FillAsync("all good");
         await filler.GetByRole(AriaRole.Button, new() { Name = "Submit" }).ClickAsync();
         await Assertions.Expect(filler.GetByText("received")).ToBeVisibleAsync();

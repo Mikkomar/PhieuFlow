@@ -38,11 +38,8 @@ public sealed class AppHostFixture : IAsyncLifetime
     /// <summary>Base URL of the Keycloak identity provider.</summary>
     public Uri KeycloakBaseUrl { get; private set; } = null!;
 
-    /// <summary>
-    /// Base URL of the form-filler UI. The resource does not exist yet. The skipped
-    /// submission specs read this and resolve once it is added to AppHost.
-    /// </summary>
-    public Uri? FormFillerBaseUrl { get; private set; }
+    /// <summary>Base URL of the running form-filler UI. The submission tests navigate to it.</summary>
+    public Uri FormFillerBaseUrl { get; private set; } = null!;
 
     /// <summary>
     /// Bare HTTP client for the hub REST API, no bearer token. Use it only to assert the
@@ -129,10 +126,11 @@ public sealed class AppHostFixture : IAsyncLifetime
         await notifications.WaitForResourceHealthyAsync("keycloak", startupCts.Token);
         await notifications.WaitForResourceHealthyAsync("hub", startupCts.Token);
         await notifications.WaitForResourceHealthyAsync("formbuilder", startupCts.Token);
+        await notifications.WaitForResourceHealthyAsync("formfiller", startupCts.Token);
 
         FormBuilderBaseUrl = _app.GetEndpoint("formbuilder", "http");
         KeycloakBaseUrl = _app.GetEndpoint("keycloak", "http");
-        FormFillerBaseUrl = TryGetEndpoint("formfiller", "http");
+        FormFillerBaseUrl = _app.GetEndpoint("formfiller", "http");
 
         _playwright = await Playwright.CreateAsync();
         Browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
@@ -150,19 +148,6 @@ public sealed class AppHostFixture : IAsyncLifetime
         if (_app is not null)
         {
             await _app.DisposeAsync();
-        }
-    }
-
-    private Uri? TryGetEndpoint(string resourceName, string endpointName)
-    {
-        try
-        {
-            return _app.GetEndpoint(resourceName, endpointName);
-        }
-        catch (Exception)
-        {
-            // Resource not in the topology yet, expected until the form-filler ships.
-            return null;
         }
     }
 

@@ -38,7 +38,7 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
 
         // Context B: the respondent fills the form and sends it.
         var filler = await Context.NewPageAsync();
-        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
+        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl, $"/forms/{id}").ToString());
         await filler.GetByRole(AriaRole.Textbox).FillAsync("Some prose");
         await filler.GetByRole(AriaRole.Spinbutton).FillAsync("42");
         await filler.GetByRole(AriaRole.Radio, new() { Name = "Alpha" }).CheckAsync();
@@ -68,7 +68,7 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
 
         // The respondent loads the published v1.
         var filler = await Context.NewPageAsync();
-        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
+        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl, $"/forms/{id}").ToString());
         await filler.GetByRole(AriaRole.Textbox).FillAsync("answer");
 
         // The builder forks v2 before the respondent sends the form.
@@ -96,7 +96,7 @@ public sealed class SubmissionFlowTests(AppHostFixture fixture, ITestOutputHelpe
         // The respondent cannot fill a draft-only form. The form-filler shows an unavailable
         // notice and no Submit button.
         var filler = await Context.NewPageAsync();
-        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
+        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl, $"/forms/{id}").ToString());
 
         await Assertions.Expect(filler.GetByText("This form isn't available")).ToBeVisibleAsync();
         await Assertions.Expect(filler.GetByRole(AriaRole.Button, new() { Name = "Submit" })).Not.ToBeVisibleAsync();

@@ -29,7 +29,7 @@ public sealed class SubmissionValidationFlowTests(AppHostFixture fixture, ITestO
 
         // Context B: the respondent submits without answering.
         var filler = await Context.NewPageAsync();
-        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl!, $"/forms/{id}").ToString());
+        await NavigateAsync(filler, new Uri(Fixture.FormFillerBaseUrl, $"/forms/{id}").ToString());
         await filler.GetByRole(AriaRole.Button, new() { Name = "Submit" }).ClickAsync();
 
         // The message is never sent. The respondent stays on the form with an error shown.
