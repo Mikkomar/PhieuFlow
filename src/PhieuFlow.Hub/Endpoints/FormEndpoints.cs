@@ -6,6 +6,7 @@ public static class FormEndpoints
     public static void MapFormEndpoints(this WebApplication app)
     {
         app.MapFormManagementEndpoints();
+        app.MapFormVersionEndpoints();
         app.MapFormPublishEndpoints();
         app.MapPublishedFormEndpoints();
         app.MapFormSubmissionEndpoints();

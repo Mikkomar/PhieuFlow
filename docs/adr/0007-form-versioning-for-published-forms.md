@@ -201,3 +201,6 @@ risk for this project's scope — always forking is simpler and always safe.
 - This is a schema change with no production data at stake (3 migrations in,
   portfolio project), so it's a clean migration rather than a data-backfill
   problem.
+- Any version's frozen tree is readable over HTTP via
+  `GET /forms/{id}/versions/{n}` (`forms:read`, any status), so the builder
+  can show a past version without mutating it.

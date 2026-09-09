@@ -111,8 +111,7 @@ public sealed class FormVersioningFlowTests(AppHostFixture fixture, ITestOutputH
         listItem.Status.Should().Be(FormVersionStatusDto.Published);
     }
 
-    [Fact(Skip = "no GET /forms/{id}/versions/{n} endpoint to read a historical version's tree — ADR 0007")]
-    [Trait("Category", "Future")]
+    [Fact]
     public async Task TestFormVersion_When_DraftForkedFromPublished_Should_LeavePublishedTreeUnchanged()
     {
         var builder = new FormBuilderPage(Page);
@@ -121,19 +120,30 @@ public sealed class FormVersioningFlowTests(AppHostFixture fixture, ITestOutputH
         await GotoFormBuilderAsync("/forms/new");
         await builder.SetTitleAsync(title);
         await builder.AddQuestionAsync("Text area", "Question A");
-        await builder.AddQuestionAsync("Text area", "Question B");
         await WaitForSavedAsync();
         await ClickPublishAsync();
         var id = await GetFormIdByTitleAsync(title);
 
-        // Fork v2 and delete a question from it.
-        await builder.DeleteQuestionAsync("Question B");
+        // The first edit after publish forks a v2 draft. Rewrite the question's text in v2.
+        // If v1 is immutable, the versions endpoint still returns "Question A" for v1.
+        var questionText = Page.GetByPlaceholder("e.g. Which department are you joining?");
+        await questionText.FillAsync("Question A rewritten in v2");
+        await questionText.BlurAsync();
         await WaitForSavedAsync();
 
-        using var client = Fixture.CreateHubClient();
+        using var client = await Fixture.CreateAuthorizedHubClientAsync();
         var v1 = await client.GetFromJsonAsync<FormDto>($"/forms/{id}/versions/1");
+        var v2 = await client.GetFromJsonAsync<FormDto>($"/forms/{id}/versions/2");
+
         v1.Should().NotBeNull();
-        v1!.Pages[0].Questions.Select(q => q.Text).Should().Equal("Question A", "Question B");
+        v1!.VersionNumber.Should().Be(1);
+        v1.Status.Should().Be(FormVersionStatusDto.Published);
+        v1.Pages[0].Questions.Select(q => q.Text).Should().Equal("Question A");
+
+        v2.Should().NotBeNull();
+        v2!.VersionNumber.Should().Be(2);
+        v2.Status.Should().Be(FormVersionStatusDto.Draft);
+        v2.Pages[0].Questions.Select(q => q.Text).Should().Equal("Question A rewritten in v2");
     }
 
     [Fact]

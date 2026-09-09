@@ -143,6 +143,37 @@ public sealed class HubAuthorizationTests(HubAuthWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task TestGetFormVersion_Without_BearerToken_Should_Return401()
+    {
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/forms/{Guid.NewGuid()}/versions/1");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task TestGetFormVersion_When_TokenHasOnlyPublishedFormsReadScope_Should_Return403()
+    {
+        using var client = factory.CreateClientWithToken(TestJwt.Create(scope: "published-forms:read"));
+
+        var response = await client.GetAsync($"/forms/{Guid.NewGuid()}/versions/1");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task TestGetFormVersion_When_TokenHasFormsReadScope_Should_PassAuthorization()
+    {
+        using var client = factory.CreateClientWithToken(TestJwt.Create(scope: "forms:read"));
+
+        var response = await client.GetAsync($"/forms/{Guid.NewGuid()}/versions/1");
+
+        // Authorization passed. The unknown form is a 404 from the endpoint, not a 403.
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task TestGetFormSubmissions_Without_BearerToken_Should_Return401()
     {
         using var client = factory.CreateClient();
